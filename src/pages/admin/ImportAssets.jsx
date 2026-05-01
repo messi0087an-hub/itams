@@ -7,6 +7,7 @@ export default function ImportAssets() {
   const [preview, setPreview] = useState([])
   const [imported, setImported] = useState(false)
   const [count, setCount] = useState(0)
+  const [importedCount, setImportedCount] = useState(0)
 
   const handleFile = (e) => {
     const file = e.target.files[0]
@@ -23,36 +24,42 @@ export default function ImportAssets() {
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })
 
       const assets = []
+      const seenSerials = new Set()
+
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
         if (!row[0] || row[0] === "ITEM") continue
 
         const name = row[0]
-        const serial = row[1]
-        const usage = row[4]
-        const assetTag = row[5]
-        const remarks = row[6]
+        if (!name || typeof name !== "string") continue
 
-        if (name && typeof name === "string") {
-          assets.push({
-            name,
-            serial_number: serial ? String(serial) : null,
-            assigned_user: usage ? String(usage) : null,
-            asset_tag: assetTag ? String(assetTag) : null,
-            remarks: remarks ? String(remarks) : null,
-            category: name.toLowerCase().includes("laptop") || 
-                      name.toLowerCase().includes("lenovo") || 
-                      name.toLowerCase().includes("dell") || 
-                      name.toLowerCase().includes("hp") ||
-                      name.toLowerCase().includes("asus") ||
-                      name.toLowerCase().includes("apple") ||
-                      name.toLowerCase().includes("surface") ? "Laptop" : "Desktop",
-            status: "available",
-            country: "Singapore",
-            location: "Singapore"
-          })
+        let serial = row[1] ? String(row[1]).trim() : null
+        const usage = row[4] ? String(row[4]).trim() : null
+        const assetTag = row[5] ? String(row[5]).trim() : null
+        const remarks = row[6] ? String(row[6]).trim() : null
+
+        // Make serial unique by appending index if duplicate
+        if (serial && seenSerials.has(serial)) {
+          serial = `${serial}_${i}`
         }
+        if (serial) seenSerials.add(serial)
+
+        const category = 
+          name.toLowerCase().includes("desktop") ? "Desktop" : "Laptop"
+
+        assets.push({
+          name: name.trim(),
+          serial_number: serial || null,
+          assigned_user: usage || null,
+          asset_tag: assetTag || null,
+          remarks: remarks || null,
+          category,
+          status: "available",
+          country: "Singapore",
+          location: "Singapore"
+        })
       }
+
       setPreview(assets.slice(0, 5))
       setCount(assets.length)
       window._importData = assets
@@ -64,14 +71,19 @@ export default function ImportAssets() {
     if (!window._importData || window._importData.length === 0) return
     setLoading(true)
 
-    const batchSize = 50
     const data = window._importData
-    for (let i = 0; i < data.length; i += batchSize) {
-      const batch = data.slice(i, i + batchSize)
-      await supabase.from("assets").insert(batch)
+    let successCount = 0
+
+    for (let i = 0; i < data.length; i++) {
+      const { error } = await supabase.from("assets").insert([data[i]])
+      if (!error) {
+        successCount++
+      }
+      setImportedCount(successCount)
     }
 
     setImported(true)
+    setImportedCount(successCount)
     setLoading(false)
   }
 
@@ -82,7 +94,13 @@ export default function ImportAssets() {
 
       {imported && (
         <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">
-          ✅ Successfully imported {count} assets into ITAMS!
+          ✅ Successfully imported {importedCount} out of {count} assets!
+        </div>
+      )}
+
+      {loading && (
+        <div className="bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg px-4 py-3 mb-6">
+          ⏳ Importing... {importedCount} / {count} assets done
         </div>
       )}
 
@@ -130,9 +148,9 @@ export default function ImportAssets() {
           <button
             onClick={handleImport}
             disabled={loading}
-            className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-all"
+            className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-all disabled:opacity-50"
           >
-            {loading ? "Importing..." : `Import All ${count} Assets`}
+            {loading ? `Importing ${importedCount}/${count}...` : `Import All ${count} Assets`}
           </button>
         </div>
       )}

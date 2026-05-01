@@ -6,6 +6,7 @@ const navItems = [
   { label: "All Assets", path: "/admin/assets" },
   { label: "Add Asset", path: "/admin/add-asset" },
   { label: "Import Assets", path: "/admin/import" },
+  { label: "Borrow / Return", path: "/admin/borrow" },
   { label: "Issues", path: "/admin/issues" },
   { label: "Reports", path: "/admin/reports" },
 ]

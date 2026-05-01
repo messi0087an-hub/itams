@@ -10,6 +10,7 @@ import ImportAssets from "./pages/admin/ImportAssets"
 import AssetDetail from "./pages/admin/AssetDetail"
 import Issues from "./pages/admin/Issues"
 import Reports from "./pages/admin/Reports"
+import Borrow from "./pages/admin/Borrow"
 
 function LoginPage() {
   const [email, setEmail] = useState("")
@@ -85,6 +86,7 @@ function AdminLayout() {
           <Route path="/admin/import" element={<ImportAssets />} />
           <Route path="/admin/issues" element={<Issues />} />
           <Route path="/admin/reports" element={<Reports />} />
+          <Route path="/admin/borrow" element={<Borrow />} />
           <Route path="*" element={<Navigate to="/admin" />} />
         </Routes>
       </main>
