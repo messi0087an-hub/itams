@@ -5,8 +5,9 @@ import Sidebar from "./components/Sidebar"
 import Dashboard from "./pages/admin/Dashboard"
 import Assets from "./pages/admin/Assets"
 import AddAsset from "./pages/admin/AddAsset"
+import EditAsset from "./pages/admin/EditAsset"
 
-function LoginPage({ onLogin }) {
+function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
@@ -75,6 +76,7 @@ function AdminLayout() {
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/assets" element={<Assets />} />
           <Route path="/admin/add-asset" element={<AddAsset />} />
+          <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
           <Route path="*" element={<Navigate to="/admin" />} />
         </Routes>
       </main>
