@@ -5,6 +5,10 @@ const navItems = [
   { label: "Dashboard", path: "/admin" },
   { label: "All Assets", path: "/admin/assets" },
   { label: "Add Asset", path: "/admin/add-asset" },
+  { label: "Import Assets", path: "/admin/import" },
+  { label: "Issues", path: "/admin/issues" },
+  { label: "Reports", path: "/admin/reports" },
+  { label: "Settings", path: "/admin/settings" },
 ]
 
 export default function Sidebar() {
