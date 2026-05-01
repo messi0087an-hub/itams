@@ -8,7 +8,6 @@ const navItems = [
   { label: "Import Assets", path: "/admin/import" },
   { label: "Issues", path: "/admin/issues" },
   { label: "Reports", path: "/admin/reports" },
-  { label: "Settings", path: "/admin/settings" },
 ]
 
 export default function Sidebar() {
