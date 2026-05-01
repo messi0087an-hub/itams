@@ -3,10 +3,7 @@ import { supabase } from "../../lib/supabase"
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
-    totalAssets: 0,
-    available: 0,
-    assigned: 0,
-    issues: 0
+    totalAssets: 0, available: 0, assigned: 0, issues: 0
   })
   const [recentAssets, setRecentAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -17,42 +14,52 @@ export default function Dashboard() {
   }, [])
 
   const fetchStats = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("status")
-
+    const { data } = await supabase.from("assets").select("status")
     const total = data?.length || 0
     const available = data?.filter(a => a.status === "available").length || 0
     const assigned = data?.filter(a => a.status === "assigned").length || 0
-
     const { data: issuesData } = await supabase
-      .from("issues")
-      .select("status")
-      .eq("status", "open")
-
-    setStats({
-      totalAssets: total,
-      available,
-      assigned,
-      issues: issuesData?.length || 0
-    })
+      .from("issues").select("status").eq("status", "open")
+    setStats({ totalAssets: total, available, assigned, issues: issuesData?.length || 0 })
     setLoading(false)
   }
 
   const fetchRecentAssets = async () => {
     const { data } = await supabase
-      .from("assets")
-      .select("*")
-      .order("created_at", { ascending: false })
-      .limit(5)
+      .from("assets").select("*")
+      .order("created_at", { ascending: false }).limit(5)
     setRecentAssets(data || [])
   }
 
   const cards = [
-    { label: "Total Assets", value: stats.totalAssets, color: "border-blue-500/20 text-blue-400" },
-    { label: "Available", value: stats.available, color: "border-green-500/20 text-green-400" },
-    { label: "Assigned", value: stats.assigned, color: "border-purple-500/20 text-purple-400" },
-    { label: "Open Issues", value: stats.issues, color: "border-red-500/20 text-red-400" },
+    {
+      label: "Total Assets",
+      value: stats.totalAssets,
+      bg: "bg-blue-600",
+      shadow: "shadow-blue-500/20",
+      emoji: "📦"
+    },
+    {
+      label: "Available",
+      value: stats.available,
+      bg: "bg-green-600",
+      shadow: "shadow-green-500/20",
+      emoji: "✅"
+    },
+    {
+      label: "Assigned",
+      value: stats.assigned,
+      bg: "bg-purple-600",
+      shadow: "shadow-purple-500/20",
+      emoji: "👤"
+    },
+    {
+      label: "Open Issues",
+      value: stats.issues,
+      bg: "bg-red-600",
+      shadow: "shadow-red-500/20",
+      emoji: "⚠️"
+    },
   ]
 
   return (
@@ -64,8 +71,11 @@ export default function Dashboard() {
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
         {cards.map((card) => (
-          <div key={card.label} className={`rounded-xl p-6 border ${card.color} bg-gray-900`}>
-            <p className="text-gray-400 text-sm mb-4">{card.label}</p>
+          <div key={card.label} className={`${card.bg} rounded-2xl p-6 shadow-lg ${card.shadow}`}>
+            <div className="flex items-center justify-between mb-4">
+              <span className="text-white/70 text-sm font-medium">{card.label}</span>
+              <span className="text-2xl">{card.emoji}</span>
+            </div>
             <p className="text-4xl font-bold text-white">
               {loading ? "..." : card.value}
             </p>
@@ -73,8 +83,11 @@ export default function Dashboard() {
         ))}
       </div>
 
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-        <h2 className="text-white font-semibold mb-4">Recently Added Assets</h2>
+      <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+        <div className="flex items-center justify-between mb-6">
+          <h2 className="text-white font-semibold text-lg">Recently Added Assets</h2>
+          <span className="text-gray-500 text-sm">Last 5 assets</span>
+        </div>
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
@@ -86,8 +99,8 @@ export default function Dashboard() {
           </thead>
           <tbody>
             {recentAssets.map((asset) => (
-              <tr key={asset.id} className="border-b border-gray-800">
-                <td className="py-3 text-white text-sm">{asset.name}</td>
+              <tr key={asset.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-all">
+                <td className="py-3 text-white text-sm font-medium">{asset.name}</td>
                 <td className="py-3 text-gray-400 text-sm">{asset.category || "—"}</td>
                 <td className="py-3 text-gray-400 text-sm">{asset.assigned_user || "—"}</td>
                 <td className="py-3">

@@ -28,45 +28,62 @@ function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4">
-      <div className="w-full max-w-md">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold text-white mb-2">ITAMS</h1>
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+
+      <div className="w-full max-w-md relative z-10">
+        <div className="text-center mb-10">
+          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30">
+            <span className="text-white text-2xl font-bold">IT</span>
+          </div>
+          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
           <p className="text-gray-400">IT Asset Management System</p>
-          <p className="text-gray-500 text-sm">Trainocate Singapore</p>
+          <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
         </div>
-        <form onSubmit={handleLogin} className="bg-gray-900 rounded-2xl p-8 border border-gray-800">
-          {error && <p className="text-red-400 text-sm mb-4 text-center">{error}</p>}
-          <div className="mb-4">
-            <label className="text-gray-400 text-sm mb-2 block">Email</label>
-            <input
-              type="email"
-              value={email}
-              onChange={(e) => setEmail(e.target.value)}
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none"
-              placeholder="you@trainocate.com"
-              required
-            />
-          </div>
-          <div className="mb-6">
-            <label className="text-gray-400 text-sm mb-2 block">Password</label>
-            <input
-              type="password"
-              value={password}
-              onChange={(e) => setPassword(e.target.value)}
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none"
-              placeholder="••••••••"
-              required
-            />
-          </div>
-          <button
-            type="submit"
-            disabled={loading}
-            className="w-full bg-blue-600 hover:bg-blue-700 text-white font-semibold py-3 rounded-lg transition-all duration-200"
-          >
-            {loading ? "Signing in..." : "Sign In"}
-          </button>
-        </form>
+
+        <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
+          <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
+          {error && (
+            <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 mb-4 text-sm">
+              {error}
+            </div>
+          )}
+          <form onSubmit={handleLogin} className="space-y-4">
+            <div>
+              <label className="text-gray-400 text-sm mb-2 block">Email address</label>
+              <input
+                type="email"
+                value={email}
+                onChange={(e) => setEmail(e.target.value)}
+                className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                placeholder="you@trainocate.com"
+                required
+              />
+            </div>
+            <div>
+              <label className="text-gray-400 text-sm mb-2 block">Password</label>
+              <input
+                type="password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+                placeholder="••••••••"
+                required
+              />
+            </div>
+            <button
+              type="submit"
+              disabled={loading}
+              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 mt-2"
+            >
+              {loading ? "Signing in..." : "Sign In →"}
+            </button>
+          </form>
+        </div>
+        <p className="text-center text-gray-600 text-xs mt-6">
+          © 2025 Trainocate Singapore · ITAMS v1.0
+        </p>
       </div>
     </div>
   )
