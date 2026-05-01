@@ -8,6 +8,7 @@ import AddAsset from "./pages/admin/AddAsset"
 import EditAsset from "./pages/admin/EditAsset"
 import ImportAssets from "./pages/admin/ImportAssets"
 import AssetDetail from "./pages/admin/AssetDetail"
+import Issues from "./pages/admin/Issues"
 
 function LoginPage() {
   const [email, setEmail] = useState("")
@@ -81,6 +82,7 @@ function AdminLayout() {
           <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
           <Route path="/admin/assets/:id" element={<AssetDetail />} />
           <Route path="/admin/import" element={<ImportAssets />} />
+          <Route path="/admin/issues" element={<Issues />} />
           <Route path="*" element={<Navigate to="/admin" />} />
         </Routes>
       </main>
