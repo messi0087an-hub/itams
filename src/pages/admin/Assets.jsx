@@ -6,7 +6,6 @@ export default function Assets() {
   const [assets, setAssets] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
-  const [deleteId, setDeleteId] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -22,7 +21,8 @@ export default function Assets() {
     setLoading(false)
   }
 
-  const handleDelete = async (id) => {
+  const handleDelete = async (e, id) => {
+    e.stopPropagation()
     if (!confirm("Are you sure you want to delete this asset?")) return
     await supabase.from("assets").delete().eq("id", id)
     setAssets(assets.filter(a => a.id !== id))
@@ -85,7 +85,11 @@ export default function Assets() {
               <tr><td colSpan={6} className="text-center text-gray-500 py-12">No assets found</td></tr>
             ) : (
               filtered.map((asset) => (
-                <tr key={asset.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-all">
+                <tr
+                  key={asset.id}
+                  onClick={() => navigate(`/admin/assets/${asset.id}`)}
+                  className="border-b border-gray-800 hover:bg-gray-800/50 transition-all cursor-pointer"
+                >
                   <td className="px-6 py-4">
                     <p className="text-white font-medium">{asset.name}</p>
                     <p className="text-gray-500 text-sm">{asset.category}</p>
@@ -101,13 +105,13 @@ export default function Assets() {
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
                       <button
-                        onClick={() => navigate(`/admin/edit-asset/${asset.id}`)}
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
                         className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all"
                       >
                         Edit
                       </button>
                       <button
-                        onClick={() => handleDelete(asset.id)}
+                        onClick={(e) => handleDelete(e, asset.id)}
                         className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
                       >
                         Delete
