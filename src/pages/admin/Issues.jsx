@@ -64,26 +64,26 @@ export default function Issues() {
   }
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Issues</h1>
-          <p className="text-gray-400 mt-1">
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Issues</h1>
+          <p className="text-gray-400 mt-1 text-sm">
             {issues.filter(i => i.status === "open").length} open issues
           </p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm"
         >
-          + Report Issue
+          + Report
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+        <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-6">
           <h2 className="text-white font-semibold mb-4">Report New Issue</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
             <div>
               <label className="text-gray-400 text-sm mb-2 block">Asset</label>
               <select
@@ -115,7 +115,7 @@ export default function Issues() {
                 <option value="other">Other</option>
               </select>
             </div>
-            <div className="md:col-span-2">
+            <div>
               <label className="text-gray-400 text-sm mb-2 block">Description</label>
               <textarea
                 value={form.description}
@@ -128,24 +128,51 @@ export default function Issues() {
             </div>
           </div>
           <div className="mt-4 flex gap-3">
-            <button
-              type="submit"
-              className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm"
-            >
-              Submit Issue
+            <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm">
+              Submit
             </button>
-            <button
-              type="button"
-              onClick={() => setShowForm(false)}
-              className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm"
-            >
+            <button type="button" onClick={() => setShowForm(false)} className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
               Cancel
             </button>
           </div>
         </form>
       )}
 
-      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      {/* Mobile Cards */}
+      <div className="block md:hidden space-y-3">
+        {loading ? (
+          <p className="text-gray-500 text-sm">Loading...</p>
+        ) : issues.length === 0 ? (
+          <p className="text-gray-500 text-sm">No issues reported</p>
+        ) : (
+          issues.map((issue) => (
+            <div key={issue.id} className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+              <div className="flex items-start justify-between mb-2">
+                <div className="flex-1">
+                  <p className="text-white font-medium">{issue.assets?.name || "—"}</p>
+                  <p className="text-gray-500 text-xs">{issue.assets?.serial_number || ""}</p>
+                </div>
+                <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${statusColor[issue.status] || "bg-gray-500/20 text-gray-400"}`}>
+                  {issue.status}
+                </span>
+              </div>
+              <p className="text-gray-400 text-sm capitalize mb-1">{issue.issue_type}</p>
+              <p className="text-gray-400 text-sm mb-3">{issue.description}</p>
+              {issue.status === "open" && (
+                <button
+                  onClick={() => handleResolve(issue.id)}
+                  className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                >
+                  Resolve
+                </button>
+              )}
+            </div>
+          ))
+        )}
+      </div>
+
+      {/* Desktop Table */}
+      <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
@@ -158,13 +185,9 @@ export default function Issues() {
           </thead>
           <tbody>
             {loading ? (
-              <tr>
-                <td colSpan={5} className="text-center text-gray-500 py-12">Loading...</td>
-              </tr>
+              <tr><td colSpan={5} className="text-center text-gray-500 py-12">Loading...</td></tr>
             ) : issues.length === 0 ? (
-              <tr>
-                <td colSpan={5} className="text-center text-gray-500 py-12">No issues reported</td>
-              </tr>
+              <tr><td colSpan={5} className="text-center text-gray-500 py-12">No issues reported</td></tr>
             ) : (
               issues.map((issue) => (
                 <tr key={issue.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-all">
