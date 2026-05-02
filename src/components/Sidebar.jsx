@@ -10,7 +10,6 @@ const navItems = [
   { label: "Borrow / Return", path: "/admin/borrow" },
   { label: "Issues", path: "/admin/issues" },
   { label: "Reports", path: "/admin/reports" },
-  { label: "🤖 AI Search", path: "/admin/ai-search" },
 ]
 
 export default function Sidebar() {
@@ -32,9 +31,6 @@ export default function Sidebar() {
           {open ? "✕" : "☰"}
         </button>
       </div>
-
-      {/* Mobile content padding so navbar doesn't cover content */}
-      <div className="h-14 md:hidden" />
 
       {/* Overlay */}
       {open && (
