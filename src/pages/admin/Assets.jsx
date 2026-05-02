@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
+import { logHistory } from "../../lib/logHistory"
 
 export default function Assets() {
   const [assets, setAssets] = useState([])
@@ -24,6 +25,7 @@ export default function Assets() {
   }
 
   const handleDelete = async () => {
+    await logHistory(deleteModal.id, "Deleted", `Asset "${deleteModal.name}" was deleted from ITAMS`)
     await supabase.from("assets").delete().eq("id", deleteModal.id)
     setAssets(assets.filter(a => a.id !== deleteModal.id))
     setDeleteModal(null)
@@ -45,7 +47,7 @@ export default function Assets() {
   return (
     <div className="p-4 md:p-8">
 
-      {/* Delete Confirmation Modal */}
+      {/* Delete Modal */}
       <AnimatePresence>
         {deleteModal && (
           <motion.div
@@ -67,9 +69,7 @@ export default function Assets() {
                   <span className="text-3xl">🗑️</span>
                 </div>
                 <h3 className="text-xl font-bold text-white mb-2">Delete Asset?</h3>
-                <p className="text-gray-400 text-sm">
-                  You are about to delete
-                </p>
+                <p className="text-gray-400 text-sm">You are about to delete</p>
                 <p className="text-white font-semibold mt-1">"{deleteModal.name}"</p>
                 <p className="text-gray-500 text-xs mt-2">This action cannot be undone.</p>
               </div>

@@ -11,6 +11,7 @@ const navItems = [
   { label: "Borrow / Return", path: "/admin/borrow" },
   { label: "Issues", path: "/admin/issues" },
   { label: "Reports", path: "/admin/reports" },
+  { label: "History", path: "/admin/history" },
 ]
 
 export default function Sidebar() {
@@ -27,7 +28,6 @@ export default function Sidebar() {
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 py-3">
         <h1 className="text-white font-bold text-lg">ITAMS</h1>
         <div className="flex items-center gap-2">
-          {/* Theme toggle mobile */}
           <button
             onClick={() => setIsDark(!isDark)}
             className="text-gray-400 p-2 rounded-lg bg-gray-800 text-sm"
@@ -83,7 +83,6 @@ export default function Sidebar() {
           ))}
         </nav>
         <div className="p-4 border-t border-gray-800 space-y-2">
-          {/* Theme Toggle Desktop */}
           <button
             onClick={() => setIsDark(!isDark)}
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all w-full"

@@ -1,12 +1,14 @@
 import { useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
-import { motion, AnimatePresence } from "framer-motion"
+import { motion } from "framer-motion"
+import { logHistory } from "../../lib/logHistory"
 
 export default function AddAsset() {
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
+  const [assetName, setAssetName] = useState("")
   const [form, setForm] = useState({
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
@@ -39,12 +41,14 @@ export default function AddAsset() {
     if (form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
     if (form.remarks) cleanForm.remarks = form.remarks
 
-    const { error } = await supabase.from("assets").insert([cleanForm])
-    if (!error) {
+    const { data, error } = await supabase.from("assets").insert([cleanForm]).select().single()
+    if (!error && data) {
+      await logHistory(data.id, "Created", `Asset "${data.name}" was added to ITAMS`)
+      setAssetName(data.name)
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 3000)
     } else {
-      alert(error.message)
+      alert(error?.message)
     }
     setLoading(false)
   }
@@ -66,11 +70,9 @@ export default function AddAsset() {
   if (success) {
     return (
       <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
-        {/* Background glow */}
         <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
         <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Floating emojis */}
         {["🎊", "🎉", "✨", "🎊", "🎉", "✨", "🎊"].map((emoji, i) => (
           <motion.div
             key={i}
@@ -90,7 +92,6 @@ export default function AddAsset() {
           transition={{ type: "spring", stiffness: 150, damping: 15 }}
           className="relative z-10 text-center"
         >
-          {/* Big success icon */}
           <motion.div
             initial={{ scale: 0, rotate: -180 }}
             animate={{ scale: 1, rotate: 0 }}
@@ -116,7 +117,7 @@ export default function AddAsset() {
             transition={{ delay: 0.6 }}
             className="text-gray-400 text-lg mb-2"
           >
-            {form.name} has been registered successfully
+            {assetName} has been registered successfully
           </motion.p>
 
           <motion.p
@@ -128,10 +129,7 @@ export default function AddAsset() {
             Redirecting to assets...
           </motion.p>
 
-          {/* Progress bar */}
-          <motion.div
-            className="mt-6 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden"
-          >
+          <motion.div className="mt-6 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden">
             <motion.div
               initial={{ width: 0 }}
               animate={{ width: "100%" }}

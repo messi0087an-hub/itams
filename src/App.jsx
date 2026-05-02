@@ -13,6 +13,7 @@ import Issues from "./pages/admin/Issues"
 import Reports from "./pages/admin/Reports"
 import Borrow from "./pages/admin/Borrow"
 import AISearch from "./pages/admin/AISearch"
+import AssetHistory from "./pages/admin/AssetHistory"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -299,6 +300,7 @@ function AdminLayout() {
           <Route path="/admin/reports" element={<Reports />} />
           <Route path="/admin/borrow" element={<Borrow />} />
           <Route path="/admin/ai-search" element={<AISearch />} />
+          <Route path="/admin/history" element={<AssetHistory />} />
           <Route path="*" element={<Navigate to="/admin" />} />
         </Routes>
       </main>

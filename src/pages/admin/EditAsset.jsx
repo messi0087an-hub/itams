@@ -1,6 +1,8 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useParams } from "react-router-dom"
+import { motion } from "framer-motion"
+import { logHistory } from "../../lib/logHistory"
 
 export default function EditAsset() {
   const navigate = useNavigate()
@@ -49,10 +51,7 @@ export default function EditAsset() {
     e.preventDefault()
     setLoading(true)
 
-    const cleanForm = {
-      name: form.name,
-      status: form.status,
-    }
+    const cleanForm = { name: form.name, status: form.status }
     if (form.category) cleanForm.category = form.category
     if (form.brand_model) cleanForm.brand_model = form.brand_model
     if (form.serial_number) cleanForm.serial_number = form.serial_number
@@ -67,8 +66,9 @@ export default function EditAsset() {
 
     const { error } = await supabase.from("assets").update(cleanForm).eq("id", id)
     if (!error) {
+      await logHistory(id, "Updated", `Asset "${form.name}" details were updated`)
       setSuccess(true)
-      setTimeout(() => navigate("/admin/assets"), 1500)
+      setTimeout(() => navigate("/admin/assets"), 2000)
     } else {
       alert(error.message)
     }
@@ -89,12 +89,29 @@ export default function EditAsset() {
     { name: "warranty_expiry", label: "Warranty Expiry", type: "date" },
   ]
 
-  if (fetching) return (
-    <div className="p-8 text-white">Loading asset...</div>
+  if (fetching) return <div className="p-8 text-white">Loading asset...</div>
+
+  if (success) return (
+    <div className="min-h-screen bg-black flex items-center justify-center">
+      <motion.div
+        initial={{ opacity: 0, scale: 0.5 }}
+        animate={{ opacity: 1, scale: 1 }}
+        transition={{ type: "spring", stiffness: 200 }}
+        className="text-center"
+      >
+        <div className="text-8xl mb-6">✏️</div>
+        <h2 className="text-3xl font-bold text-white mb-2">Asset Updated!</h2>
+        <p className="text-gray-400">Redirecting to assets...</p>
+      </motion.div>
+    </div>
   )
 
   return (
-    <div className="p-8 max-w-3xl">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-4 md:p-8 max-w-3xl"
+    >
       <button
         onClick={() => navigate("/admin/assets")}
         className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-all"
@@ -102,14 +119,8 @@ export default function EditAsset() {
         ← Back to Assets
       </button>
 
-      <h1 className="text-3xl font-bold text-white mb-2">Edit Asset</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Edit Asset</h1>
       <p className="text-gray-400 mb-8">Update the asset details below</p>
-
-      {success && (
-        <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">
-          ✅ Asset updated successfully! Redirecting...
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -127,7 +138,6 @@ export default function EditAsset() {
               />
             </div>
           ))}
-
           <div>
             <label className="text-gray-400 text-sm mb-2 block">Status</label>
             <select
@@ -142,7 +152,6 @@ export default function EditAsset() {
               <option value="retired">Retired</option>
             </select>
           </div>
-
           <div className="md:col-span-2">
             <label className="text-gray-400 text-sm mb-2 block">Remarks</label>
             <textarea
@@ -155,7 +164,6 @@ export default function EditAsset() {
             />
           </div>
         </div>
-
         <div className="mt-6 flex gap-4">
           <button
             type="submit"
@@ -173,6 +181,6 @@ export default function EditAsset() {
           </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   )
 }
