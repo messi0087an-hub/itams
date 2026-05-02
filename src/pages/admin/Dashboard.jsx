@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
+import { motion } from "framer-motion"
 
 export default function Dashboard() {
   const [stats, setStats] = useState({
@@ -9,11 +10,13 @@ export default function Dashboard() {
   const [categoryData, setCategoryData] = useState([])
   const [statusData, setStatusData] = useState([])
   const [recentAssets, setRecentAssets] = useState([])
+  const [expiringAssets, setExpiringAssets] = useState([])
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     fetchStats()
     fetchRecentAssets()
+    fetchExpiringWarranties()
   }, [])
 
   const fetchStats = async () => {
@@ -27,7 +30,6 @@ export default function Dashboard() {
 
     setStats({ totalAssets: total, available, assigned, issues: issuesData?.length || 0 })
 
-    // Category breakdown for bar chart
     const catCount = data?.reduce((acc, a) => {
       const cat = a.category || "Unknown"
       acc[cat] = (acc[cat] || 0) + 1
@@ -35,7 +37,6 @@ export default function Dashboard() {
     }, {})
     setCategoryData(Object.entries(catCount || {}).map(([name, value]) => ({ name, value })))
 
-    // Status breakdown for pie chart
     setStatusData([
       { name: "Available", value: available, color: "#22c55e" },
       { name: "Assigned", value: assigned, color: "#3b82f6" },
@@ -51,6 +52,30 @@ export default function Dashboard() {
       .from("assets").select("*")
       .order("created_at", { ascending: false }).limit(5)
     setRecentAssets(data || [])
+  }
+
+  const fetchExpiringWarranties = async () => {
+    const today = new Date()
+    const in90Days = new Date()
+    in90Days.setDate(today.getDate() + 90)
+
+    const { data } = await supabase
+      .from("assets")
+      .select("id, name, warranty_expiry, assigned_user")
+      .not("warranty_expiry", "is", null)
+      .lte("warranty_expiry", in90Days.toISOString().split("T")[0])
+      .gte("warranty_expiry", today.toISOString().split("T")[0])
+      .order("warranty_expiry", { ascending: true })
+      .limit(5)
+
+    setExpiringAssets(data || [])
+  }
+
+  const getDaysUntilExpiry = (date) => {
+    const today = new Date()
+    const expiry = new Date(date)
+    const diff = Math.ceil((expiry - today) / (1000 * 60 * 60 * 24))
+    return diff
   }
 
   const cards = [
@@ -69,8 +94,14 @@ export default function Dashboard() {
 
       {/* Stat Cards */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-6">
-        {cards.map((card) => (
-          <div key={card.label} className={`${card.bg} rounded-2xl p-4 md:p-6 shadow-lg ${card.shadow}`}>
+        {cards.map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 20 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className={`${card.bg} rounded-2xl p-4 md:p-6 shadow-lg ${card.shadow}`}
+          >
             <div className="flex items-center justify-between mb-2">
               <span className="text-white/70 text-xs md:text-sm font-medium">{card.label}</span>
               <span className="text-xl md:text-2xl">{card.emoji}</span>
@@ -78,13 +109,48 @@ export default function Dashboard() {
             <p className="text-3xl md:text-4xl font-bold text-white">
               {loading ? "..." : card.value}
             </p>
-          </div>
+          </motion.div>
         ))}
       </div>
 
+      {/* Warranty Expiry Alerts */}
+      {expiringAssets.length > 0 && (
+        <motion.div
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 md:p-6 mb-6"
+        >
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-2xl">⚠️</span>
+            <h2 className="text-yellow-400 font-semibold">Warranty Expiring Soon</h2>
+            <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-full">
+              {expiringAssets.length} assets
+            </span>
+          </div>
+          <div className="space-y-2">
+            {expiringAssets.map((asset) => {
+              const days = getDaysUntilExpiry(asset.warranty_expiry)
+              return (
+                <div key={asset.id} className="flex items-center justify-between bg-yellow-500/5 rounded-xl px-4 py-3">
+                  <div>
+                    <p className="text-white text-sm font-medium">{asset.name}</p>
+                    <p className="text-gray-400 text-xs">{asset.assigned_user || "Unassigned"}</p>
+                  </div>
+                  <div className="text-right">
+                    <p className={`text-sm font-semibold ${days <= 30 ? "text-red-400" : "text-yellow-400"}`}>
+                      {days} days left
+                    </p>
+                    <p className="text-gray-500 text-xs">{asset.warranty_expiry}</p>
+                  </div>
+                </div>
+              )
+            })}
+          </div>
+        </motion.div>
+      )}
+
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        {/* Bar Chart */}
         <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
           <h2 className="text-white font-semibold mb-4">Assets by Category</h2>
           <ResponsiveContainer width="100%" height={200}>
@@ -101,7 +167,6 @@ export default function Dashboard() {
           </ResponsiveContainer>
         </div>
 
-        {/* Pie Chart */}
         <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
           <h2 className="text-white font-semibold mb-4">Assets by Status</h2>
           <ResponsiveContainer width="100%" height={200}>
