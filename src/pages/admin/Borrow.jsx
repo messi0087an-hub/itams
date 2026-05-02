@@ -35,21 +35,16 @@ export default function Borrow() {
 
   const handleBorrow = async (e) => {
     e.preventDefault()
-    
-    // Add borrow record
     const { error } = await supabase.from("borrow_history").insert([{
       asset_id: form.asset_id,
       borrowed_at: new Date().toISOString(),
       notes: `Borrowed by ${form.borrower_name}${form.borrower_email ? ` (${form.borrower_email})` : ""}${form.notes ? ` - ${form.notes}` : ""}`
     }])
-
     if (!error) {
-      // Update asset status to assigned
       await supabase.from("assets").update({
         status: "assigned",
         assigned_user: form.borrower_name
       }).eq("id", form.asset_id)
-
       setShowForm(false)
       setForm({ asset_id: "", borrower_name: "", borrower_email: "", notes: "" })
       fetchBorrows()
@@ -60,19 +55,14 @@ export default function Borrow() {
   }
 
   const handleReturn = async (borrow) => {
-    if (!confirm(`Confirm return of asset?`)) return
-
-    // Update borrow record
+    if (!confirm("Confirm return of asset?")) return
     await supabase.from("borrow_history").update({
       returned_at: new Date().toISOString()
     }).eq("id", borrow.id)
-
-    // Update asset status back to available
     await supabase.from("assets").update({
       status: "available",
       assigned_user: null
     }).eq("id", borrow.asset_id)
-
     fetchBorrows()
     fetchAssets()
   }
@@ -81,24 +71,24 @@ export default function Borrow() {
   const returnedBorrows = borrows.filter(b => b.returned_at)
 
   return (
-    <div className="p-8">
-      <div className="flex items-center justify-between mb-8">
+    <div className="p-4 md:p-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-3xl font-bold text-white">Borrow / Return</h1>
-          <p className="text-gray-400 mt-1">{activeBorrows.length} active borrows</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Borrow / Return</h1>
+          <p className="text-gray-400 mt-1 text-sm">{activeBorrows.length} active borrows</p>
         </div>
         <button
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm"
         >
-          + Borrow Asset
+          + Borrow
         </button>
       </div>
 
       {showForm && (
-        <form onSubmit={handleBorrow} className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+        <form onSubmit={handleBorrow} className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-6">
           <h2 className="text-white font-semibold mb-4">Borrow an Asset</h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="space-y-3">
             <div>
               <label className="text-gray-400 text-sm mb-2 block">Asset</label>
               <select
@@ -158,84 +148,60 @@ export default function Borrow() {
         </form>
       )}
 
-      {/* Active Borrows */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden mb-6">
-        <div className="px-6 py-4 border-b border-gray-800">
-          <h2 className="text-white font-semibold">Active Borrows</h2>
-        </div>
-        <table className="w-full">
-          <thead>
-            <tr className="border-b border-gray-800">
-              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Asset</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Borrowed By</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Date</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Actions</th>
-            </tr>
-          </thead>
-          <tbody>
-            {loading ? (
-              <tr><td colSpan={4} className="text-center text-gray-500 py-12">Loading...</td></tr>
-            ) : activeBorrows.length === 0 ? (
-              <tr><td colSpan={4} className="text-center text-gray-500 py-12">No active borrows</td></tr>
-            ) : (
-              activeBorrows.map((borrow) => (
-                <tr key={borrow.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                  <td className="px-6 py-4">
+      {/* Active Borrows — Cards on mobile */}
+      <div className="mb-6">
+        <h2 className="text-white font-semibold mb-4">Active Borrows</h2>
+        {loading ? (
+          <p className="text-gray-500 text-sm">Loading...</p>
+        ) : activeBorrows.length === 0 ? (
+          <p className="text-gray-500 text-sm">No active borrows</p>
+        ) : (
+          <div className="space-y-3">
+            {activeBorrows.map((borrow) => (
+              <div key={borrow.id} className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <div className="flex items-start justify-between">
+                  <div>
                     <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
-                    <p className="text-gray-500 text-xs">{borrow.assets?.serial_number || ""}</p>
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">{borrow.notes || "—"}</td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">
-                    {new Date(borrow.borrowed_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4">
-                    <button
-                      onClick={() => handleReturn(borrow)}
-                      className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
-                    >
-                      Return
-                    </button>
-                  </td>
-                </tr>
-              ))
-            )}
-          </tbody>
-        </table>
+                    <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
+                    <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
+                    <p className="text-gray-500 text-xs mt-1">
+                      {new Date(borrow.borrowed_at).toLocaleDateString()}
+                    </p>
+                  </div>
+                  <button
+                    onClick={() => handleReturn(borrow)}
+                    className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all shrink-0 ml-2"
+                  >
+                    Return
+                  </button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
-      {/* Return History */}
+      {/* Return History — Cards on mobile */}
       {returnedBorrows.length > 0 && (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-          <div className="px-6 py-4 border-b border-gray-800">
-            <h2 className="text-white font-semibold">Return History</h2>
+        <div>
+          <h2 className="text-white font-semibold mb-4">Return History</h2>
+          <div className="space-y-3">
+            {returnedBorrows.map((borrow) => (
+              <div key={borrow.id} className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
+                <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
+                <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
+                <div className="flex gap-4 mt-2">
+                  <p className="text-gray-500 text-xs">
+                    Borrowed: {new Date(borrow.borrowed_at).toLocaleDateString()}
+                  </p>
+                  <p className="text-gray-500 text-xs">
+                    Returned: {new Date(borrow.returned_at).toLocaleDateString()}
+                  </p>
+                </div>
+              </div>
+            ))}
           </div>
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-800">
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Asset</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Borrowed By</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Borrowed</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Returned</th>
-              </tr>
-            </thead>
-            <tbody>
-              {returnedBorrows.map((borrow) => (
-                <tr key={borrow.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                  <td className="px-6 py-4">
-                    <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
-                    <p className="text-gray-500 text-xs">{borrow.assets?.serial_number || ""}</p>
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">{borrow.notes || "—"}</td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">
-                    {new Date(borrow.borrowed_at).toLocaleDateString()}
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">
-                    {new Date(borrow.returned_at).toLocaleDateString()}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
         </div>
       )}
     </div>
