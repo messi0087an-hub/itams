@@ -10,6 +10,7 @@ const navItems = [
   { label: "Borrow / Return", path: "/admin/borrow" },
   { label: "Issues", path: "/admin/issues" },
   { label: "Reports", path: "/admin/reports" },
+  { label: "🤖 AI Search", path: "/admin/ai-search" },
 ]
 
 export default function Sidebar() {
@@ -21,7 +22,6 @@ export default function Sidebar() {
 
   return (
     <>
-      {/* Mobile hamburger button */}
       <button
         onClick={() => setOpen(!open)}
         className="fixed top-4 left-4 z-50 md:hidden bg-gray-900 border border-gray-700 text-white p-2 rounded-lg"
@@ -29,7 +29,6 @@ export default function Sidebar() {
         {open ? "✕" : "☰"}
       </button>
 
-      {/* Overlay for mobile */}
       {open && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -37,7 +36,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <div className={`
         fixed md:static inset-y-0 left-0 z-40
         w-64 min-h-screen bg-gray-900 border-r border-gray-800 flex flex-col
