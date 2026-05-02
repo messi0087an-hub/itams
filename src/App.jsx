@@ -12,12 +12,22 @@ import Issues from "./pages/admin/Issues"
 import Reports from "./pages/admin/Reports"
 import Borrow from "./pages/admin/Borrow"
 import AISearch from "./pages/admin/AISearch"
+import Particles, { initParticlesEngine } from "@tsparticles/react"
+import { loadSlim } from "@tsparticles/slim"
+import { motion, AnimatePresence } from "framer-motion"
 
 function LoginPage() {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
+  const [particlesReady, setParticlesReady] = useState(false)
+
+  useEffect(() => {
+    initParticlesEngine(async (engine) => {
+      await loadSlim(engine)
+    }).then(() => setParticlesReady(true))
+  }, [])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -30,17 +40,56 @@ function LoginPage() {
 
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      {particlesReady && (
+        <Particles
+          options={{
+            background: { color: { value: "transparent" } },
+            particles: {
+              number: { value: 80 },
+              color: { value: "#3b82f6" },
+              opacity: { value: 0.3 },
+              size: { value: { min: 1, max: 3 } },
+              move: { enable: true, speed: 1 },
+              links: {
+                enable: true,
+                color: "#3b82f6",
+                opacity: 0.2,
+                distance: 150,
+              },
+            },
+            interactivity: {
+              events: {
+                onHover: { enable: true, mode: "repulse" },
+              },
+            },
+          }}
+          className="absolute inset-0"
+        />
+      )}
+
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-      <div className="w-full max-w-md relative z-10">
+
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ duration: 0.5 }}
+        className="w-full max-w-md relative z-10"
+      >
         <div className="text-center mb-10">
-          <div className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30">
+          <motion.div
+            initial={{ scale: 0 }}
+            animate={{ scale: 1 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30"
+          >
             <span className="text-white text-2xl font-bold">IT</span>
-          </div>
+          </motion.div>
           <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
           <p className="text-gray-400">IT Asset Management System</p>
           <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
         </div>
+
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
           <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
           {error && (
@@ -83,7 +132,7 @@ function LoginPage() {
         <p className="text-center text-gray-600 text-xs mt-6">
           © 2025 Trainocate Singapore · ITAMS v1.0
         </p>
-      </div>
+      </motion.div>
     </div>
   )
 }
@@ -144,78 +193,91 @@ function AIChat() {
 
   return (
     <>
-      <button
+      <motion.button
         onClick={() => setOpen(!open)}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-2xl transition-all hover:scale-110"
+        whileHover={{ scale: 1.1 }}
+        whileTap={{ scale: 0.95 }}
+        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-2xl"
         style={{ boxShadow: "0 0 20px rgba(59,130,246,0.6), 0 0 40px rgba(59,130,246,0.3)" }}
       >
         {open ? "✕" : "🤖"}
-      </button>
+      </motion.button>
 
-      {open && (
-        <div
-          className="fixed bottom-24 right-6 z-50 w-80 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl flex flex-col overflow-hidden"
-          style={{ height: "420px", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}
-        >
-          <div className="bg-blue-600 px-4 py-3 flex items-center gap-2">
-            <span className="text-xl">🤖</span>
-            <div>
-              <p className="text-white font-semibold text-sm">ITAMS AI</p>
-              <p className="text-blue-200 text-xs">Ask about your assets</p>
-            </div>
-          </div>
-
-          <div className="flex-1 overflow-y-auto p-4 space-y-3">
-            {messages.map((msg, i) => (
-              <div key={i} className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}>
-                <div className={`max-w-xs rounded-xl px-3 py-2 text-sm ${
-                  msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
-                }`}>
-                  <p>{msg.text}</p>
-                  {msg.results && msg.results.length > 0 && (
-                    <div className="mt-2 space-y-1">
-                      {msg.results.map(a => (
-                        <div key={a.id} className="bg-gray-700 rounded-lg px-2 py-1">
-                          <p className="text-white text-xs font-medium">{a.name}</p>
-                          <p className="text-gray-400 text-xs">{a.assigned_user || "Unassigned"} · {a.status}</p>
-                        </div>
-                      ))}
-                    </div>
-                  )}
-                </div>
+      <AnimatePresence>
+        {open && (
+          <motion.div
+            initial={{ opacity: 0, y: 20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, y: 20, scale: 0.95 }}
+            transition={{ duration: 0.2 }}
+            className="fixed bottom-24 right-6 z-50 w-80 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl flex flex-col overflow-hidden"
+            style={{ height: "420px", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}
+          >
+            <div className="bg-blue-600 px-4 py-3 flex items-center gap-2">
+              <span className="text-xl">🤖</span>
+              <div>
+                <p className="text-white font-semibold text-sm">ITAMS AI</p>
+                <p className="text-blue-200 text-xs">Ask about your assets</p>
               </div>
-            ))}
-            {loading && (
-              <div className="flex justify-start">
-                <div className="bg-gray-800 rounded-xl px-3 py-2">
-                  <div className="flex gap-1">
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                    <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+            </div>
+
+            <div className="flex-1 overflow-y-auto p-4 space-y-3">
+              {messages.map((msg, i) => (
+                <motion.div
+                  key={i}
+                  initial={{ opacity: 0, y: 10 }}
+                  animate={{ opacity: 1, y: 0 }}
+                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
+                >
+                  <div className={`max-w-xs rounded-xl px-3 py-2 text-sm ${
+                    msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
+                  }`}>
+                    <p>{msg.text}</p>
+                    {msg.results && msg.results.length > 0 && (
+                      <div className="mt-2 space-y-1">
+                        {msg.results.map(a => (
+                          <div key={a.id} className="bg-gray-700 rounded-lg px-2 py-1">
+                            <p className="text-white text-xs font-medium">{a.name}</p>
+                            <p className="text-gray-400 text-xs">{a.assigned_user || "Unassigned"} · {a.status}</p>
+                          </div>
+                        ))}
+                      </div>
+                    )}
+                  </div>
+                </motion.div>
+              ))}
+              {loading && (
+                <div className="flex justify-start">
+                  <div className="bg-gray-800 rounded-xl px-3 py-2">
+                    <div className="flex gap-1">
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
+                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
+                    </div>
                   </div>
                 </div>
-              </div>
-            )}
-          </div>
+              )}
+            </div>
 
-          <form onSubmit={handleSearch} className="p-3 border-t border-gray-700 flex gap-2">
-            <input
-              type="text"
-              value={query}
-              onChange={(e) => setQuery(e.target.value)}
-              placeholder="Ask about assets..."
-              className="flex-1 bg-gray-800 text-white rounded-xl px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
-            />
-            <button
-              type="submit"
-              disabled={loading}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm transition-all"
-            >
-              →
-            </button>
-          </form>
-        </div>
-      )}
+            <form onSubmit={handleSearch} className="p-3 border-t border-gray-700 flex gap-2">
+              <input
+                type="text"
+                value={query}
+                onChange={(e) => setQuery(e.target.value)}
+                placeholder="Ask about assets..."
+                className="flex-1 bg-gray-800 text-white rounded-xl px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
+              />
+              <button
+                type="submit"
+                disabled={loading}
+                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm transition-all"
+              >
+                →
+              </button>
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }

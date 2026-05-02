@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function AddAsset() {
   const navigate = useNavigate()
@@ -41,9 +42,8 @@ export default function AddAsset() {
     const { error } = await supabase.from("assets").insert([cleanForm])
     if (!error) {
       setSuccess(true)
-      setTimeout(() => navigate("/admin/assets"), 1500)
+      setTimeout(() => navigate("/admin/assets"), 3000)
     } else {
-      console.error(error)
       alert(error.message)
     }
     setLoading(false)
@@ -63,8 +63,93 @@ export default function AddAsset() {
     { name: "warranty_expiry", label: "Warranty Expiry", type: "date" },
   ]
 
+  if (success) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center relative overflow-hidden">
+        {/* Background glow */}
+        <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-green-500/10 rounded-full blur-3xl pointer-events-none" />
+        <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Floating emojis */}
+        {["🎊", "🎉", "✨", "🎊", "🎉", "✨", "🎊"].map((emoji, i) => (
+          <motion.div
+            key={i}
+            initial={{ opacity: 0, y: 100, x: (i - 3) * 80 }}
+            animate={{ opacity: [0, 1, 1, 0], y: -200 }}
+            transition={{ delay: i * 0.15, duration: 2, ease: "easeOut" }}
+            className="absolute text-3xl"
+            style={{ left: `${15 + i * 12}%`, bottom: "20%" }}
+          >
+            {emoji}
+          </motion.div>
+        ))}
+
+        <motion.div
+          initial={{ opacity: 0, scale: 0.5, y: 30 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          transition={{ type: "spring", stiffness: 150, damping: 15 }}
+          className="relative z-10 text-center"
+        >
+          {/* Big success icon */}
+          <motion.div
+            initial={{ scale: 0, rotate: -180 }}
+            animate={{ scale: 1, rotate: 0 }}
+            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+            className="inline-flex items-center justify-center w-28 h-28 bg-green-500/20 border-2 border-green-500/50 rounded-full mb-6"
+            style={{ boxShadow: "0 0 40px rgba(34, 197, 94, 0.3)" }}
+          >
+            <span className="text-6xl">✅</span>
+          </motion.div>
+
+          <motion.h2
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: 0.4 }}
+            className="text-4xl font-bold text-white mb-3"
+          >
+            Asset Added!
+          </motion.h2>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.6 }}
+            className="text-gray-400 text-lg mb-2"
+          >
+            {form.name} has been registered successfully
+          </motion.p>
+
+          <motion.p
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            transition={{ delay: 0.8 }}
+            className="text-gray-600 text-sm"
+          >
+            Redirecting to assets...
+          </motion.p>
+
+          {/* Progress bar */}
+          <motion.div
+            className="mt-6 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden"
+          >
+            <motion.div
+              initial={{ width: 0 }}
+              animate={{ width: "100%" }}
+              transition={{ duration: 3, ease: "linear" }}
+              className="h-full bg-green-500 rounded-full"
+            />
+          </motion.div>
+        </motion.div>
+      </div>
+    )
+  }
+
   return (
-    <div className="p-8 max-w-3xl">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      className="p-4 md:p-8 max-w-3xl"
+    >
       <button
         onClick={() => navigate("/admin/assets")}
         className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-all"
@@ -72,14 +157,8 @@ export default function AddAsset() {
         ← Back to Assets
       </button>
 
-      <h1 className="text-3xl font-bold text-white mb-2">Add New Asset</h1>
+      <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Add New Asset</h1>
       <p className="text-gray-400 mb-8">Fill in the details to register a new asset</p>
-
-      {success && (
-        <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">
-          ✅ Asset added successfully! Redirecting...
-        </div>
-      )}
 
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
@@ -143,6 +222,6 @@ export default function AddAsset() {
           </button>
         </div>
       </form>
-    </div>
+    </motion.div>
   )
 }

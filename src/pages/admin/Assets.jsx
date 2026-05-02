@@ -1,11 +1,13 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function Assets() {
   const [assets, setAssets] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
+  const [deleteModal, setDeleteModal] = useState(null)
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -21,11 +23,10 @@ export default function Assets() {
     setLoading(false)
   }
 
-  const handleDelete = async (e, id) => {
-    e.stopPropagation()
-    if (!confirm("Are you sure you want to delete this asset?")) return
-    await supabase.from("assets").delete().eq("id", id)
-    setAssets(assets.filter(a => a.id !== id))
+  const handleDelete = async () => {
+    await supabase.from("assets").delete().eq("id", deleteModal.id)
+    setAssets(assets.filter(a => a.id !== deleteModal.id))
+    setDeleteModal(null)
   }
 
   const filtered = assets.filter(a =>
@@ -43,6 +44,55 @@ export default function Assets() {
 
   return (
     <div className="p-4 md:p-8">
+
+      {/* Delete Confirmation Modal */}
+      <AnimatePresence>
+        {deleteModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.8, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.8, y: 20 }}
+              transition={{ type: "spring", stiffness: 200 }}
+              className="bg-gray-900 rounded-2xl border border-gray-700 p-6 w-full max-w-sm shadow-2xl"
+              style={{ boxShadow: "0 0 40px rgba(239, 68, 68, 0.15)" }}
+            >
+              <div className="text-center mb-6">
+                <div className="inline-flex items-center justify-center w-16 h-16 bg-red-500/10 border border-red-500/30 rounded-full mb-4">
+                  <span className="text-3xl">🗑️</span>
+                </div>
+                <h3 className="text-xl font-bold text-white mb-2">Delete Asset?</h3>
+                <p className="text-gray-400 text-sm">
+                  You are about to delete
+                </p>
+                <p className="text-white font-semibold mt-1">"{deleteModal.name}"</p>
+                <p className="text-gray-500 text-xs mt-2">This action cannot be undone.</p>
+              </div>
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setDeleteModal(null)}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-3 rounded-xl font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={handleDelete}
+                  className="flex-1 bg-red-600 hover:bg-red-500 text-white py-3 rounded-xl font-medium transition-all"
+                  style={{ boxShadow: "0 0 20px rgba(239, 68, 68, 0.3)" }}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">All Assets</h1>
@@ -72,8 +122,10 @@ export default function Assets() {
           <p className="text-gray-500 text-sm">No assets found</p>
         ) : (
           filtered.map((asset) => (
-            <div
+            <motion.div
               key={asset.id}
+              initial={{ opacity: 0, y: 10 }}
+              animate={{ opacity: 1, y: 0 }}
               onClick={() => navigate(`/admin/assets/${asset.id}`)}
               className="bg-gray-900 rounded-xl border border-gray-800 p-4 cursor-pointer"
             >
@@ -96,7 +148,7 @@ export default function Assets() {
                       Edit
                     </button>
                     <button
-                      onClick={(e) => handleDelete(e, asset.id)}
+                      onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
                       className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30"
                     >
                       Del
@@ -104,7 +156,7 @@ export default function Assets() {
                   </div>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))
         )}
       </div>
@@ -155,7 +207,7 @@ export default function Assets() {
                         Edit
                       </button>
                       <button
-                        onClick={(e) => handleDelete(e, asset.id)}
+                        onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
                         className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
                       >
                         Delete
