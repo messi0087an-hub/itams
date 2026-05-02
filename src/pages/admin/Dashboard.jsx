@@ -86,10 +86,96 @@ export default function Dashboard() {
   ]
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-4 md:p-8 relative min-h-screen">
+
+      {/* Animated gradient background blobs */}
+      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
+        <motion.div
+          animate={{
+            x: [0, 60, -40, 0],
+            y: [0, -60, 40, 0],
+            scale: [1, 1.2, 0.8, 1],
+          }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: "absolute",
+            top: "-10%",
+            right: "-10%",
+            width: "500px",
+            height: "500px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(59,130,246,0.4), transparent 70%)",
+          }}
+        />
+        <motion.div
+          animate={{
+            x: [0, -40, 60, 0],
+            y: [0, 40, -60, 0],
+            scale: [1, 0.8, 1.2, 1],
+          }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: "absolute",
+            bottom: "-10%",
+            left: "-10%",
+            width: "500px",
+            height: "500px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent 70%)",
+          }}
+        />
+        <motion.div
+          animate={{
+            x: [0, 40, -20, 0],
+            y: [0, -20, 40, 0],
+            scale: [1, 1.3, 0.7, 1],
+          }}
+          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: "absolute",
+            top: "40%",
+            right: "30%",
+            width: "400px",
+            height: "400px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(6,182,212,0.3), transparent 70%)",
+          }}
+        />
+        <motion.div
+          animate={{
+            x: [0, -60, 20, 0],
+            y: [0, 20, -40, 0],
+            scale: [1, 0.7, 1.3, 1],
+          }}
+          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+          style={{
+            position: "absolute",
+            bottom: "30%",
+            right: "10%",
+            width: "350px",
+            height: "350px",
+            borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(236,72,153,0.3), transparent 70%)",
+          }}
+        />
+      </div>
+
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Dashboard</h1>
-        <p className="text-gray-400 mt-1 text-sm">Welcome to ITAMS — Trainocate Singapore</p>
+        <motion.h1
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="text-2xl md:text-3xl font-bold text-white"
+        >
+          Dashboard
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={{ delay: 0.2 }}
+          className="text-gray-400 mt-1 text-sm"
+        >
+          Welcome to ITAMS — Trainocate Singapore
+        </motion.p>
       </div>
 
       {/* Stat Cards */}
@@ -100,7 +186,8 @@ export default function Dashboard() {
             initial={{ opacity: 0, y: 20 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className={`${card.bg} rounded-2xl p-4 md:p-6 shadow-lg ${card.shadow}`}
+            whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+            className={`${card.bg} rounded-2xl p-4 md:p-6 shadow-lg ${card.shadow} cursor-pointer`}
           >
             <div className="flex items-center justify-between mb-2">
               <span className="text-white/70 text-xs md:text-sm font-medium">{card.label}</span>
@@ -151,7 +238,12 @@ export default function Dashboard() {
 
       {/* Charts */}
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+        <motion.div
+          initial={{ opacity: 0, x: -20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.3 }}
+          className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6"
+        >
           <h2 className="text-white font-semibold mb-4">Assets by Category</h2>
           <ResponsiveContainer width="100%" height={200}>
             <BarChart data={categoryData}>
@@ -165,9 +257,14 @@ export default function Dashboard() {
               <Bar dataKey="value" fill="#3b82f6" radius={[4, 4, 0, 0]} />
             </BarChart>
           </ResponsiveContainer>
-        </div>
+        </motion.div>
 
-        <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+        <motion.div
+          initial={{ opacity: 0, x: 20 }}
+          animate={{ opacity: 1, x: 0 }}
+          transition={{ delay: 0.4 }}
+          className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6"
+        >
           <h2 className="text-white font-semibold mb-4">Assets by Status</h2>
           <ResponsiveContainer width="100%" height={200}>
             <PieChart>
@@ -199,11 +296,16 @@ export default function Dashboard() {
               </div>
             ))}
           </div>
-        </div>
+        </motion.div>
       </div>
 
       {/* Recent Assets */}
-      <div className="bg-gray-900 rounded-2xl border border-gray-800 p-6">
+      <motion.div
+        initial={{ opacity: 0, y: 20 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.5 }}
+        className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6"
+      >
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-white font-semibold">Recently Added Assets</h2>
           <span className="text-gray-500 text-sm">Last 5</span>
@@ -225,7 +327,7 @@ export default function Dashboard() {
             </div>
           ))}
         </div>
-      </div>
+      </motion.div>
     </div>
   )
 }

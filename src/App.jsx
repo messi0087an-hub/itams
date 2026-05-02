@@ -286,24 +286,70 @@ function AIChat() {
 
 function AdminLayout() {
   return (
-    <div className="flex min-h-screen bg-black">
-      <Sidebar />
-      <main className="flex-1 overflow-auto pt-14 md:pt-0">
-        <Routes>
-          <Route path="/admin" element={<Dashboard />} />
-          <Route path="/admin/assets" element={<Assets />} />
-          <Route path="/admin/add-asset" element={<AddAsset />} />
-          <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
-          <Route path="/admin/assets/:id" element={<AssetDetail />} />
-          <Route path="/admin/import" element={<ImportAssets />} />
-          <Route path="/admin/issues" element={<Issues />} />
-          <Route path="/admin/reports" element={<Reports />} />
-          <Route path="/admin/borrow" element={<Borrow />} />
-          <Route path="/admin/ai-search" element={<AISearch />} />
-          <Route path="/admin/history" element={<AssetHistory />} />
-          <Route path="*" element={<Navigate to="/admin" />} />
-        </Routes>
-      </main>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
+
+      {/* Animated blobs */}
+      <motion.div
+        animate={{ x: [0, 60, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.8, 1] }}
+        transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "fixed", top: "-10%", right: "-10%", zIndex: 0,
+          width: "500px", height: "500px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(59,130,246,0.35), transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      <motion.div
+        animate={{ x: [0, -40, 60, 0], y: [0, 40, -60, 0], scale: [1, 0.8, 1.2, 1] }}
+        transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "fixed", bottom: "-10%", left: "-10%", zIndex: 0,
+          width: "500px", height: "500px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(139,92,246,0.35), transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      <motion.div
+        animate={{ x: [0, 40, -20, 0], y: [0, -20, 40, 0], scale: [1, 1.3, 0.7, 1] }}
+        transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "fixed", top: "40%", right: "30%", zIndex: 0,
+          width: "400px", height: "400px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+      <motion.div
+        animate={{ x: [0, -60, 20, 0], y: [0, 20, -40, 0], scale: [1, 0.7, 1.3, 1] }}
+        transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
+        style={{
+          position: "fixed", bottom: "30%", right: "10%", zIndex: 0,
+          width: "350px", height: "350px", borderRadius: "50%",
+          background: "radial-gradient(circle, rgba(236,72,153,0.25), transparent 70%)",
+          pointerEvents: "none",
+        }}
+      />
+
+      {/* Content */}
+      <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
+        <Sidebar />
+        <main className="flex-1 overflow-auto pt-14 md:pt-0">
+          <Routes>
+            <Route path="/admin" element={<Dashboard />} />
+            <Route path="/admin/assets" element={<Assets />} />
+            <Route path="/admin/add-asset" element={<AddAsset />} />
+            <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
+            <Route path="/admin/assets/:id" element={<AssetDetail />} />
+            <Route path="/admin/import" element={<ImportAssets />} />
+            <Route path="/admin/issues" element={<Issues />} />
+            <Route path="/admin/reports" element={<Reports />} />
+            <Route path="/admin/borrow" element={<Borrow />} />
+            <Route path="/admin/ai-search" element={<AISearch />} />
+            <Route path="/admin/history" element={<AssetHistory />} />
+            <Route path="*" element={<Navigate to="/admin" />} />
+          </Routes>
+        </main>
+      </div>
       <AIChat />
     </div>
   )
