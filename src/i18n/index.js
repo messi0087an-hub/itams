@@ -1,92 +1,22 @@
 import i18n from "i18next"
 import { initReactI18next } from "react-i18next"
 
-const resources = {
-  en: {
-    translation: {
-      dashboard: "Dashboard",
-      allAssets: "All Assets",
-      addAsset: "Add Asset",
-      importAssets: "Import Assets",
-      borrowReturn: "Borrow / Return",
-      issues: "Issues",
-      reports: "Reports",
-      history: "History",
-      lightMode: "Light Mode",
-      darkMode: "Dark Mode",
-      signOut: "Sign Out",
-      totalAssets: "Total Assets",
-      available: "Available",
-      assigned: "Assigned",
-      openIssues: "Open Issues",
-      welcomeMessage: "Welcome to ITAMS — Trainocate Singapore",
-      recentAssets: "Recently Added Assets",
-      warrantyExpiring: "Warranty Expiring Soon",
-      signIn: "Sign in to your account",
-      emailAddress: "Email address",
-      password: "Password",
-      signInButton: "Sign In →",
-      signingIn: "Signing in...",
-    }
-  },
-  ms: {
-    translation: {
-      dashboard: "Papan Pemuka",
-      allAssets: "Semua Aset",
-      addAsset: "Tambah Aset",
-      importAssets: "Import Aset",
-      borrowReturn: "Pinjam / Pulang",
-      issues: "Isu",
-      reports: "Laporan",
-      history: "Sejarah",
-      lightMode: "Mod Cerah",
-      darkMode: "Mod Gelap",
-      signOut: "Log Keluar",
-      totalAssets: "Jumlah Aset",
-      available: "Tersedia",
-      assigned: "Ditugaskan",
-      openIssues: "Isu Terbuka",
-      welcomeMessage: "Selamat datang ke ITAMS — Trainocate Singapura",
-      recentAssets: "Aset Baru Ditambah",
-      warrantyExpiring: "Waranti Hampir Tamat",
-      signIn: "Log masuk ke akaun anda",
-      emailAddress: "Alamat emel",
-      password: "Kata laluan",
-      signInButton: "Log Masuk →",
-      signingIn: "Sedang log masuk...",
-    }
-  },
-  zh: {
-    translation: {
-      dashboard: "仪表板",
-      allAssets: "所有资产",
-      addAsset: "添加资产",
-      importAssets: "导入资产",
-      borrowReturn: "借用 / 归还",
-      issues: "问题",
-      reports: "报告",
-      history: "历史记录",
-      lightMode: "浅色模式",
-      darkMode: "深色模式",
-      signOut: "退出登录",
-      totalAssets: "总资产",
-      available: "可用",
-      assigned: "已分配",
-      openIssues: "未解决问题",
-      welcomeMessage: "欢迎使用 ITAMS — 新加坡 Trainocate",
-      recentAssets: "最近添加的资产",
-      warrantyExpiring: "保修即将到期",
-      signIn: "登录您的账户",
-      emailAddress: "电子邮件地址",
-      password: "密码",
-      signInButton: "登录 →",
-      signingIn: "登录中...",
-    }
-  }
+const nav = {
+  en: { dashboard: "Dashboard", allAssets: "All Assets", addAsset: "Add Asset", importAssets: "Import Assets", borrowReturn: "Borrow / Return", issues: "Issues", reports: "Reports", history: "History", lightMode: "Light Mode", darkMode: "Dark Mode", signOut: "Sign Out", totalAssets: "Total Assets", available: "Available", assigned: "Assigned", openIssues: "Open Issues", welcomeMessage: "Welcome to ITAMS — Trainocate", signIn: "Sign in to your account", emailAddress: "Email address", password: "Password", signInButton: "Sign In →", signingIn: "Signing in..." },
+  ms: { dashboard: "Papan Pemuka", allAssets: "Semua Aset", addAsset: "Tambah Aset", importAssets: "Import Aset", borrowReturn: "Pinjam / Pulang", issues: "Isu", reports: "Laporan", history: "Sejarah", lightMode: "Mod Cerah", darkMode: "Mod Gelap", signOut: "Log Keluar", totalAssets: "Jumlah Aset", available: "Tersedia", assigned: "Ditugaskan", openIssues: "Isu Terbuka", welcomeMessage: "Selamat datang ke ITAMS — Trainocate", signIn: "Log masuk ke akaun anda", emailAddress: "Alamat emel", password: "Kata laluan", signInButton: "Log Masuk →", signingIn: "Sedang log masuk..." },
+  zh: { dashboard: "仪表板", allAssets: "所有资产", addAsset: "添加资产", importAssets: "导入资产", borrowReturn: "借用 / 归还", issues: "问题", reports: "报告", history: "历史记录", lightMode: "浅色模式", darkMode: "深色模式", signOut: "退出登录", totalAssets: "总资产", available: "可用", assigned: "已分配", openIssues: "未解决问题", welcomeMessage: "欢迎使用 ITAMS — Trainocate", signIn: "登录您的账户", emailAddress: "电子邮件地址", password: "密码", signInButton: "登录 →", signingIn: "登录中..." },
+  hi: { dashboard: "डैशबोर्ड", allAssets: "सभी संपत्तियां", addAsset: "संपत्ति जोड़ें", importAssets: "आयात करें", borrowReturn: "उधार / वापसी", issues: "मुद्दे", reports: "रिपोर्ट", history: "इतिहास", lightMode: "लाइट मोड", darkMode: "डार्क मोड", signOut: "साइन आउट", totalAssets: "कुल संपत्ति", available: "उपलब्ध", assigned: "सौंपा गया", openIssues: "खुले मुद्दे", welcomeMessage: "ITAMS में आपका स्वागत है", signIn: "अपने खाते में साइन इन करें", emailAddress: "ईमेल पता", password: "पासवर्ड", signInButton: "साइन इन →", signingIn: "साइन इन हो रहा है..." },
+  tl: { dashboard: "Dashboard", allAssets: "Lahat ng Assets", addAsset: "Magdagdag ng Asset", importAssets: "Mag-import ng Assets", borrowReturn: "Humiram / Ibalik", issues: "Mga Isyu", reports: "Mga Ulat", history: "Kasaysayan", lightMode: "Light Mode", darkMode: "Dark Mode", signOut: "Mag-sign Out", totalAssets: "Kabuuang Assets", available: "Available", assigned: "Itinalaga", openIssues: "Mga Bukas na Isyu", welcomeMessage: "Maligayang pagdating sa ITAMS — Trainocate", signIn: "Mag-sign in sa iyong account", emailAddress: "Email address", password: "Password", signInButton: "Mag-sign In →", signingIn: "Nag-sign in..." },
+  th: { dashboard: "แดชบอร์ด", allAssets: "สินทรัพย์ทั้งหมด", addAsset: "เพิ่มสินทรัพย์", importAssets: "นำเข้าสินทรัพย์", borrowReturn: "ยืม / คืน", issues: "ปัญหา", reports: "รายงาน", history: "ประวัติ", lightMode: "โหมดสว่าง", darkMode: "โหมดมืด", signOut: "ออกจากระบบ", totalAssets: "สินทรัพย์ทั้งหมด", available: "ว่าง", assigned: "มอบหมายแล้ว", openIssues: "ปัญหาที่เปิดอยู่", welcomeMessage: "ยินดีต้อนรับสู่ ITAMS — Trainocate", signIn: "ลงชื่อเข้าใช้บัญชีของคุณ", emailAddress: "ที่อยู่อีเมล", password: "รหัสผ่าน", signInButton: "ลงชื่อเข้าใช้ →", signingIn: "กำลังลงชื่อเข้าใช้..." },
+  id: { dashboard: "Dasbor", allAssets: "Semua Aset", addAsset: "Tambah Aset", importAssets: "Impor Aset", borrowReturn: "Pinjam / Kembalikan", issues: "Masalah", reports: "Laporan", history: "Riwayat", lightMode: "Mode Terang", darkMode: "Mode Gelap", signOut: "Keluar", totalAssets: "Total Aset", available: "Tersedia", assigned: "Ditugaskan", openIssues: "Masalah Terbuka", welcomeMessage: "Selamat datang di ITAMS — Trainocate", signIn: "Masuk ke akun Anda", emailAddress: "Alamat email", password: "Kata sandi", signInButton: "Masuk →", signingIn: "Sedang masuk..." },
+  vi: { dashboard: "Bảng điều khiển", allAssets: "Tất cả tài sản", addAsset: "Thêm tài sản", importAssets: "Nhập tài sản", borrowReturn: "Mượn / Trả", issues: "Vấn đề", reports: "Báo cáo", history: "Lịch sử", lightMode: "Chế độ sáng", darkMode: "Chế độ tối", signOut: "Đăng xuất", totalAssets: "Tổng tài sản", available: "Có sẵn", assigned: "Đã giao", openIssues: "Vấn đề mở", welcomeMessage: "Chào mừng đến ITAMS — Trainocate", signIn: "Đăng nhập vào tài khoản của bạn", emailAddress: "Địa chỉ email", password: "Mật khẩu", signInButton: "Đăng nhập →", signingIn: "Đang đăng nhập..." },
+  ko: { dashboard: "대시보드", allAssets: "모든 자산", addAsset: "자산 추가", importAssets: "자산 가져오기", borrowReturn: "대여 / 반납", issues: "문제", reports: "보고서", history: "기록", lightMode: "라이트 모드", darkMode: "다크 모드", signOut: "로그아웃", totalAssets: "총 자산", available: "사용 가능", assigned: "할당됨", openIssues: "미해결 문제", welcomeMessage: "ITAMS에 오신 것을 환영합니다 — Trainocate", signIn: "계정에 로그인하세요", emailAddress: "이메일 주소", password: "비밀번호", signInButton: "로그인 →", signingIn: "로그인 중..." },
 }
 
 i18n.use(initReactI18next).init({
-  resources,
+  resources: Object.fromEntries(
+    Object.entries(nav).map(([lang, translations]) => [lang, { translation: translations }])
+  ),
   lng: "en",
   fallbackLng: "en",
   interpolation: { escapeValue: false }

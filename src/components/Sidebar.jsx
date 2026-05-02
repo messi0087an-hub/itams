@@ -4,6 +4,18 @@ import { supabase } from "../lib/supabase"
 import { useTheme } from "../context/ThemeContext"
 import { useTranslation } from "react-i18next"
 
+const languages = [
+  { code: "en", label: "EN", flag: "🇸🇬" },
+  { code: "ms", label: "MS", flag: "🇲🇾" },
+  { code: "zh", label: "中文", flag: "🇨🇳" },
+  { code: "hi", label: "हिं", flag: "🇮🇳" },
+  { code: "tl", label: "TL", flag: "🇵🇭" },
+  { code: "th", label: "ไทย", flag: "🇹🇭" },
+  { code: "id", label: "ID", flag: "🇮🇩" },
+  { code: "vi", label: "VI", flag: "🇻🇳" },
+  { code: "ko", label: "한국", flag: "🇰🇷" },
+]
+
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { isDark, setIsDark } = useTheme()
@@ -12,12 +24,6 @@ export default function Sidebar() {
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
-
-  const languages = [
-    { code: "en", label: "EN", flag: "🇸🇬" },
-    { code: "ms", label: "MS", flag: "🇲🇾" },
-    { code: "zh", label: "中文", flag: "🇨🇳" },
-  ]
 
   const navItems = [
     { label: t("dashboard"), path: "/admin" },
@@ -73,20 +79,23 @@ export default function Sidebar() {
         <div className="h-14 md:hidden" />
 
         {/* Language Switcher */}
-        <div className="px-4 pt-4 flex gap-2">
-          {languages.map((lang) => (
-            <button
-              key={lang.code}
-              onClick={() => i18n.changeLanguage(lang.code)}
-              className={`flex-1 py-1.5 rounded-lg text-xs font-medium transition-all ${
-                i18n.language === lang.code
-                  ? "bg-blue-600 text-white"
-                  : "bg-gray-800 text-gray-400 hover:text-white"
-              }`}
-            >
-              {lang.flag} {lang.label}
-            </button>
-          ))}
+        <div className="px-4 pt-4">
+          <p className="text-gray-500 text-xs mb-2">Language</p>
+          <div className="grid grid-cols-3 gap-1">
+            {languages.map((lang) => (
+              <button
+                key={lang.code}
+                onClick={() => i18n.changeLanguage(lang.code)}
+                className={`py-1.5 rounded-lg text-xs font-medium transition-all ${
+                  i18n.language === lang.code
+                    ? "bg-blue-600 text-white"
+                    : "bg-gray-800 text-gray-400 hover:text-white"
+                }`}
+              >
+                {lang.flag} {lang.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <nav className="flex-1 p-4 space-y-1">
