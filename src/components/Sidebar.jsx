@@ -22,13 +22,21 @@ export default function Sidebar() {
 
   return (
     <>
-      <button
-        onClick={() => setOpen(!open)}
-        className="fixed top-4 left-4 z-50 md:hidden bg-gray-900 border border-gray-700 text-white p-2 rounded-lg"
-      >
-        {open ? "✕" : "☰"}
-      </button>
+      {/* Mobile Top Navbar */}
+      <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 py-3">
+        <h1 className="text-white font-bold text-lg">ITAMS</h1>
+        <button
+          onClick={() => setOpen(!open)}
+          className="text-white p-2 rounded-lg bg-gray-800"
+        >
+          {open ? "✕" : "☰"}
+        </button>
+      </div>
 
+      {/* Mobile content padding so navbar doesn't cover content */}
+      <div className="h-14 md:hidden" />
+
+      {/* Overlay */}
       {open && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -36,16 +44,18 @@ export default function Sidebar() {
         />
       )}
 
+      {/* Sidebar */}
       <div className={`
         fixed md:static inset-y-0 left-0 z-40
         w-64 min-h-screen bg-gray-900 border-r border-gray-800 flex flex-col
         transform transition-transform duration-200
         ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
-        <div className="p-6 border-b border-gray-800">
+        <div className="p-6 border-b border-gray-800 hidden md:block">
           <h1 className="text-2xl font-bold text-white">ITAMS</h1>
           <p className="text-gray-500 text-xs mt-1">Trainocate Singapore</p>
         </div>
+        <div className="h-14 md:hidden" />
         <nav className="flex-1 p-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
