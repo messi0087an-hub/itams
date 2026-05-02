@@ -1,6 +1,7 @@
 import { useState } from "react"
 import { NavLink } from "react-router-dom"
 import { supabase } from "../lib/supabase"
+import { useTheme } from "../context/ThemeContext"
 
 const navItems = [
   { label: "Dashboard", path: "/admin" },
@@ -14,6 +15,7 @@ const navItems = [
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
+  const { isDark, setIsDark } = useTheme()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -24,12 +26,21 @@ export default function Sidebar() {
       {/* Mobile Top Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900 border-b border-gray-800 flex items-center justify-between px-4 py-3">
         <h1 className="text-white font-bold text-lg">ITAMS</h1>
-        <button
-          onClick={() => setOpen(!open)}
-          className="text-white p-2 rounded-lg bg-gray-800"
-        >
-          {open ? "✕" : "☰"}
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Theme toggle mobile */}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="text-gray-400 p-2 rounded-lg bg-gray-800 text-sm"
+          >
+            {isDark ? "☀️" : "🌙"}
+          </button>
+          <button
+            onClick={() => setOpen(!open)}
+            className="text-white p-2 rounded-lg bg-gray-800"
+          >
+            {open ? "✕" : "☰"}
+          </button>
+        </div>
       </div>
 
       {/* Overlay */}
@@ -71,11 +82,20 @@ export default function Sidebar() {
             </NavLink>
           ))}
         </nav>
-        <div className="p-4 border-t border-gray-800">
+        <div className="p-4 border-t border-gray-800 space-y-2">
+          {/* Theme Toggle Desktop */}
+          <button
+            onClick={() => setIsDark(!isDark)}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-white transition-all w-full"
+          >
+            <span>{isDark ? "☀️" : "🌙"}</span>
+            <span className="text-sm font-medium">{isDark ? "Light Mode" : "Dark Mode"}</span>
+          </button>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
           >
+            <span>🚪</span>
             <span className="text-sm font-medium">Sign Out</span>
           </button>
         </div>

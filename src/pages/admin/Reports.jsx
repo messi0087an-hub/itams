@@ -1,6 +1,9 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import { motion } from "framer-motion"
 
 export default function Reports() {
   const [assets, setAssets] = useState([])
@@ -44,13 +47,86 @@ export default function Reports() {
       "Purchase Price (SGD)": a.purchase_price || "",
       "Warranty Expiry": a.warranty_expiry || "",
       "Remarks": a.remarks || "",
-      "Country": a.country || "Singapore",
     }))
-
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Assets")
     XLSX.writeFile(wb, `ITAMS_Assets_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
+  const exportToPDF = () => {
+    const doc = new jsPDF()
+
+    // Header
+    doc.setFillColor(37, 99, 235)
+    doc.rect(0, 0, 210, 30, "F")
+    doc.setTextColor(255, 255, 255)
+    doc.setFontSize(20)
+    doc.setFont("helvetica", "bold")
+    doc.text("ITAMS — IT Asset Report", 14, 18)
+    doc.setFontSize(10)
+    doc.setFont("helvetica", "normal")
+    doc.text(`Trainocate Singapore · Generated: ${new Date().toLocaleDateString()}`, 14, 25)
+
+    // Stats
+    doc.setTextColor(0, 0, 0)
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "bold")
+    doc.text("Summary", 14, 42)
+
+    const statsData = [
+      ["Total Assets", stats.total],
+      ["Available", stats.available],
+      ["Assigned", stats.assigned],
+      ["Maintenance", stats.maintenance],
+      ["Retired", stats.retired],
+    ]
+
+    autoTable(doc, {
+      startY: 46,
+      head: [["Category", "Count"]],
+      body: statsData,
+      theme: "grid",
+      headStyles: { fillColor: [37, 99, 235] },
+      margin: { left: 14 },
+      tableWidth: 80,
+    })
+
+    // Asset Table
+    doc.setFontSize(12)
+    doc.setFont("helvetica", "bold")
+    doc.text("Asset List", 14, doc.lastAutoTable.finalY + 15)
+
+    autoTable(doc, {
+      startY: doc.lastAutoTable.finalY + 19,
+      head: [["Asset Name", "Category", "Serial No.", "Assigned To", "Status"]],
+      body: assets.map(a => [
+        a.name,
+        a.category || "—",
+        a.serial_number || "—",
+        a.assigned_user || "—",
+        a.status,
+      ]),
+      theme: "striped",
+      headStyles: { fillColor: [37, 99, 235] },
+      styles: { fontSize: 8 },
+      margin: { left: 14 },
+    })
+
+    // Footer
+    const pageCount = doc.internal.getNumberOfPages()
+    for (let i = 1; i <= pageCount; i++) {
+      doc.setPage(i)
+      doc.setFontSize(8)
+      doc.setTextColor(150, 150, 150)
+      doc.text(
+        `ITAMS — Trainocate Singapore · Page ${i} of ${pageCount}`,
+        14,
+        doc.internal.pageSize.height - 10
+      )
+    }
+
+    doc.save(`ITAMS_Report_${new Date().toISOString().split("T")[0]}.pdf`)
   }
 
   const statCards = [
@@ -68,27 +144,45 @@ export default function Reports() {
   }, {})
 
   return (
-    <div className="p-8">
+    <div className="p-4 md:p-8">
       <div className="flex items-center justify-between mb-8">
         <div>
-          <h1 className="text-3xl font-bold text-white">Reports</h1>
-          <p className="text-gray-400 mt-1">Asset summary and exports</p>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Reports</h1>
+          <p className="text-gray-400 mt-1 text-sm">Asset summary and exports</p>
         </div>
-        <button
-          onClick={exportToExcel}
-          className="bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded-lg transition-all"
-        >
-          Export to Excel
-        </button>
+        <div className="flex gap-2">
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={exportToPDF}
+            className="bg-red-600 hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg transition-all text-sm font-medium"
+          >
+            📄 PDF
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={exportToExcel}
+            className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-2 rounded-lg transition-all text-sm font-medium"
+          >
+            📊 Excel
+          </motion.button>
+        </div>
       </div>
 
       {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
-        {statCards.map(card => (
-          <div key={card.label} className={`bg-gray-900 rounded-xl border ${card.color} p-4`}>
+        {statCards.map((card, i) => (
+          <motion.div
+            key={card.label}
+            initial={{ opacity: 0, y: 10 }}
+            animate={{ opacity: 1, y: 0 }}
+            transition={{ delay: i * 0.1 }}
+            className={`bg-gray-900 rounded-xl border ${card.color} p-4`}
+          >
             <p className="text-gray-400 text-xs mb-2">{card.label}</p>
             <p className="text-3xl font-bold text-white">{card.value}</p>
-          </div>
+          </motion.div>
         ))}
       </div>
 
@@ -100,9 +194,11 @@ export default function Reports() {
             <div key={cat} className="flex items-center gap-4">
               <span className="text-gray-400 text-sm w-32">{cat}</span>
               <div className="flex-1 bg-gray-800 rounded-full h-2">
-                <div
+                <motion.div
+                  initial={{ width: 0 }}
+                  animate={{ width: `${(count / stats.total) * 100}%` }}
+                  transition={{ duration: 1, ease: "easeOut" }}
                   className="bg-blue-500 h-2 rounded-full"
-                  style={{ width: `${(count / stats.total) * 100}%` }}
                 />
               </div>
               <span className="text-white text-sm w-8 text-right">{count}</span>

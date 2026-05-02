@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
+import { ThemeProvider } from "./context/ThemeContext"
 import Sidebar from "./components/Sidebar"
 import Dashboard from "./pages/admin/Dashboard"
 import Assets from "./pages/admin/Assets"
@@ -327,11 +328,13 @@ export default function App() {
   )
 
   return (
-    <BrowserRouter>
-      <Routes>
-        <Route path="/login" element={user ? <Navigate to="/admin" /> : <LoginPage />} />
-        <Route path="/*" element={user ? <AdminLayout /> : <Navigate to="/login" />} />
-      </Routes>
-    </BrowserRouter>
+    <ThemeProvider>
+      <BrowserRouter>
+        <Routes>
+          <Route path="/login" element={user ? <Navigate to="/admin" /> : <LoginPage />} />
+          <Route path="/*" element={user ? <AdminLayout /> : <Navigate to="/login" />} />
+        </Routes>
+      </BrowserRouter>
+    </ThemeProvider>
   )
 }
