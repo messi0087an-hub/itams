@@ -224,7 +224,7 @@ function AdminLayout() {
   return (
     <div className="flex min-h-screen bg-black">
       <Sidebar />
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto pt-14 md:pt-0">
         <Routes>
           <Route path="/admin" element={<Dashboard />} />
           <Route path="/admin/assets" element={<Assets />} />
