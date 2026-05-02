@@ -14,6 +14,7 @@
     "@tsparticles/react": "^3.0.0",
     "@tsparticles/slim": "^3.9.1",
     "framer-motion": "^12.38.0",
+    "i18next": "^26.0.8",
     "jspdf": "^4.2.1",
     "jspdf-autotable": "^5.0.7",
     "lottie-react": "^2.4.1",
@@ -21,6 +22,7 @@
     "qrcode.react": "^4.2.0",
     "react": "^19.2.5",
     "react-dom": "^19.2.5",
+    "react-i18next": "^17.0.6",
     "react-router-dom": "^7.14.2",
     "recharts": "^3.8.1",
     "xlsx": "^0.18.5"
