@@ -1,19 +1,55 @@
 @import "tailwindcss";
 
-.light {
-  --bg-primary: #ffffff;
-  --bg-secondary: #f3f4f6;
-  --bg-card: #ffffff;
-  --border: #e5e7eb;
-  --text-primary: #111827;
-  --text-secondary: #6b7280;
+/* Light mode overrides */
+.light body {
+  background-color: #f9fafb;
+  color: #111827;
 }
 
-.dark {
-  --bg-primary: #000000;
-  --bg-secondary: #111827;
-  --bg-card: #111827;
-  --border: #1f2937;
-  --text-primary: #ffffff;
-  --text-secondary: #9ca3af;
+.light .bg-black {
+  background-color: #f9fafb !important;
+}
+
+.light .bg-gray-900 {
+  background-color: #ffffff !important;
+}
+
+.light .bg-gray-800 {
+  background-color: #f3f4f6 !important;
+}
+
+.light .bg-gray-700 {
+  background-color: #e5e7eb !important;
+}
+
+.light .border-gray-800 {
+  border-color: #e5e7eb !important;
+}
+
+.light .border-gray-700 {
+  border-color: #d1d5db !important;
+}
+
+.light .text-white {
+  color: #111827 !important;
+}
+
+.light .text-gray-400 {
+  color: #6b7280 !important;
+}
+
+.light .text-gray-500 {
+  color: #9ca3af !important;
+}
+
+.light .text-gray-600 {
+  color: #6b7280 !important;
+}
+
+.light .hover\:bg-gray-800:hover {
+  background-color: #f3f4f6 !important;
+}
+
+.light .hover\:bg-gray-700:hover {
+  background-color: #e5e7eb !important;
 }
