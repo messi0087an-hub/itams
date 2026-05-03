@@ -26,6 +26,7 @@ export default function Scanner() {
     setError("")
     setResult(null)
     setAsset(null)
+    setScanning(true)
 
     try {
       const scanner = new Html5Qrcode("qr-reader")
@@ -33,7 +34,11 @@ export default function Scanner() {
 
       await scanner.start(
         { facingMode: "environment" },
-        { fps: 10, qrbox: { width: 250, height: 250 } },
+        {
+          fps: 10,
+          qrbox: { width: 250, height: 250 },
+          aspectRatio: 1.0,
+        },
         async (decodedText) => {
           await scanner.stop()
           setScanning(false)
@@ -42,7 +47,6 @@ export default function Scanner() {
         },
         () => {}
       )
-      setScanning(true)
     } catch (err) {
       setError("Could not access camera. Please allow camera access and try again.")
       setScanning(false)
@@ -52,6 +56,7 @@ export default function Scanner() {
   const stopScanning = async () => {
     if (scannerRef.current) {
       await scannerRef.current.stop().catch(() => {})
+      scannerRef.current = null
     }
     setScanning(false)
   }
@@ -60,14 +65,12 @@ export default function Scanner() {
     setLoading(true)
     setAsset(null)
 
-    // Check if it's an ITAMS QR code URL
     let assetId = null
     if (text.includes("/admin/assets/")) {
       assetId = text.split("/admin/assets/")[1]
     }
 
     if (assetId) {
-      // Direct ITAMS QR code - fetch by ID
       const { data } = await supabase
         .from("assets")
         .select("*")
@@ -79,7 +82,6 @@ export default function Scanner() {
         setError("Asset not found in ITAMS database.")
       }
     } else {
-      // Try to find by serial number (manufacturer barcode)
       const { data } = await supabase
         .from("assets")
         .select("*")
@@ -133,32 +135,18 @@ export default function Scanner() {
       </div>
 
       {/* Scanner Box */}
-      <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-6 mb-6">
-        <div id="qr-reader" className={`w-full rounded-xl overflow-hidden ${scanning ? "block" : "hidden"}`} />
-
-        {!scanning && (
-          <div className="text-center py-8">
-            <motion.div
-              animate={{ scale: [1, 1.05, 1] }}
-              transition={{ duration: 2, repeat: Infinity }}
-              className="text-6xl mb-4"
-            >
-              📷
-            </motion.div>
-            <p className="text-gray-400 mb-6 text-sm">
-              Scan an ITAMS QR code sticker OR any barcode on the device
-            </p>
-            <motion.button
-              whileHover={{ scale: 1.05 }}
-              whileTap={{ scale: 0.95 }}
-              onClick={startScanning}
-              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all"
-              style={{ boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}
-            >
-              Start Scanning
-            </motion.button>
-          </div>
-        )}
+      <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-4 mb-6">
+        {/* Camera preview always rendered but hidden when not scanning */}
+        <div
+          id="qr-reader"
+          style={{
+            width: "100%",
+            minHeight: scanning ? "300px" : "0px",
+            display: scanning ? "block" : "none",
+            borderRadius: "12px",
+            overflow: "hidden",
+          }}
+        />
 
         {scanning && (
           <div className="text-center mt-4">
@@ -174,12 +162,39 @@ export default function Scanner() {
             </button>
           </div>
         )}
+
+        {!scanning && (
+          <div className="text-center py-8">
+            <motion.div
+              animate={{ scale: [1, 1.05, 1] }}
+              transition={{ duration: 2, repeat: Infinity }}
+              className="text-6xl mb-4"
+            >
+              📷
+            </motion.div>
+            <p className="text-gray-400 mb-2 text-sm">
+              Scan an ITAMS QR code sticker
+            </p>
+            <p className="text-gray-500 mb-6 text-xs">
+              OR any manufacturer barcode on the device
+            </p>
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={startScanning}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-8 py-3 rounded-xl font-semibold transition-all"
+              style={{ boxShadow: "0 0 20px rgba(59,130,246,0.3)" }}
+            >
+              📷 Start Scanning
+            </motion.button>
+          </div>
+        )}
       </div>
 
       {/* Manual Search */}
-      <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-6 mb-6">
-        <h2 className="text-white font-semibold mb-3">Manual Search</h2>
-        <p className="text-gray-400 text-sm mb-4">Type serial number, asset tag, or name</p>
+      <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-4 mb-6">
+        <h2 className="text-white font-semibold mb-1">Manual Search</h2>
+        <p className="text-gray-400 text-xs mb-3">Type serial number, asset tag, or name</p>
         <form onSubmit={handleManualSearch} className="flex gap-2">
           <input
             type="text"
@@ -200,7 +215,7 @@ export default function Scanner() {
 
       {/* Loading */}
       {loading && (
-        <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-6 text-center">
+        <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-6 text-center mb-4">
           <div className="w-8 h-8 border-2 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-3" />
           <p className="text-gray-400 text-sm">Looking up asset...</p>
         </div>
@@ -233,10 +248,10 @@ export default function Scanner() {
                   <span className="text-2xl">✅</span>
                   <p className="text-green-400 text-sm font-medium">Asset Found!</p>
                 </div>
-                <h2 className="text-2xl font-bold text-white">{asset.name}</h2>
+                <h2 className="text-xl font-bold text-white">{asset.name}</h2>
                 <p className="text-gray-400 text-sm">{asset.category} — {asset.brand_model || "N/A"}</p>
               </div>
-              <span className={`px-3 py-1 rounded-full text-sm font-medium border ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+              <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
                 {asset.status}
               </span>
             </div>
@@ -253,7 +268,7 @@ export default function Scanner() {
               ].map(({ label, value }) => value ? (
                 <div key={label} className="flex justify-between py-2 border-b border-gray-800 last:border-0">
                   <span className="text-gray-500 text-sm">{label}</span>
-                  <span className="text-white text-sm font-medium">{value}</span>
+                  <span className="text-white text-sm font-medium text-right ml-4">{value}</span>
                 </div>
               ) : null)}
             </div>
@@ -263,7 +278,7 @@ export default function Scanner() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => navigate(`/admin/assets/${asset.id}`)}
-                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium transition-all text-sm"
+                className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm"
               >
                 View Full Details
               </motion.button>
@@ -271,7 +286,7 @@ export default function Scanner() {
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
                 onClick={() => { setAsset(null); setResult(null); setError(""); setManualInput("") }}
-                className="bg-gray-800 hover:bg-gray-700 text-white py-3 px-4 rounded-xl transition-all text-sm"
+                className="bg-gray-800 hover:bg-gray-700 text-white py-3 px-4 rounded-xl text-sm"
               >
                 Scan Again
               </motion.button>
