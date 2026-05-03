@@ -1,6 +1,5 @@
 import { useEffect, useRef, useState } from "react"
 import { supabase } from "../../lib/supabase"
-import { useNavigate } from "react-router-dom"
 import { Html5Qrcode } from "html5-qrcode"
 import { motion, AnimatePresence } from "framer-motion"
 
@@ -12,7 +11,6 @@ export default function Scanner() {
   const [error, setError] = useState("")
   const [manualInput, setManualInput] = useState("")
   const scannerRef = useRef(null)
-  const navigate = useNavigate()
 
   useEffect(() => {
     return () => {
@@ -35,9 +33,8 @@ export default function Scanner() {
       await scanner.start(
         { facingMode: "environment" },
         {
-          fps: 10,
-          qrbox: { width: 250, height: 250 },
-          aspectRatio: 1.0,
+          fps: 30,
+          qrbox: { width: 300, height: 300 },
         },
         async (decodedText) => {
           await scanner.stop()
@@ -136,12 +133,11 @@ export default function Scanner() {
 
       {/* Scanner Box */}
       <div className="bg-gray-900/80 rounded-2xl border border-gray-800 p-4 mb-6">
-        {/* Camera preview always rendered but hidden when not scanning */}
         <div
           id="qr-reader"
           style={{
             width: "100%",
-            minHeight: scanning ? "300px" : "0px",
+            minHeight: scanning ? "350px" : "0px",
             display: scanning ? "block" : "none",
             borderRadius: "12px",
             overflow: "hidden",
@@ -277,7 +273,7 @@ export default function Scanner() {
               <motion.button
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.98 }}
-                onClick={() => navigate(`/admin/assets/${asset.id}`)}
+                onClick={() => window.location.href = `/admin/assets/${asset.id}`}
                 className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm"
               >
                 View Full Details
