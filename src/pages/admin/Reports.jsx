@@ -56,8 +56,6 @@ export default function Reports() {
 
   const exportToPDF = () => {
     const doc = new jsPDF()
-
-    // Header
     doc.setFillColor(37, 99, 235)
     doc.rect(0, 0, 210, 30, "F")
     doc.setTextColor(255, 255, 255)
@@ -68,31 +66,27 @@ export default function Reports() {
     doc.setFont("helvetica", "normal")
     doc.text(`Trainocate Singapore · Generated: ${new Date().toLocaleDateString()}`, 14, 25)
 
-    // Stats
     doc.setTextColor(0, 0, 0)
     doc.setFontSize(12)
     doc.setFont("helvetica", "bold")
     doc.text("Summary", 14, 42)
 
-    const statsData = [
-      ["Total Assets", stats.total],
-      ["Available", stats.available],
-      ["Assigned", stats.assigned],
-      ["Maintenance", stats.maintenance],
-      ["Retired", stats.retired],
-    ]
-
     autoTable(doc, {
       startY: 46,
       head: [["Category", "Count"]],
-      body: statsData,
+      body: [
+        ["Total Assets", stats.total],
+        ["Available", stats.available],
+        ["Assigned", stats.assigned],
+        ["Maintenance", stats.maintenance],
+        ["Retired", stats.retired],
+      ],
       theme: "grid",
       headStyles: { fillColor: [37, 99, 235] },
       margin: { left: 14 },
       tableWidth: 80,
     })
 
-    // Asset Table
     doc.setFontSize(12)
     doc.setFont("helvetica", "bold")
     doc.text("Asset List", 14, doc.lastAutoTable.finalY + 15)
@@ -113,7 +107,6 @@ export default function Reports() {
       margin: { left: 14 },
     })
 
-    // Footer
     const pageCount = doc.internal.getNumberOfPages()
     for (let i = 1; i <= pageCount; i++) {
       doc.setPage(i)
@@ -130,11 +123,11 @@ export default function Reports() {
   }
 
   const statCards = [
-    { label: "Total Assets", value: stats.total, color: "border-blue-500/20" },
-    { label: "Available", value: stats.available, color: "border-green-500/20" },
-    { label: "Assigned", value: stats.assigned, color: "border-purple-500/20" },
-    { label: "Maintenance", value: stats.maintenance, color: "border-yellow-500/20" },
-    { label: "Retired", value: stats.retired, color: "border-red-500/20" },
+    { label: "Total Assets", value: stats.total, color: "border-blue-500/20", text: "text-blue-400" },
+    { label: "Available", value: stats.available, color: "border-green-500/20", text: "text-green-400" },
+    { label: "Assigned", value: stats.assigned, color: "border-purple-500/20", text: "text-purple-400" },
+    { label: "Maintenance", value: stats.maintenance, color: "border-yellow-500/20", text: "text-yellow-400" },
+    { label: "Retired", value: stats.retired, color: "border-red-500/20", text: "text-red-400" },
   ]
 
   const categoryCount = assets.reduce((acc, a) => {
@@ -145,7 +138,7 @@ export default function Reports() {
 
   return (
     <div className="p-4 md:p-8">
-      <div className="flex items-center justify-between mb-8">
+      <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Reports</h1>
           <p className="text-gray-400 mt-1 text-sm">Asset summary and exports</p>
@@ -155,7 +148,7 @@ export default function Reports() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={exportToPDF}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg transition-all text-sm font-medium"
+            className="bg-red-600 hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium"
           >
             📄 PDF
           </motion.button>
@@ -163,36 +156,36 @@ export default function Reports() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={exportToExcel}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-2 rounded-lg transition-all text-sm font-medium"
+            className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium"
           >
             📊 Excel
           </motion.button>
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-4 mb-8">
+      {/* Stats - 2 col on mobile, 5 on desktop */}
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
         {statCards.map((card, i) => (
           <motion.div
             key={card.label}
             initial={{ opacity: 0, y: 10 }}
             animate={{ opacity: 1, y: 0 }}
             transition={{ delay: i * 0.1 }}
-            className={`bg-gray-900 rounded-xl border ${card.color} p-4`}
+            className={`bg-gray-900/80 rounded-xl border ${card.color} p-4`}
           >
             <p className="text-gray-400 text-xs mb-2">{card.label}</p>
-            <p className="text-3xl font-bold text-white">{card.value}</p>
+            <p className={`text-3xl font-bold ${card.text}`}>{card.value}</p>
           </motion.div>
         ))}
       </div>
 
       {/* Category Breakdown */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+      <div className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 md:p-6 mb-6">
         <h2 className="text-white font-semibold mb-4">Assets by Category</h2>
         <div className="space-y-3">
           {Object.entries(categoryCount).sort((a, b) => b[1] - a[1]).map(([cat, count]) => (
-            <div key={cat} className="flex items-center gap-4">
-              <span className="text-gray-400 text-sm w-32">{cat}</span>
+            <div key={cat} className="flex items-center gap-3">
+              <span className="text-gray-400 text-sm w-24 shrink-0">{cat}</span>
               <div className="flex-1 bg-gray-800 rounded-full h-2">
                 <motion.div
                   initial={{ width: 0 }}
@@ -201,19 +194,48 @@ export default function Reports() {
                   className="bg-blue-500 h-2 rounded-full"
                 />
               </div>
-              <span className="text-white text-sm w-8 text-right">{count}</span>
+              <span className="text-white text-sm w-6 text-right shrink-0">{count}</span>
             </div>
           ))}
         </div>
       </div>
 
-      {/* Asset Table */}
-      <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="px-6 py-4 border-b border-gray-800 flex items-center justify-between">
+      {/* Asset List — Cards on mobile, Table on desktop */}
+      <div className="bg-gray-900/80 rounded-xl border border-gray-800 overflow-hidden">
+        <div className="px-4 md:px-6 py-4 border-b border-gray-800 flex items-center justify-between">
           <h2 className="text-white font-semibold">Full Asset List</h2>
           <span className="text-gray-500 text-sm">{assets.length} assets</span>
         </div>
-        <div className="overflow-x-auto">
+
+        {/* Mobile Cards */}
+        <div className="block md:hidden divide-y divide-gray-800">
+          {loading ? (
+            <p className="text-center text-gray-500 py-8">Loading...</p>
+          ) : (
+            assets.map((asset) => (
+              <div key={asset.id} className="p-4">
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-white text-sm font-medium">{asset.name}</p>
+                    <p className="text-gray-500 text-xs mt-1">{asset.category || "—"}</p>
+                    <p className="text-gray-400 text-xs mt-1">{asset.serial_number || "No serial"}</p>
+                    <p className="text-gray-400 text-xs">{asset.assigned_user || "Unassigned"}</p>
+                  </div>
+                  <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${
+                    asset.status === "available" ? "bg-green-500/20 text-green-400" :
+                    asset.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
+                    "bg-gray-500/20 text-gray-400"
+                  }`}>
+                    {asset.status}
+                  </span>
+                </div>
+              </div>
+            ))
+          )}
+        </div>
+
+        {/* Desktop Table */}
+        <div className="hidden md:block overflow-x-auto">
           <table className="w-full">
             <thead>
               <tr className="border-b border-gray-800">
