@@ -2,8 +2,10 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { motion } from "framer-motion"
+import { useTranslation } from "react-i18next"
 
 export default function Dashboard() {
+  const { t } = useTranslation()
   const [stats, setStats] = useState({
     totalAssets: 0, available: 0, assigned: 0, issues: 0
   })
@@ -38,8 +40,8 @@ export default function Dashboard() {
     setCategoryData(Object.entries(catCount || {}).map(([name, value]) => ({ name, value })))
 
     setStatusData([
-      { name: "Available", value: available, color: "#22c55e" },
-      { name: "Assigned", value: assigned, color: "#3b82f6" },
+      { name: t("available"), value: available, color: "#22c55e" },
+      { name: t("assigned"), value: assigned, color: "#3b82f6" },
       { name: "Maintenance", value: data?.filter(a => a.status === "maintenance").length || 0, color: "#eab308" },
       { name: "Retired", value: data?.filter(a => a.status === "retired").length || 0, color: "#ef4444" },
     ].filter(d => d.value > 0))
@@ -79,94 +81,21 @@ export default function Dashboard() {
   }
 
   const cards = [
-    { label: "Total Assets", value: stats.totalAssets, bg: "bg-blue-600", shadow: "shadow-blue-500/20", emoji: "📦" },
-    { label: "Available", value: stats.available, bg: "bg-green-600", shadow: "shadow-green-500/20", emoji: "✅" },
-    { label: "Assigned", value: stats.assigned, bg: "bg-purple-600", shadow: "shadow-purple-500/20", emoji: "👤" },
-    { label: "Open Issues", value: stats.issues, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "⚠️" },
+    { label: t("totalAssets"), value: stats.totalAssets, bg: "bg-blue-600", shadow: "shadow-blue-500/20", emoji: "📦" },
+    { label: t("available"), value: stats.available, bg: "bg-green-600", shadow: "shadow-green-500/20", emoji: "✅" },
+    { label: t("assigned"), value: stats.assigned, bg: "bg-purple-600", shadow: "shadow-purple-500/20", emoji: "👤" },
+    { label: t("openIssues"), value: stats.issues, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "⚠️" },
   ]
 
   return (
     <div className="p-4 md:p-8 relative min-h-screen">
-
-      {/* Animated gradient background blobs */}
-      <div className="fixed inset-0 -z-10 overflow-hidden pointer-events-none">
-        <motion.div
-          animate={{
-            x: [0, 60, -40, 0],
-            y: [0, -60, 40, 0],
-            scale: [1, 1.2, 0.8, 1],
-          }}
-          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            top: "-10%",
-            right: "-10%",
-            width: "500px",
-            height: "500px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(59,130,246,0.4), transparent 70%)",
-          }}
-        />
-        <motion.div
-          animate={{
-            x: [0, -40, 60, 0],
-            y: [0, 40, -60, 0],
-            scale: [1, 0.8, 1.2, 1],
-          }}
-          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            bottom: "-10%",
-            left: "-10%",
-            width: "500px",
-            height: "500px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(139,92,246,0.4), transparent 70%)",
-          }}
-        />
-        <motion.div
-          animate={{
-            x: [0, 40, -20, 0],
-            y: [0, -20, 40, 0],
-            scale: [1, 1.3, 0.7, 1],
-          }}
-          transition={{ duration: 12, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            top: "40%",
-            right: "30%",
-            width: "400px",
-            height: "400px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(6,182,212,0.3), transparent 70%)",
-          }}
-        />
-        <motion.div
-          animate={{
-            x: [0, -60, 20, 0],
-            y: [0, 20, -40, 0],
-            scale: [1, 0.7, 1.3, 1],
-          }}
-          transition={{ duration: 9, repeat: Infinity, ease: "easeInOut" }}
-          style={{
-            position: "absolute",
-            bottom: "30%",
-            right: "10%",
-            width: "350px",
-            height: "350px",
-            borderRadius: "50%",
-            background: "radial-gradient(circle, rgba(236,72,153,0.3), transparent 70%)",
-          }}
-        />
-      </div>
-
       <div className="mb-6">
         <motion.h1
           initial={{ opacity: 0, y: -10 }}
           animate={{ opacity: 1, y: 0 }}
           className="text-2xl md:text-3xl font-bold text-white"
         >
-          Dashboard
+          {t("dashboard")}
         </motion.h1>
         <motion.p
           initial={{ opacity: 0 }}
@@ -174,7 +103,7 @@ export default function Dashboard() {
           transition={{ delay: 0.2 }}
           className="text-gray-400 mt-1 text-sm"
         >
-          Welcome to ITAMS — Trainocate Singapore
+          {t("welcomeMessage")}
         </motion.p>
       </div>
 
@@ -209,7 +138,7 @@ export default function Dashboard() {
         >
           <div className="flex items-center gap-2 mb-4">
             <span className="text-2xl">⚠️</span>
-            <h2 className="text-yellow-400 font-semibold">Warranty Expiring Soon</h2>
+            <h2 className="text-yellow-400 font-semibold">{t("warrantyExpiring")}</h2>
             <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-full">
               {expiringAssets.length} assets
             </span>
@@ -307,7 +236,7 @@ export default function Dashboard() {
         className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6"
       >
         <div className="flex items-center justify-between mb-4">
-          <h2 className="text-white font-semibold">Recently Added Assets</h2>
+          <h2 className="text-white font-semibold">{t("recentAssets")}</h2>
           <span className="text-gray-500 text-sm">Last 5</span>
         </div>
         <div className="space-y-3">
