@@ -29,6 +29,7 @@ export default function Sidebar() {
     { label: t("dashboard"), path: "/admin" },
     { label: t("allAssets"), path: "/admin/assets" },
     { label: t("addAsset"), path: "/admin/add-asset" },
+    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
     { label: t("importAssets"), path: "/admin/import" },
     { label: t("borrowReturn"), path: "/admin/borrow" },
     { label: t("issues"), path: "/admin/issues" },
