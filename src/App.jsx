@@ -15,6 +15,7 @@ import Borrow from "./pages/admin/Borrow"
 import AISearch from "./pages/admin/AISearch"
 import AssetHistory from "./pages/admin/AssetHistory"
 import Scanner from "./pages/admin/Scanner"
+import UserGuide from "./pages/admin/UserGuide"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -133,7 +134,7 @@ function LoginPage() {
           </form>
         </div>
         <p className="text-center text-gray-600 text-xs mt-6">
-          © 2025 Trainocate Singapore · ITAMS v1.0
+          © 2026 Trainocate Singapore · ITAMS v1.0
         </p>
       </motion.div>
     </div>
@@ -289,7 +290,6 @@ function AdminLayout() {
   return (
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
 
-      {/* Animated blobs */}
       <motion.div
         animate={{ x: [0, 60, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.8, 1] }}
         transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
@@ -331,7 +331,6 @@ function AdminLayout() {
         }}
       />
 
-      {/* Content */}
       <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
         <Sidebar />
         <main className="flex-1 overflow-auto pt-14 md:pt-0">
@@ -348,6 +347,7 @@ function AdminLayout() {
             <Route path="/admin/ai-search" element={<AISearch />} />
             <Route path="/admin/history" element={<AssetHistory />} />
             <Route path="/admin/scanner" element={<Scanner />} />
+            <Route path="/admin/guide" element={<UserGuide />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>

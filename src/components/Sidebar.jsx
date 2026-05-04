@@ -35,11 +35,11 @@ export default function Sidebar() {
     { label: t("issues"), path: "/admin/issues" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },
+    { label: "📖 " + t("guide"), path: "/admin/guide" },
   ]
 
   return (
     <>
-      {/* Mobile Top Navbar */}
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between px-4 py-3">
         <h1 className="text-white font-bold text-lg">ITAMS</h1>
         <div className="flex items-center gap-2">
@@ -58,7 +58,6 @@ export default function Sidebar() {
         </div>
       </div>
 
-      {/* Overlay */}
       {open && (
         <div
           className="fixed inset-0 bg-black/50 z-30 md:hidden"
@@ -66,7 +65,6 @@ export default function Sidebar() {
         />
       )}
 
-      {/* Sidebar */}
       <div className={`
         fixed md:static inset-y-0 left-0 z-40
         w-64 min-h-screen bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 flex flex-col
@@ -79,7 +77,6 @@ export default function Sidebar() {
         </div>
         <div className="h-14 md:hidden" />
 
-        {/* Language Switcher */}
         <div className="px-4 pt-4">
           <p className="text-gray-500 text-xs mb-2">Language</p>
           <div className="grid grid-cols-3 gap-1">
@@ -99,7 +96,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1">
+        <nav className="flex-1 p-4 space-y-1 overflow-y-auto">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
