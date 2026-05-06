@@ -3,8 +3,10 @@ import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
+import { useAuth } from "../../context/AuthContext"
 
 export default function Assets() {
+  const { canEdit, canDelete } = useAuth()
   const [assets, setAssets] = useState([])
   const [search, setSearch] = useState("")
   const [loading, setLoading] = useState(true)
@@ -98,12 +100,14 @@ export default function Assets() {
           <h1 className="text-2xl md:text-3xl font-bold text-white">All Assets</h1>
           <p className="text-gray-400 mt-1 text-sm">{assets.length} total assets</p>
         </div>
-        <button
-          onClick={() => navigate("/admin/add-asset")}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm"
-        >
-          + Add
-        </button>
+        {canEdit && (
+          <button
+            onClick={() => navigate("/admin/add-asset")}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm"
+          >
+            + Add
+          </button>
+        )}
       </div>
 
       <input
@@ -141,18 +145,22 @@ export default function Assets() {
                     {asset.status}
                   </span>
                   <div className="flex gap-1">
-                    <button
-                      onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
-                      className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30"
-                    >
-                      Edit
-                    </button>
-                    <button
-                      onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
-                      className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30"
-                    >
-                      Del
-                    </button>
+                    {canEdit && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
+                        className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30"
+                      >
+                        Edit
+                      </button>
+                    )}
+                    {canDelete && (
+                      <button
+                        onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
+                        className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30"
+                      >
+                        Del
+                      </button>
+                    )}
                   </div>
                 </div>
               </div>
@@ -200,18 +208,22 @@ export default function Assets() {
                   <td className="px-6 py-4 text-gray-400 text-sm">{asset.location || "—"}</td>
                   <td className="px-6 py-4">
                     <div className="flex gap-2">
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
-                        className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all"
-                      >
-                        Edit
-                      </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
-                        className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
-                      >
-                        Delete
-                      </button>
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
+                          className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
+                          className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
+                        >
+                          Delete
+                        </button>
+                      )}
                     </div>
                   </td>
                 </tr>

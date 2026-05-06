@@ -2,6 +2,7 @@ import { useState, useEffect } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
+import { AuthProvider } from "./context/AuthContext"
 import Sidebar from "./components/Sidebar"
 import Dashboard from "./pages/admin/Dashboard"
 import Assets from "./pages/admin/Assets"
@@ -16,6 +17,7 @@ import AISearch from "./pages/admin/AISearch"
 import AssetHistory from "./pages/admin/AssetHistory"
 import Scanner from "./pages/admin/Scanner"
 import UserGuide from "./pages/admin/UserGuide"
+import ManageUsers from "./pages/admin/ManageUsers"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -286,8 +288,9 @@ function AIChat() {
   )
 }
 
-function AdminLayout() {
+function AdminLayout({ user }) {
   return (
+    <AuthProvider user={user}>
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
 
       <motion.div
@@ -348,12 +351,14 @@ function AdminLayout() {
             <Route path="/admin/history" element={<AssetHistory />} />
             <Route path="/admin/scanner" element={<Scanner />} />
             <Route path="/admin/guide" element={<UserGuide />} />
+            <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>
       </div>
       <AIChat />
     </div>
+    </AuthProvider>
   )
 }
 
@@ -382,7 +387,7 @@ export default function App() {
       <BrowserRouter>
         <Routes>
           <Route path="/login" element={user ? <Navigate to="/admin" /> : <LoginPage />} />
-          <Route path="/*" element={user ? <AdminLayout /> : <Navigate to="/login" />} />
+          <Route path="/*" element={user ? <AdminLayout user={user} /> : <Navigate to="/login" />} />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

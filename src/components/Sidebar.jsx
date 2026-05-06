@@ -2,6 +2,7 @@ import { useState } from "react"
 import { NavLink } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useTheme } from "../context/ThemeContext"
+import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "react-i18next"
 
 const languages = [
@@ -16,27 +17,54 @@ const languages = [
   { code: "ko", label: "한국", flag: "🇰🇷" },
 ]
 
+const roleColors = {
+  admin: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
+  it: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
+  viewer: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
+}
+
+const roleLabels = {
+  admin: "👑 Admin",
+  it: "🛠 IT Staff",
+  viewer: "👁 View Only",
+}
+
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { isDark, setIsDark } = useTheme()
   const { t, i18n } = useTranslation()
+  const { userProfile, role, isAdmin, canEdit } = useAuth()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
-  const navItems = [
+  // Items visible to all roles
+  const baseItems = [
     { label: t("dashboard"), path: "/admin" },
     { label: t("allAssets"), path: "/admin/assets" },
-    { label: t("addAsset"), path: "/admin/add-asset" },
-    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
-    { label: t("importAssets"), path: "/admin/import" },
-    { label: t("borrowReturn"), path: "/admin/borrow" },
     { label: t("issues"), path: "/admin/issues" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },
     { label: "📖 " + t("guide"), path: "/admin/guide" },
   ]
+
+  // Extra items for IT and Admin
+  const itItems = [
+    { label: t("addAsset"), path: "/admin/add-asset" },
+    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
+    { label: t("importAssets"), path: "/admin/import" },
+    { label: t("borrowReturn"), path: "/admin/borrow" },
+  ]
+
+  // Admin-only items
+  const adminItems = [
+    { label: "👥 Manage Users", path: "/admin/users" },
+  ]
+
+  let navItems = [...baseItems]
+  if (canEdit) navItems = [...baseItems.slice(0, 2), ...itItems, ...baseItems.slice(2)]
+  if (isAdmin) navItems = [...navItems, ...adminItems]
 
   return (
     <>
@@ -76,6 +104,23 @@ export default function Sidebar() {
           <p className="text-gray-500 text-xs mt-1">Trainocate Singapore</p>
         </div>
         <div className="h-14 md:hidden" />
+
+        {/* Logged-in user info */}
+        {userProfile && (
+          <div className="px-4 pt-4 pb-2 border-b border-gray-800/50">
+            <div className="flex items-center gap-2">
+              <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                {(userProfile.name || userProfile.email)[0].toUpperCase()}
+              </div>
+              <div className="min-w-0">
+                <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role]}`}>
+                  {roleLabels[role]}
+                </span>
+              </div>
+            </div>
+          </div>
+        )}
 
         <div className="px-4 pt-4">
           <p className="text-gray-500 text-xs mb-2">Language</p>

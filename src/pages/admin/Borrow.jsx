@@ -1,8 +1,48 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
+import { useAuth } from "../../context/AuthContext"
+
+function getDaysRemaining(dueDate) {
+  if (!dueDate) return null
+  const today = new Date()
+  today.setHours(0, 0, 0, 0)
+  const due = new Date(dueDate)
+  due.setHours(0, 0, 0, 0)
+  return Math.ceil((due - today) / (1000 * 60 * 60 * 24))
+}
+
+function DueBadge({ dueDate }) {
+  const days = getDaysRemaining(dueDate)
+  if (days === null) return null
+
+  let color, label
+  if (days < 0) {
+    color = "bg-red-500/20 border-red-500/50 text-red-400"
+    label = `${Math.abs(days)}d overdue`
+  } else if (days === 0) {
+    color = "bg-red-500/20 border-red-500/50 text-red-400"
+    label = "Due today!"
+  } else if (days < 3) {
+    color = "bg-red-500/20 border-red-500/50 text-red-400"
+    label = `${days}d left`
+  } else if (days < 7) {
+    color = "bg-yellow-500/20 border-yellow-500/50 text-yellow-400"
+    label = `${days}d left`
+  } else {
+    color = "bg-green-500/20 border-green-500/50 text-green-400"
+    label = `${days}d left`
+  }
+
+  return (
+    <span className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded-full border ${color} font-medium`}>
+      ⏱ {label}
+    </span>
+  )
+}
 
 export default function Borrow() {
+  const { canEdit } = useAuth()
   const [borrows, setBorrows] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -11,8 +51,14 @@ export default function Borrow() {
   const [returnSuccess, setReturnSuccess] = useState(false)
   const [returnedAssetName, setReturnedAssetName] = useState("")
   const [borrowedAssetName, setBorrowedAssetName] = useState("")
+  const [dueBorrows, setDueBorrows] = useState([])
+  const [dismissedDueAlert, setDismissedDueAlert] = useState(false)
+  const [pendingExtensions, setPendingExtensions] = useState([])
+  const [dismissedExtAlert, setDismissedExtAlert] = useState(false)
+  const [extendingId, setExtendingId] = useState(null)
+  const [extendDate, setExtendDate] = useState("")
   const [form, setForm] = useState({
-    asset_id: "", borrower_name: "", borrower_email: "", notes: ""
+    asset_id: "", borrower_name: "", borrower_email: "", notes: "", due_date: ""
   })
 
   useEffect(() => {
@@ -25,8 +71,20 @@ export default function Borrow() {
       .from("borrow_history")
       .select("*, assets(name, serial_number)")
       .order("borrowed_at", { ascending: false })
-    setBorrows(data || [])
+    const rows = data || []
+    setBorrows(rows)
     setLoading(false)
+
+    const overdue = rows.filter(b => {
+      if (b.returned_at || !b.due_date) return false
+      return getDaysRemaining(b.due_date) <= 0
+    })
+    setDueBorrows(overdue)
+    setDismissedDueAlert(false)
+
+    const pending = rows.filter(b => !b.returned_at && b.extension_pending)
+    setPendingExtensions(pending)
+    setDismissedExtAlert(false)
   }
 
   const fetchAssets = async () => {
@@ -44,6 +102,7 @@ export default function Borrow() {
     const { error } = await supabase.from("borrow_history").insert([{
       asset_id: form.asset_id,
       borrowed_at: new Date().toISOString(),
+      due_date: form.due_date || null,
       notes: `Borrowed by ${form.borrower_name}${form.borrower_email ? ` (${form.borrower_email})` : ""}${form.notes ? ` - ${form.notes}` : ""}`
     }])
 
@@ -55,7 +114,7 @@ export default function Borrow() {
 
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
-      setForm({ asset_id: "", borrower_name: "", borrower_email: "", notes: "" })
+      setForm({ asset_id: "", borrower_name: "", borrower_email: "", notes: "", due_date: "" })
       setBorrowSuccess(true)
       setTimeout(() => {
         setBorrowSuccess(false)
@@ -70,7 +129,8 @@ export default function Borrow() {
   const handleReturn = async (borrow) => {
     setReturnedAssetName(borrow.assets?.name || "Asset")
     await supabase.from("borrow_history").update({
-      returned_at: new Date().toISOString()
+      returned_at: new Date().toISOString(),
+      extension_pending: false
     }).eq("id", borrow.id)
     await supabase.from("assets").update({
       status: "available",
@@ -85,8 +145,42 @@ export default function Borrow() {
     }, 2500)
   }
 
+  const handleExtend = async (borrow) => {
+    if (!extendDate) return
+    const updates = {
+      due_date: extendDate,
+      extended_at: new Date().toISOString(),
+      extension_pending: true,
+    }
+    // Preserve original due_date only on first extension
+    if (!borrow.original_due_date && borrow.due_date) {
+      updates.original_due_date = borrow.due_date
+    }
+    const { error } = await supabase
+      .from("borrow_history")
+      .update(updates)
+      .eq("id", borrow.id)
+
+    if (!error) {
+      setExtendingId(null)
+      setExtendDate("")
+      fetchBorrows()
+    } else {
+      alert(error.message)
+    }
+  }
+
+  const dismissExtension = async (borrowId) => {
+    await supabase
+      .from("borrow_history")
+      .update({ extension_pending: false })
+      .eq("id", borrowId)
+    fetchBorrows()
+  }
+
   const activeBorrows = borrows.filter(b => !b.returned_at)
   const returnedBorrows = borrows.filter(b => b.returned_at)
+  const todayStr = new Date().toISOString().split("T")[0]
 
   return (
     <div className="p-4 md:p-8">
@@ -183,19 +277,97 @@ export default function Borrow() {
         )}
       </AnimatePresence>
 
+      {/* Extension Request Alert Banner (Admin Notification) */}
+      <AnimatePresence>
+        {pendingExtensions.length > 0 && !dismissedExtAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-4 bg-purple-500/10 border border-purple-500/40 rounded-xl p-4 flex items-start gap-3"
+          >
+            <span className="text-2xl shrink-0">📋</span>
+            <div className="flex-1">
+              <p className="text-purple-400 font-semibold text-sm">
+                {pendingExtensions.length === 1
+                  ? "1 extension request pending review"
+                  : `${pendingExtensions.length} extension requests pending review`}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {pendingExtensions.map(b => (
+                  <li key={b.id} className="flex items-center gap-2">
+                    <span className="text-gray-400 text-xs">
+                      • {b.assets?.name || "Asset"} → extended to {new Date(b.due_date).toLocaleDateString()}
+                    </span>
+                    <button
+                      onClick={() => dismissExtension(b.id)}
+                      className="text-purple-400 hover:text-purple-300 text-xs underline"
+                    >
+                      Acknowledge
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setDismissedExtAlert(true)}
+              className="text-gray-500 hover:text-gray-300 text-sm shrink-0"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Overdue / Due Today Alert Banner */}
+      <AnimatePresence>
+        {dueBorrows.length > 0 && !dismissedDueAlert && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-6 bg-red-500/10 border border-red-500/40 rounded-xl p-4 flex items-start gap-3"
+          >
+            <span className="text-2xl shrink-0">🔔</span>
+            <div className="flex-1">
+              <p className="text-red-400 font-semibold text-sm">
+                {dueBorrows.length === 1
+                  ? "1 asset is overdue or due today!"
+                  : `${dueBorrows.length} assets are overdue or due today!`}
+              </p>
+              <ul className="mt-1 space-y-0.5">
+                {dueBorrows.map(b => (
+                  <li key={b.id} className="text-gray-400 text-xs">
+                    • {b.assets?.name || "Asset"} — due {new Date(b.due_date).toLocaleDateString()}
+                  </li>
+                ))}
+              </ul>
+            </div>
+            <button
+              onClick={() => setDismissedDueAlert(true)}
+              className="text-gray-500 hover:text-gray-300 text-sm shrink-0"
+            >
+              ✕
+            </button>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Borrow / Return</h1>
           <p className="text-gray-400 mt-1 text-sm">{activeBorrows.length} active borrows</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all text-sm font-medium"
-        >
-          + Borrow Asset
-        </motion.button>
+        {canEdit && (
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all text-sm font-medium"
+          >
+            + Borrow Asset
+          </motion.button>
+        )}
       </div>
 
       {/* Borrow Form */}
@@ -248,6 +420,18 @@ export default function Borrow() {
                 />
               </div>
               <div>
+                <label className="text-gray-400 text-sm mb-2 block">
+                  Return Date <span className="text-gray-600">(optional)</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.due_date}
+                  min={todayStr}
+                  onChange={(e) => setForm({ ...form, due_date: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm [color-scheme:dark]"
+                />
+              </div>
+              <div>
                 <label className="text-gray-400 text-sm mb-2 block">Notes</label>
                 <input
                   type="text"
@@ -286,23 +470,102 @@ export default function Borrow() {
                 animate={{ opacity: 1, y: 0 }}
                 className="bg-gray-900/80 rounded-xl border border-gray-800 p-4"
               >
-                <div className="flex items-start justify-between">
-                  <div>
-                    <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
+                <div className="flex items-start justify-between gap-2">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
+                      {borrow.extension_pending && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-purple-500/20 border border-purple-500/40 text-purple-400 font-medium">
+                          Extension pending
+                        </span>
+                      )}
+                    </div>
                     <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
                     <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
-                    <p className="text-gray-500 text-xs mt-1">
-                      {new Date(borrow.borrowed_at).toLocaleDateString()}
-                    </p>
+
+                    {/* Borrow / Extension History */}
+                    <div className="mt-2 space-y-0.5">
+                      <p className="text-gray-500 text-xs">
+                        Borrowed: {new Date(borrow.borrowed_at).toLocaleDateString()}
+                      </p>
+                      {borrow.original_due_date && (
+                        <p className="text-gray-500 text-xs">
+                          Original return date: {new Date(borrow.original_due_date).toLocaleDateString()}
+                        </p>
+                      )}
+                      {borrow.due_date && (
+                        <div className="flex items-center gap-2">
+                          <p className="text-gray-500 text-xs">
+                            {borrow.original_due_date ? "Extended to:" : "Due:"}{" "}
+                            {new Date(borrow.due_date).toLocaleDateString()}
+                          </p>
+                          <DueBadge dueDate={borrow.due_date} />
+                        </div>
+                      )}
+                      {borrow.extended_at && (
+                        <p className="text-gray-600 text-xs">
+                          Extended on: {new Date(borrow.extended_at).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
+
+                    {/* Extend inline form */}
+                    <AnimatePresence>
+                      {extendingId === borrow.id && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0 }}
+                          animate={{ opacity: 1, height: "auto" }}
+                          exit={{ opacity: 0, height: 0 }}
+                          className="mt-3 flex items-center gap-2 flex-wrap"
+                        >
+                          <input
+                            type="date"
+                            value={extendDate}
+                            min={borrow.due_date || todayStr}
+                            onChange={(e) => setExtendDate(e.target.value)}
+                            className="bg-gray-800 text-white rounded-lg px-3 py-1.5 border border-gray-700 focus:border-purple-500 focus:outline-none text-sm [color-scheme:dark]"
+                          />
+                          <button
+                            onClick={() => handleExtend(borrow)}
+                            disabled={!extendDate}
+                            className="bg-purple-600 hover:bg-purple-700 disabled:opacity-40 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                          >
+                            Confirm Extension
+                          </button>
+                          <button
+                            onClick={() => { setExtendingId(null); setExtendDate("") }}
+                            className="text-gray-500 hover:text-gray-300 text-sm"
+                          >
+                            Cancel
+                          </button>
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
                   </div>
-                  <motion.button
-                    whileHover={{ scale: 1.05 }}
-                    whileTap={{ scale: 0.95 }}
-                    onClick={() => handleReturn(borrow)}
-                    className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all shrink-0 ml-2"
-                  >
-                    Return
-                  </motion.button>
+
+                  {/* Action buttons */}
+                  {canEdit && (
+                    <div className="flex flex-col gap-2 shrink-0">
+                      <motion.button
+                        whileHover={{ scale: 1.05 }}
+                        whileTap={{ scale: 0.95 }}
+                        onClick={() => handleReturn(borrow)}
+                        className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                      >
+                        Return
+                      </motion.button>
+                      {borrow.due_date && extendingId !== borrow.id && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => { setExtendingId(borrow.id); setExtendDate("") }}
+                          className="text-purple-400 hover:text-purple-300 text-sm px-3 py-1 rounded border border-purple-400/30 transition-all"
+                        >
+                          Extend
+                        </motion.button>
+                      )}
+                    </div>
+                  )}
                 </div>
               </motion.div>
             ))}
@@ -320,10 +583,26 @@ export default function Borrow() {
                 <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
                 <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
                 <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
-                <div className="flex gap-4 mt-2">
+                <div className="mt-2 space-y-0.5">
                   <p className="text-gray-500 text-xs">
                     Borrowed: {new Date(borrow.borrowed_at).toLocaleDateString()}
                   </p>
+                  {borrow.original_due_date && (
+                    <p className="text-gray-500 text-xs">
+                      Original return date: {new Date(borrow.original_due_date).toLocaleDateString()}
+                    </p>
+                  )}
+                  {borrow.due_date && (
+                    <p className="text-gray-500 text-xs">
+                      {borrow.original_due_date ? "Extended to:" : "Was due:"}{" "}
+                      {new Date(borrow.due_date).toLocaleDateString()}
+                    </p>
+                  )}
+                  {borrow.extended_at && (
+                    <p className="text-gray-600 text-xs">
+                      Extended on: {new Date(borrow.extended_at).toLocaleDateString()}
+                    </p>
+                  )}
                   <p className="text-gray-500 text-xs">
                     Returned: {new Date(borrow.returned_at).toLocaleDateString()}
                   </p>
