@@ -7,6 +7,7 @@ import {
 import { motion } from "framer-motion"
 import { useTranslation } from "react-i18next"
 import { checkWarrantyAlerts, checkLicenseAlerts } from "../../lib/emailService"
+import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 
 const CHART_TOOLTIP = {
   contentStyle: { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px" },
@@ -26,6 +27,7 @@ export default function Dashboard() {
   const [departmentData, setDepartmentData] = useState([])
   const [procurementData, setProcurementData] = useState([])
   const [conditionData, setConditionData] = useState([])
+  const [healthStats, setHealthStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -35,6 +37,7 @@ export default function Dashboard() {
     fetchDepartmentValue()
     fetchProcurement()
     fetchCondition()
+    fetchHealthStats()
     checkWarrantyAlerts()
     checkLicenseAlerts()
   }, [])
@@ -136,6 +139,38 @@ export default function Dashboard() {
     ].filter(d => d.value > 0))
   }
 
+  const fetchHealthStats = async () => {
+    const { data: assets, error } = await supabase
+      .from("assets")
+      .select("id, purchase_date, warranty_expiry, status")
+
+    if (error || !assets || assets.length === 0) {
+      setHealthStats({ avg: 0, green: 0, yellow: 0, red: 0, total: 0 })
+      return
+    }
+
+    // Maintenance records optional — table may not exist yet
+    const { data: maint } = await supabase
+      .from("maintenance_schedules")
+      .select("asset_id, status, scheduled_date")
+
+    const byAsset = {}
+    ;(maint || []).forEach(m => {
+      if (!byAsset[m.asset_id]) byAsset[m.asset_id] = []
+      byAsset[m.asset_id].push(m)
+    })
+
+    let green = 0, yellow = 0, red = 0, scoreSum = 0
+    assets.forEach(a => {
+      const { score, band } = calculateHealthScore(a, byAsset[a.id] || [])
+      scoreSum += score
+      if (band === "green") green++
+      else if (band === "yellow") yellow++
+      else red++
+    })
+    setHealthStats({ avg: Math.round(scoreSum / assets.length), green, yellow, red, total: assets.length })
+  }
+
   const getDaysUntilExpiry = (date) =>
     Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
 
@@ -169,6 +204,74 @@ export default function Dashboard() {
           </motion.div>
         ))}
       </div>
+
+      {/* Fleet Health Score */}
+      <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
+        className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
+        {!healthStats ? (
+          <div className="animate-pulse space-y-4">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="h-4 bg-gray-700 rounded w-36" />
+                <div className="h-3 bg-gray-700 rounded w-52" />
+              </div>
+              <div className="h-9 bg-gray-700 rounded w-12" />
+            </div>
+            <div className="h-2 bg-gray-700 rounded-full" />
+            <div className="grid grid-cols-3 gap-3">
+              {[0,1,2].map(i => <div key={i} className="h-14 bg-gray-700 rounded-xl" />)}
+            </div>
+          </div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-white font-semibold">Fleet Health Score</h2>
+                <p className="text-gray-500 text-xs mt-0.5">
+                  {healthStats.total > 0
+                    ? `Overall asset condition across ${healthStats.total} assets`
+                    : "Add assets to see health scores"}
+                </p>
+              </div>
+              {healthStats.total > 0 && (
+                <div className="text-right">
+                  <p className={`text-3xl font-bold ${
+                    healthStats.avg >= 71 ? "text-green-400" :
+                    healthStats.avg >= 41 ? "text-yellow-400" : "text-red-400"
+                  }`}>{healthStats.avg}</p>
+                  <p className="text-gray-500 text-xs">/ 100</p>
+                </div>
+              )}
+            </div>
+            {healthStats.total > 0 && (
+              <>
+                <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-4">
+                  <motion.div initial={{ width: 0 }} animate={{ width: `${healthStats.avg}%` }}
+                    transition={{ duration: 0.8, ease: "easeOut" }}
+                    className={`h-full rounded-full ${
+                      healthStats.avg >= 71 ? "bg-green-500" :
+                      healthStats.avg >= 41 ? "bg-yellow-500" : "bg-red-500"
+                    }`} />
+                </div>
+                <div className="grid grid-cols-3 gap-3">
+                  <div className="bg-green-500/10 rounded-xl p-3 text-center border border-green-500/20">
+                    <p className="text-green-400 text-xl font-bold">{healthStats.green}</p>
+                    <p className="text-green-400/70 text-xs mt-0.5">Healthy</p>
+                  </div>
+                  <div className="bg-yellow-500/10 rounded-xl p-3 text-center border border-yellow-500/20">
+                    <p className="text-yellow-400 text-xl font-bold">{healthStats.yellow}</p>
+                    <p className="text-yellow-400/70 text-xs mt-0.5">Fair</p>
+                  </div>
+                  <div className="bg-red-500/10 rounded-xl p-3 text-center border border-red-500/20">
+                    <p className="text-red-400 text-xl font-bold">{healthStats.red}</p>
+                    <p className="text-red-400/70 text-xs mt-0.5">Needs Attention</p>
+                  </div>
+                </div>
+              </>
+            )}
+          </>
+        )}
+      </motion.div>
 
       {/* Warranty Expiry Alerts */}
       {expiringAssets.length > 0 && (

@@ -52,11 +52,14 @@ export default function EditAsset() {
     e.preventDefault()
     setLoading(true)
 
-    const cleanForm = { name: form.name, status: form.status }
+    const cleanForm = {
+      name: form.name,
+      status: form.status,
+      serial_number: form.serial_number.trim() || null,
+      asset_tag: form.asset_tag.trim() || null,
+    }
     if (form.category) cleanForm.category = form.category
     if (form.brand_model) cleanForm.brand_model = form.brand_model
-    if (form.serial_number) cleanForm.serial_number = form.serial_number
-    if (form.asset_tag) cleanForm.asset_tag = form.asset_tag
     if (form.location) cleanForm.location = form.location
     if (form.assigned_user) cleanForm.assigned_user = form.assigned_user
     if (form.department) cleanForm.department = form.department
@@ -72,7 +75,14 @@ export default function EditAsset() {
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 2000)
     } else {
-      alert(error.message)
+      const msg = error.message || ""
+      if (msg.includes("serial_number")) {
+        alert(`Serial number "${form.serial_number}" already exists on another asset.`)
+      } else if (msg.includes("asset_tag")) {
+        alert(`Asset tag "${form.asset_tag}" already exists on another asset.`)
+      } else {
+        alert(msg)
+      }
     }
     setLoading(false)
   }

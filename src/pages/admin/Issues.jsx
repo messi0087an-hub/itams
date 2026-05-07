@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
+import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 export default function Issues() {
   const [issues, setIssues] = useState([])
@@ -243,9 +244,9 @@ export default function Issues() {
       {/* Mobile Cards */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <LoadingSkeleton rows={3} cols={2} />
         ) : issues.length === 0 ? (
-          <p className="text-gray-500 text-sm">No issues reported</p>
+          <EmptyState preset="issues" />
         ) : (
           issues.map((issue) => (
             <motion.div
@@ -294,9 +295,9 @@ export default function Issues() {
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5} className="text-center text-gray-500 py-12">Loading...</td></tr>
+              <tr><td colSpan={5}><LoadingSkeleton rows={3} cols={2} /></td></tr>
             ) : issues.length === 0 ? (
-              <tr><td colSpan={5} className="text-center text-gray-500 py-12">No issues reported</td></tr>
+              <tr><td colSpan={5}><EmptyState preset="issues" /></td></tr>
             ) : (
               issues.map((issue) => (
                 <tr key={issue.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-all">

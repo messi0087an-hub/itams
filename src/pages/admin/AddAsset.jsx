@@ -28,11 +28,12 @@ export default function AddAsset() {
       name: form.name,
       country: "Singapore",
       status: form.status,
+      // Explicitly null out unique fields when blank so the DB never stores ""
+      serial_number: form.serial_number.trim() || null,
+      asset_tag: form.asset_tag.trim() || null,
     }
     if (form.category) cleanForm.category = form.category
     if (form.brand_model) cleanForm.brand_model = form.brand_model
-    if (form.serial_number) cleanForm.serial_number = form.serial_number
-    if (form.asset_tag) cleanForm.asset_tag = form.asset_tag
     if (form.location) cleanForm.location = form.location
     if (form.assigned_user) cleanForm.assigned_user = form.assigned_user
     if (form.department) cleanForm.department = form.department
@@ -49,7 +50,14 @@ export default function AddAsset() {
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 3000)
     } else {
-      alert(error?.message)
+      const msg = error?.message || ""
+      if (msg.includes("serial_number")) {
+        alert(`Serial number "${form.serial_number}" already exists. Please use a different serial number or leave it blank.`)
+      } else if (msg.includes("asset_tag")) {
+        alert(`Asset tag "${form.asset_tag}" already exists. Please use a different asset tag or leave it blank.`)
+      } else {
+        alert(msg || "Failed to save asset")
+      }
     }
     setLoading(false)
   }

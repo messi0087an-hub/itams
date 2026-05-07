@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 const PRIORITY_STYLES = {
   low:    { pill: "bg-gray-500/20 text-gray-400 border-gray-500/30",    label: "Low" },
@@ -256,9 +257,9 @@ export default function AssetRequests() {
 
       {/* Requests list */}
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
+        <LoadingSkeleton rows={3} cols={2} />
       ) : filtered.length === 0 ? (
-        <p className="text-gray-500 text-sm">No requests found</p>
+        <EmptyState preset="requests" />
       ) : (
         <div className="space-y-3">
           {filtered.map(req => {

@@ -45,6 +45,7 @@ export default function Sidebar() {
     { label: t("allAssets"), path: "/admin/assets" },
     { label: "📋 Asset Requests", path: "/admin/requests" },
     { label: t("issues"), path: "/admin/issues" },
+    { label: "🔧 Maintenance", path: "/admin/maintenance" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },
     { label: "📖 " + t("guide"), path: "/admin/guide" },

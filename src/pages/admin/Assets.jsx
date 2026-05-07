@@ -4,10 +4,13 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useAuth } from "../../context/AuthContext"
+import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
+import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 export default function Assets() {
   const { canEdit, canDelete } = useAuth()
   const [assets, setAssets] = useState([])
+  const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get("q") || "")
   const [loading, setLoading] = useState(true)
@@ -19,11 +22,17 @@ export default function Assets() {
   }, [])
 
   const fetchAssets = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("*")
-      .order("created_at", { ascending: false })
-    setAssets(data || [])
+    const [{ data: a }, { data: m }] = await Promise.all([
+      supabase.from("assets").select("*").order("created_at", { ascending: false }),
+      supabase.from("maintenance_schedules").select("asset_id, status, scheduled_date"),
+    ])
+    setAssets(a || [])
+    const byAsset = {}
+    ;(m || []).forEach(r => {
+      if (!byAsset[r.asset_id]) byAsset[r.asset_id] = []
+      byAsset[r.asset_id].push(r)
+    })
+    setMaintByAsset(byAsset)
     setLoading(false)
   }
 
@@ -127,51 +136,61 @@ export default function Assets() {
       {/* Mobile Cards */}
       <div className="block md:hidden space-y-3">
         {loading ? (
-          <p className="text-gray-500 text-sm">Loading...</p>
+          <LoadingSkeleton rows={4} cols={2} />
         ) : filtered.length === 0 ? (
-          <p className="text-gray-500 text-sm">No assets found</p>
+          <EmptyState preset={search ? "search" : "assets"} />
         ) : (
-          filtered.map((asset) => (
-            <motion.div
-              key={asset.id}
-              initial={{ opacity: 0, y: 10 }}
-              animate={{ opacity: 1, y: 0 }}
-              onClick={() => navigate(`/admin/assets/${asset.id}`)}
-              className="bg-gray-900 rounded-xl border border-gray-800 p-4 cursor-pointer"
-            >
-              <div className="flex items-start justify-between">
-                <div className="flex-1">
-                  <p className="text-white font-medium">{asset.name}</p>
-                  <p className="text-gray-500 text-xs mt-1">{asset.category}</p>
-                  <p className="text-gray-400 text-sm mt-1">{asset.serial_number || "No serial"}</p>
-                  <p className="text-gray-400 text-sm">{asset.assigned_user || "Unassigned"}</p>
-                </div>
-                <div className="flex flex-col items-end gap-2">
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                    {asset.status}
-                  </span>
-                  <div className="flex gap-1">
-                    {canEdit && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
-                        className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30"
-                      >
-                        Edit
-                      </button>
-                    )}
-                    {canDelete && (
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
-                        className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30"
-                      >
-                        Del
-                      </button>
-                    )}
+          filtered.map((asset) => {
+            const { score, band } = calculateHealthScore(asset, maintByAsset[asset.id] || [])
+            const hc = HEALTH_COLORS[band]
+            return (
+              <motion.div
+                key={asset.id}
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                onClick={() => navigate(`/admin/assets/${asset.id}`)}
+                className="bg-gray-900 rounded-xl border border-gray-800 p-4 cursor-pointer"
+              >
+                <div className="flex items-start justify-between">
+                  <div className="flex-1">
+                    <p className="text-white font-medium">{asset.name}</p>
+                    <p className="text-gray-500 text-xs mt-1">{asset.category}</p>
+                    <p className="text-gray-400 text-sm mt-1">{asset.serial_number || "No serial"}</p>
+                    <p className="text-gray-400 text-sm">{asset.assigned_user || "Unassigned"}</p>
+                    <div className="mt-2 flex items-center gap-2">
+                      <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden max-w-[80px]">
+                        <div className={`h-full ${hc.bar} rounded-full transition-all`} style={{ width: `${score}%` }} />
+                      </div>
+                      <span className={`text-xs font-bold ${hc.text}`}>{score}</span>
+                    </div>
+                  </div>
+                  <div className="flex flex-col items-end gap-2">
+                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+                      {asset.status}
+                    </span>
+                    <div className="flex gap-1">
+                      {canEdit && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
+                          className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30"
+                        >
+                          Edit
+                        </button>
+                      )}
+                      {canDelete && (
+                        <button
+                          onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
+                          className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30"
+                        >
+                          Del
+                        </button>
+                      )}
+                    </div>
                   </div>
                 </div>
-              </div>
-            </motion.div>
-          ))
+              </motion.div>
+            )
+          })
         )}
       </div>
 
@@ -184,56 +203,69 @@ export default function Assets() {
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Serial No.</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Assigned To</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Status</th>
+              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Health</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Location</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={6} className="text-center text-gray-500 py-12">Loading...</td></tr>
+              <tr><td colSpan={7}><LoadingSkeleton rows={4} cols={2} /></td></tr>
             ) : filtered.length === 0 ? (
-              <tr><td colSpan={6} className="text-center text-gray-500 py-12">No assets found</td></tr>
+              <tr><td colSpan={7}><EmptyState preset={search ? "search" : "assets"} /></td></tr>
             ) : (
-              filtered.map((asset) => (
-                <tr
-                  key={asset.id}
-                  onClick={() => navigate(`/admin/assets/${asset.id}`)}
-                  className="border-b border-gray-800 hover:bg-gray-800/50 transition-all cursor-pointer"
-                >
-                  <td className="px-6 py-4">
-                    <p className="text-white font-medium">{asset.name}</p>
-                    <p className="text-gray-500 text-sm">{asset.category}</p>
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">{asset.serial_number || "—"}</td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">{asset.assigned_user || "—"}</td>
-                  <td className="px-6 py-4">
-                    <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                      {asset.status}
-                    </span>
-                  </td>
-                  <td className="px-6 py-4 text-gray-400 text-sm">{asset.location || "—"}</td>
-                  <td className="px-6 py-4">
-                    <div className="flex gap-2">
-                      {canEdit && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
-                          className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all"
-                        >
-                          Edit
-                        </button>
-                      )}
-                      {canDelete && (
-                        <button
-                          onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
-                          className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
-                        >
-                          Delete
-                        </button>
-                      )}
-                    </div>
-                  </td>
-                </tr>
-              ))
+              filtered.map((asset) => {
+                const { score, band } = calculateHealthScore(asset, maintByAsset[asset.id] || [])
+                const hc = HEALTH_COLORS[band]
+                return (
+                  <tr
+                    key={asset.id}
+                    onClick={() => navigate(`/admin/assets/${asset.id}`)}
+                    className="border-b border-gray-800 hover:bg-gray-800/50 transition-all cursor-pointer"
+                  >
+                    <td className="px-6 py-4">
+                      <p className="text-white font-medium">{asset.name}</p>
+                      <p className="text-gray-500 text-sm">{asset.category}</p>
+                    </td>
+                    <td className="px-6 py-4 text-gray-400 text-sm">{asset.serial_number || "—"}</td>
+                    <td className="px-6 py-4 text-gray-400 text-sm">{asset.assigned_user || "—"}</td>
+                    <td className="px-6 py-4">
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+                        {asset.status}
+                      </span>
+                    </td>
+                    <td className="px-6 py-4">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
+                          <div className={`h-full ${hc.bar} rounded-full`} style={{ width: `${score}%` }} />
+                        </div>
+                        <span className={`text-xs font-bold ${hc.text}`}>{score}</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4 text-gray-400 text-sm">{asset.location || "—"}</td>
+                    <td className="px-6 py-4">
+                      <div className="flex gap-2">
+                        {canEdit && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
+                            className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all"
+                          >
+                            Edit
+                          </button>
+                        )}
+                        {canDelete && (
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
+                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all"
+                          >
+                            Delete
+                          </button>
+                        )}
+                      </div>
+                    </td>
+                  </tr>
+                )
+              })
             )}
           </tbody>
         </table>

@@ -20,6 +20,7 @@ import Scanner from "./pages/admin/Scanner"
 import UserGuide from "./pages/admin/UserGuide"
 import ManageUsers from "./pages/admin/ManageUsers"
 import AssetRequests from "./pages/admin/AssetRequests"
+import Maintenance from "./pages/admin/Maintenance"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -358,6 +359,7 @@ function AdminLayout({ user }) {
             <Route path="/admin/guide" element={<UserGuide />} />
             <Route path="/admin/users" element={<ManageUsers />} />
             <Route path="/admin/requests" element={<AssetRequests />} />
+            <Route path="/admin/maintenance" element={<Maintenance />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>

@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion } from "framer-motion"
+import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 export default function AssetHistory() {
   const [history, setHistory] = useState([])
@@ -48,13 +49,9 @@ export default function AssetHistory() {
       </div>
 
       {loading ? (
-        <p className="text-gray-500">Loading...</p>
+        <LoadingSkeleton rows={4} cols={2} />
       ) : history.length === 0 ? (
-        <div className="bg-gray-900 rounded-xl border border-gray-800 p-12 text-center">
-          <p className="text-4xl mb-4">📋</p>
-          <p className="text-white font-semibold mb-2">No history yet</p>
-          <p className="text-gray-400 text-sm">Asset activities will appear here as you use ITAMS</p>
-        </div>
+        <EmptyState preset="history" />
       ) : (
         <div className="space-y-3">
           {history.map((item, i) => (

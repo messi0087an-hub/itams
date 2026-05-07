@@ -1,0 +1,480 @@
+import { useEffect, useState, useCallback } from "react"
+import { supabase } from "../../lib/supabase"
+import { useAuth } from "../../context/AuthContext"
+import { motion, AnimatePresence } from "framer-motion"
+
+const TYPE_STYLES = {
+  repair:     { pill: "bg-red-500/20 text-red-400 border-red-500/30",      emoji: "🔧", label: "Repair" },
+  service:    { pill: "bg-blue-500/20 text-blue-400 border-blue-500/30",    emoji: "⚙️", label: "Service" },
+  inspection: { pill: "bg-purple-500/20 text-purple-400 border-purple-500/30", emoji: "🔍", label: "Inspection" },
+}
+
+const STATUS_STYLES = {
+  pending:   { pill: "bg-yellow-500/20 text-yellow-400",  label: "Pending" },
+  completed: { pill: "bg-green-500/20 text-green-400",    label: "Completed" },
+  cancelled: { pill: "bg-gray-500/20 text-gray-400",      label: "Cancelled" },
+  overdue:   { pill: "bg-red-500/20 text-red-400",        label: "Overdue" },
+}
+
+const RECURRENCE_LABELS = {
+  none: "One-time",
+  monthly: "Monthly",
+  quarterly: "Quarterly",
+  yearly: "Yearly",
+}
+
+function isOverdue(schedule) {
+  if (schedule.status !== "pending") return false
+  return new Date(schedule.scheduled_date) < new Date(new Date().toDateString())
+}
+
+function daysUntil(dateStr) {
+  const diff = new Date(dateStr) - new Date(new Date().toDateString())
+  return Math.round(diff / (1000 * 60 * 60 * 24))
+}
+
+export default function Maintenance() {
+  const { userProfile, canEdit } = useAuth()
+  const [schedules, setSchedules] = useState([])
+  const [assets, setAssets] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [showForm, setShowForm] = useState(false)
+  const [completeModal, setCompleteModal] = useState(null)
+  const [completingNote, setCompletingNote] = useState("")
+  const [completing, setCompleting] = useState(false)
+  const [submitSuccess, setSubmitSuccess] = useState(false)
+  const [tab, setTab] = useState("upcoming")
+  const [assetSearch, setAssetSearch] = useState("")
+  const [assetDropdown, setAssetDropdown] = useState(false)
+  const [form, setForm] = useState({
+    asset_id: "", asset_name: "",
+    maintenance_type: "service",
+    scheduled_date: "",
+    assigned_to: "",
+    recurrence: "none",
+    notes: "",
+  })
+
+  useEffect(() => {
+    fetchAll()
+  }, [])
+
+  const fetchAll = async () => {
+    const [{ data: s }, { data: a }] = await Promise.all([
+      supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true }),
+      supabase.from("assets").select("id, name, category").order("name"),
+    ])
+    setSchedules(s || [])
+    setAssets(a || [])
+    setLoading(false)
+  }
+
+  const filteredAssets = assets.filter(a =>
+    a.name?.toLowerCase().includes(assetSearch.toLowerCase()) ||
+    a.category?.toLowerCase().includes(assetSearch.toLowerCase())
+  ).slice(0, 8)
+
+  const handleSubmit = async (e) => {
+    e.preventDefault()
+    if (!form.asset_id) { alert("Please select an asset"); return }
+    const { error } = await supabase.from("maintenance_schedules").insert([{
+      asset_id: form.asset_id,
+      asset_name: form.asset_name,
+      maintenance_type: form.maintenance_type,
+      scheduled_date: form.scheduled_date,
+      assigned_to: form.assigned_to || null,
+      recurrence: form.recurrence,
+      notes: form.notes || null,
+      status: "pending",
+      created_by: userProfile?.name || userProfile?.email,
+    }])
+    if (!error) {
+      setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", notes: "" })
+      setAssetSearch("")
+      setShowForm(false)
+      setSubmitSuccess(true)
+      setTimeout(() => { setSubmitSuccess(false); fetchAll() }, 2500)
+    } else {
+      alert(error.message)
+    }
+  }
+
+  const handleComplete = async () => {
+    if (!completeModal) return
+    setCompleting(true)
+    const schedule = completeModal
+    await supabase.from("maintenance_schedules").update({
+      status: "completed",
+      completed_at: new Date().toISOString(),
+      completed_by: userProfile?.name || userProfile?.email,
+      notes: completingNote || schedule.notes,
+    }).eq("id", schedule.id)
+
+    // Auto-schedule next if recurring
+    if (schedule.recurrence !== "none") {
+      const next = new Date(schedule.scheduled_date)
+      if (schedule.recurrence === "monthly")   next.setMonth(next.getMonth() + 1)
+      if (schedule.recurrence === "quarterly") next.setMonth(next.getMonth() + 3)
+      if (schedule.recurrence === "yearly")    next.setFullYear(next.getFullYear() + 1)
+      await supabase.from("maintenance_schedules").insert([{
+        asset_id: schedule.asset_id,
+        asset_name: schedule.asset_name,
+        maintenance_type: schedule.maintenance_type,
+        scheduled_date: next.toISOString().split("T")[0],
+        assigned_to: schedule.assigned_to,
+        recurrence: schedule.recurrence,
+        notes: null,
+        status: "pending",
+        created_by: "Auto (recurring)",
+      }])
+    }
+
+    setCompleteModal(null)
+    setCompletingNote("")
+    setCompleting(false)
+    fetchAll()
+  }
+
+  const handleCancel = async (id) => {
+    await supabase.from("maintenance_schedules").update({ status: "cancelled" }).eq("id", id)
+    fetchAll()
+  }
+
+  const enriched = schedules.map(s => ({
+    ...s,
+    computedStatus: isOverdue(s) ? "overdue" : s.status,
+  }))
+
+  const filtered = enriched.filter(s => {
+    if (tab === "upcoming") return s.computedStatus === "pending" || s.computedStatus === "overdue"
+    if (tab === "overdue")  return s.computedStatus === "overdue"
+    if (tab === "done")     return s.status === "completed"
+    return true
+  })
+
+  const overdueCount = enriched.filter(s => s.computedStatus === "overdue").length
+  const upcomingWeek = enriched.filter(s => {
+    if (s.computedStatus !== "pending") return false
+    const d = daysUntil(s.scheduled_date)
+    return d >= 0 && d <= 7
+  }).length
+
+  return (
+    <div className="p-4 md:p-8">
+
+      {/* Submit success */}
+      <AnimatePresence>
+        {submitSuccess && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center">
+            <motion.div initial={{ scale: 0.5 }} animate={{ scale: 1 }} exit={{ scale: 0.5 }}
+              transition={{ type: "spring", stiffness: 200 }} className="text-center">
+              <motion.div initial={{ scale: 0, rotate: -180 }} animate={{ scale: 1, rotate: 0 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="inline-flex items-center justify-center w-24 h-24 bg-blue-500/20 border-2 border-blue-500/50 rounded-full mb-4"
+                style={{ boxShadow: "0 0 40px rgba(59,130,246,0.4)" }}>
+                <span className="text-5xl">🔧</span>
+              </motion.div>
+              <h2 className="text-3xl font-bold text-white mb-2">Scheduled!</h2>
+              <p className="text-gray-400">Maintenance has been scheduled</p>
+              <div className="mt-4 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: "100%" }}
+                  transition={{ duration: 2.5, ease: "linear" }} className="h-full bg-blue-500 rounded-full" />
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Complete modal */}
+      <AnimatePresence>
+        {completeModal && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+            <motion.div initial={{ opacity: 0, scale: 0.9, y: 20 }} animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }} transition={{ type: "spring", stiffness: 200 }}
+              className="bg-gray-900 rounded-2xl border border-gray-700 p-6 w-full max-w-sm shadow-2xl">
+              <div className="text-center mb-5">
+                <span className="text-4xl">✅</span>
+                <h3 className="text-white font-bold text-lg mt-3">Mark as Completed</h3>
+                <p className="text-gray-400 text-sm mt-1">{completeModal.asset_name}</p>
+                {completeModal.recurrence !== "none" && (
+                  <p className="text-blue-400 text-xs mt-1">
+                    Next {RECURRENCE_LABELS[completeModal.recurrence].toLowerCase()} maintenance will be auto-scheduled
+                  </p>
+                )}
+              </div>
+              <div className="mb-4">
+                <label className="text-gray-400 text-sm mb-2 block">Completion notes <span className="text-gray-600">(optional)</span></label>
+                <textarea value={completingNote} onChange={e => setCompletingNote(e.target.value)}
+                  rows={3} placeholder="e.g. Replaced battery, cleaned fans..."
+                  className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm resize-none" />
+              </div>
+              <div className="flex gap-3">
+                <button onClick={() => { setCompleteModal(null); setCompletingNote("") }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all">
+                  Cancel
+                </button>
+                <button onClick={handleComplete} disabled={completing}
+                  className="flex-1 bg-green-600 hover:bg-green-500 text-white py-2.5 rounded-xl text-sm font-medium transition-all">
+                  {completing ? "..." : "Mark Complete"}
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Header */}
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">Maintenance</h1>
+          <p className="text-gray-400 mt-1 text-sm">
+            {overdueCount > 0
+              ? <span className="text-red-400">{overdueCount} overdue · </span>
+              : null}
+            {upcomingWeek > 0
+              ? <span className="text-yellow-400">{upcomingWeek} due this week</span>
+              : "No upcoming maintenance this week"}
+          </p>
+        </div>
+        {canEdit && (
+          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+            + Schedule
+          </motion.button>
+        )}
+      </div>
+
+      {/* Alert banners */}
+      {overdueCount > 0 && (
+        <motion.div initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+          className="mb-4 bg-red-500/10 border border-red-500/30 rounded-xl px-4 py-3 flex items-center gap-3">
+          <span className="text-red-400 text-lg">⚠️</span>
+          <div>
+            <p className="text-red-400 font-semibold text-sm">
+              {overdueCount} maintenance task{overdueCount !== 1 ? "s" : ""} overdue
+            </p>
+            <p className="text-red-400/70 text-xs">Please action these as soon as possible</p>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Schedule Form */}
+      <AnimatePresence>
+        {showForm && (
+          <motion.form initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }} onSubmit={handleSubmit}
+            className="bg-gray-900/80 rounded-xl border border-gray-800 p-5 mb-6">
+            <h2 className="text-white font-semibold mb-4">Schedule Maintenance</h2>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+
+              {/* Asset picker */}
+              <div className="md:col-span-2 relative">
+                <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
+                <input type="text" value={form.asset_id ? form.asset_name : assetSearch}
+                  onChange={e => {
+                    setAssetSearch(e.target.value)
+                    setForm({ ...form, asset_id: "", asset_name: "" })
+                    setAssetDropdown(true)
+                  }}
+                  onFocus={() => setAssetDropdown(true)}
+                  placeholder="Search asset by name or category..."
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+                {form.asset_id && (
+                  <button type="button" onClick={() => { setForm({ ...form, asset_id: "", asset_name: "" }); setAssetSearch("") }}
+                    className="absolute right-3 top-10 text-gray-500 hover:text-gray-300">✕</button>
+                )}
+                <AnimatePresence>
+                  {assetDropdown && !form.asset_id && filteredAssets.length > 0 && (
+                    <motion.div initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -4 }}
+                      className="absolute top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl z-20 overflow-hidden">
+                      {filteredAssets.map(a => (
+                        <button key={a.id} type="button"
+                          onClick={() => {
+                            setForm({ ...form, asset_id: a.id, asset_name: a.name })
+                            setAssetSearch("")
+                            setAssetDropdown(false)
+                          }}
+                          className="w-full text-left px-4 py-2.5 hover:bg-gray-700 text-white text-sm flex items-center gap-2">
+                          <span className="text-gray-400 text-xs">{a.category}</span>
+                          <span>{a.name}</span>
+                        </button>
+                      ))}
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Type *</label>
+                <select value={form.maintenance_type} onChange={e => setForm({ ...form, maintenance_type: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="service">⚙️ Service</option>
+                  <option value="repair">🔧 Repair</option>
+                  <option value="inspection">🔍 Inspection</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Scheduled Date *</label>
+                <input type="date" value={form.scheduled_date} required
+                  onChange={e => setForm({ ...form, scheduled_date: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Assign To <span className="text-gray-600">(optional)</span></label>
+                <input type="text" value={form.assigned_to}
+                  onChange={e => setForm({ ...form, assigned_to: e.target.value })}
+                  placeholder="e.g. John IT"
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </div>
+
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Recurrence</label>
+                <select value={form.recurrence} onChange={e => setForm({ ...form, recurrence: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="none">One-time</option>
+                  <option value="monthly">Monthly</option>
+                  <option value="quarterly">Quarterly</option>
+                  <option value="yearly">Yearly</option>
+                </select>
+              </div>
+
+              <div className="md:col-span-2">
+                <label className="text-gray-400 text-sm mb-2 block">Notes <span className="text-gray-600">(optional)</span></label>
+                <textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })}
+                  rows={2} placeholder="e.g. Check thermal paste, replace battery if needed"
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm resize-none" />
+              </div>
+            </div>
+            <div className="mt-4 flex gap-3">
+              <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
+                Schedule
+              </button>
+              <button type="button" onClick={() => setShowForm(false)}
+                className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
+                Cancel
+              </button>
+            </div>
+          </motion.form>
+        )}
+      </AnimatePresence>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-4">
+        {[
+          { key: "upcoming", label: "Upcoming" },
+          { key: "overdue",  label: overdueCount > 0 ? `Overdue (${overdueCount})` : "Overdue" },
+          { key: "done",     label: "Completed" },
+          { key: "all",      label: "All" },
+        ].map(t => (
+          <button key={t.key} onClick={() => setTab(t.key)}
+            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
+              tab === t.key ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
+            }`}>
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {/* List */}
+      {loading ? (
+        <div className="space-y-3">
+          {[...Array(3)].map((_, i) => (
+            <div key={i} className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 animate-pulse">
+              <div className="h-4 bg-gray-800 rounded w-1/3 mb-2" />
+              <div className="h-3 bg-gray-800 rounded w-1/2" />
+            </div>
+          ))}
+        </div>
+      ) : filtered.length === 0 ? (
+        <div className="text-center py-16">
+          <div className="text-5xl mb-4 opacity-30">🔧</div>
+          <p className="text-gray-500 text-sm">No maintenance tasks here</p>
+        </div>
+      ) : (
+        <div className="space-y-3">
+          {filtered.map(s => {
+            const type = TYPE_STYLES[s.maintenance_type] || TYPE_STYLES.service
+            const status = STATUS_STYLES[s.computedStatus] || STATUS_STYLES.pending
+            const days = daysUntil(s.scheduled_date)
+            const isDue = s.computedStatus === "overdue"
+
+            return (
+              <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+                className={`bg-gray-900/80 rounded-xl border p-4 ${
+                  isDue ? "border-red-500/30" :
+                  s.status === "completed" ? "border-green-500/20" : "border-gray-800"
+                }`}>
+                <div className="flex items-start justify-between gap-3">
+                  <div className="flex-1 min-w-0">
+                    <div className="flex flex-wrap items-center gap-2 mb-1">
+                      <span className="text-lg">{type.emoji}</span>
+                      <p className="text-white font-medium">{s.asset_name}</p>
+                      <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${type.pill}`}>
+                        {type.label}
+                      </span>
+                      <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.pill}`}>
+                        {status.label}
+                      </span>
+                      {s.recurrence !== "none" && (
+                        <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-medium">
+                          🔄 {RECURRENCE_LABELS[s.recurrence]}
+                        </span>
+                      )}
+                    </div>
+
+                    <div className="flex flex-wrap gap-3 mt-1">
+                      <p className={`text-xs font-medium ${
+                        isDue ? "text-red-400" :
+                        days <= 3 && s.computedStatus === "pending" ? "text-yellow-400" :
+                        "text-gray-400"
+                      }`}>
+                        📅 {new Date(s.scheduled_date).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric" })}
+                        {s.computedStatus === "pending" && (
+                          <span className="ml-1">
+                            {isDue
+                              ? `(${Math.abs(days)}d overdue)`
+                              : days === 0 ? "(today)"
+                              : `(in ${days}d)`}
+                          </span>
+                        )}
+                      </p>
+                      {s.assigned_to && <p className="text-gray-500 text-xs">👤 {s.assigned_to}</p>}
+                      {s.notes && <p className="text-gray-500 text-xs truncate max-w-xs">{s.notes}</p>}
+                    </div>
+                    {s.status === "completed" && s.completed_at && (
+                      <p className="text-green-400/60 text-xs mt-1">
+                        ✓ Completed {new Date(s.completed_at).toLocaleDateString("en-SG")}
+                        {s.completed_by ? ` by ${s.completed_by}` : ""}
+                      </p>
+                    )}
+                  </div>
+
+                  {canEdit && s.status === "pending" && (
+                    <div className="flex gap-2 shrink-0">
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={() => setCompleteModal(s)}
+                        className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all">
+                        Done
+                      </motion.button>
+                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                        onClick={() => handleCancel(s.id)}
+                        className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
+                        Cancel
+                      </motion.button>
+                    </div>
+                  )}
+                </div>
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+    </div>
+  )
+}
