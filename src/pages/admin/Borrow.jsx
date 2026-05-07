@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
+import { checkBorrowReminders } from "../../lib/emailService"
 
 function getDaysRemaining(dueDate) {
   if (!dueDate) return null
@@ -64,6 +65,7 @@ export default function Borrow() {
   useEffect(() => {
     fetchBorrows()
     fetchAssets()
+    checkBorrowReminders()
   }, [])
 
   const fetchBorrows = async () => {
@@ -103,6 +105,8 @@ export default function Borrow() {
       asset_id: form.asset_id,
       borrowed_at: new Date().toISOString(),
       due_date: form.due_date || null,
+      borrower_name: form.borrower_name || null,
+      borrower_email: form.borrower_email || null,
       notes: `Borrowed by ${form.borrower_name}${form.borrower_email ? ` (${form.borrower_email})` : ""}${form.notes ? ` - ${form.notes}` : ""}`
     }])
 

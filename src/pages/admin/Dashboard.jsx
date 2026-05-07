@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase"
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, PieChart, Pie, Cell } from "recharts"
 import { motion } from "framer-motion"
 import { useTranslation } from "react-i18next"
+import { checkWarrantyAlerts, checkLicenseAlerts } from "../../lib/emailService"
 
 export default function Dashboard() {
   const { t } = useTranslation()
@@ -19,6 +20,9 @@ export default function Dashboard() {
     fetchStats()
     fetchRecentAssets()
     fetchExpiringWarranties()
+    // Run silently in background — dedup table prevents re-sends
+    checkWarrantyAlerts()
+    checkLicenseAlerts()
   }, [])
 
   const fetchStats = async () => {

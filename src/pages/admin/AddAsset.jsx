@@ -13,7 +13,7 @@ export default function AddAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
-    warranty_expiry: "", remarks: ""
+    warranty_expiry: "", license_expiry: "", remarks: ""
   })
 
   const handleChange = (e) => {
@@ -39,6 +39,7 @@ export default function AddAsset() {
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
     if (form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
+    if (form.license_expiry) cleanForm.license_expiry = form.license_expiry
     if (form.remarks) cleanForm.remarks = form.remarks
 
     const { data, error } = await supabase.from("assets").insert([cleanForm]).select().single()
@@ -65,6 +66,7 @@ export default function AddAsset() {
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
     { name: "warranty_expiry", label: "Warranty Expiry", type: "date" },
+    { name: "license_expiry", label: "License Expiry", type: "date" },
   ]
 
   if (success) {
