@@ -8,6 +8,7 @@ import { motion } from "framer-motion"
 import { useTranslation } from "react-i18next"
 import { checkWarrantyAlerts, checkLicenseAlerts } from "../../lib/emailService"
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
+import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 
 const CHART_TOOLTIP = {
   contentStyle: { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px" },
@@ -28,6 +29,7 @@ export default function Dashboard() {
   const [procurementData, setProcurementData] = useState([])
   const [conditionData, setConditionData] = useState([])
   const [healthStats, setHealthStats] = useState(null)
+  const [deprStats, setDeprStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
@@ -38,6 +40,7 @@ export default function Dashboard() {
     fetchProcurement()
     fetchCondition()
     fetchHealthStats()
+    fetchDeprStats()
     checkWarrantyAlerts()
     checkLicenseAlerts()
   }, [])
@@ -171,6 +174,26 @@ export default function Dashboard() {
     setHealthStats({ avg: Math.round(scoreSum / assets.length), green, yellow, red, total: assets.length })
   }
 
+  const fetchDeprStats = async () => {
+    const { data } = await supabase
+      .from("assets")
+      .select("purchase_price, purchase_date")
+      .not("purchase_price", "is", null)
+      .not("purchase_date", "is", null)
+    if (!data?.length) { setDeprStats({ totalOriginal: 0, totalCurrent: 0, totalLost: 0, count: 0 }); return }
+    let totalOriginal = 0, totalCurrent = 0
+    data.forEach(a => {
+      const d = calcDepreciation(a.purchase_price, a.purchase_date)
+      if (d) { totalOriginal += d.originalPrice; totalCurrent += d.currentValue }
+    })
+    setDeprStats({
+      totalOriginal: Math.round(totalOriginal),
+      totalCurrent: Math.round(totalCurrent),
+      totalLost: Math.round(totalOriginal - totalCurrent),
+      count: data.length,
+    })
+  }
+
   const getDaysUntilExpiry = (date) =>
     Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
 
@@ -272,6 +295,42 @@ export default function Dashboard() {
           </>
         )}
       </motion.div>
+
+      {/* Fleet Depreciation */}
+      {deprStats && deprStats.count > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+          className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">📉</span>
+            <h2 className="text-white font-semibold">Fleet Depreciation</h2>
+            <span className="text-gray-500 text-xs">({deprStats.count} assets with price data)</span>
+          </div>
+          <div className="grid grid-cols-3 gap-3 mb-4">
+            <div className="bg-gray-800/60 rounded-xl p-3 text-center">
+              <p className="text-gray-500 text-xs mb-1">Original Cost</p>
+              <p className="text-white font-bold text-sm">{fmtSGD(deprStats.totalOriginal)}</p>
+            </div>
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-3 text-center">
+              <p className="text-gray-500 text-xs mb-1">Current Book Value</p>
+              <p className="text-blue-400 font-bold text-sm">{fmtSGD(deprStats.totalCurrent)}</p>
+            </div>
+            <div className="bg-red-500/10 border border-red-500/20 rounded-xl p-3 text-center">
+              <p className="text-gray-500 text-xs mb-1">Total Depreciated</p>
+              <p className="text-red-400 font-bold text-sm">{fmtSGD(deprStats.totalLost)}</p>
+            </div>
+          </div>
+          <div className="h-2 bg-gray-800 rounded-full overflow-hidden">
+            <motion.div initial={{ width: 0 }}
+              animate={{ width: `${Math.round((deprStats.totalCurrent / deprStats.totalOriginal) * 100)}%` }}
+              transition={{ duration: 0.8, ease: "easeOut" }}
+              className="h-full bg-blue-500 rounded-full" />
+          </div>
+          <div className="flex justify-between text-xs text-gray-600 mt-1">
+            <span>{Math.round((deprStats.totalCurrent / deprStats.totalOriginal) * 100)}% remaining value</span>
+            <span>{Math.round((deprStats.totalLost / deprStats.totalOriginal) * 100)}% depreciated</span>
+          </div>
+        </motion.div>
+      )}
 
       {/* Warranty Expiry Alerts */}
       {expiringAssets.length > 0 && (

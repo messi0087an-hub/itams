@@ -2,6 +2,8 @@ import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useParams } from "react-router-dom"
 import { QRCodeSVG } from "qrcode.react"
+import { motion } from "framer-motion"
+import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 
 export default function AssetDetail() {
   const { id } = useParams()
@@ -65,6 +67,65 @@ export default function AssetDetail() {
           {asset.status}
         </span>
       </div>
+
+      {/* Depreciation Card */}
+      {(() => {
+        const dep = calcDepreciation(asset.purchase_price, asset.purchase_date)
+        if (!dep) return (
+          <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6 flex items-center gap-3">
+            <span className="text-2xl">📉</span>
+            <div>
+              <p className="text-white font-semibold">Depreciation</p>
+              <p className="text-gray-500 text-sm">No price data — enter a purchase price and date to see depreciation</p>
+            </div>
+          </div>
+        )
+        const barColor = dep.fullyDepreciated ? "bg-red-500" : dep.percentRemaining > 60 ? "bg-green-500" : dep.percentRemaining > 30 ? "bg-yellow-500" : "bg-orange-500"
+        return (
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
+            className="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6">
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex items-center gap-2">
+                <span className="text-xl">📉</span>
+                <h2 className="text-white font-semibold">Depreciation</h2>
+                <span className="text-gray-500 text-xs">(straight-line, 5yr)</span>
+              </div>
+              {dep.fullyDepreciated && (
+                <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 text-red-400 border border-red-500/30">Fully Depreciated</span>
+              )}
+            </div>
+
+            {/* Bar */}
+            <div className="mb-4">
+              <div className="flex justify-between text-xs text-gray-500 mb-1">
+                <span>Remaining value</span>
+                <span>{dep.percentRemaining}%</span>
+              </div>
+              <div className="h-3 bg-gray-800 rounded-full overflow-hidden">
+                <motion.div initial={{ width: 0 }} animate={{ width: `${dep.percentRemaining}%` }}
+                  transition={{ duration: 0.8, ease: "easeOut" }}
+                  className={`h-full rounded-full ${barColor}`} />
+              </div>
+            </div>
+
+            {/* Stats grid */}
+            <div className="grid grid-cols-2 md:grid-cols-4 gap-3">
+              {[
+                { label: "Original Price", value: fmtSGD(dep.originalPrice), sub: null },
+                { label: "Current Value", value: fmtSGD(dep.currentValue), sub: dep.fullyDepreciated ? "Fully written off" : null, highlight: true },
+                { label: "Depreciation / yr", value: fmtSGD(dep.perYear), sub: null },
+                { label: "% Depreciated", value: `${dep.percentDepreciated}%`, sub: `${dep.yearsOld}yr old` },
+              ].map(s => (
+                <div key={s.label} className="bg-gray-800/60 rounded-lg p-3">
+                  <p className="text-gray-500 text-xs mb-1">{s.label}</p>
+                  <p className={`font-semibold text-sm ${s.highlight ? "text-blue-400" : "text-white"}`}>{s.value}</p>
+                  {s.sub && <p className="text-gray-600 text-xs mt-0.5">{s.sub}</p>}
+                </div>
+              ))}
+            </div>
+          </motion.div>
+        )
+      })()}
 
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Asset Details */}
