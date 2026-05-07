@@ -43,6 +43,7 @@ export default function Sidebar() {
   const baseItems = [
     { label: t("dashboard"), path: "/admin" },
     { label: t("allAssets"), path: "/admin/assets" },
+    { label: "📋 Asset Requests", path: "/admin/requests" },
     { label: t("issues"), path: "/admin/issues" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },

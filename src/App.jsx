@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
 import Sidebar from "./components/Sidebar"
+import GlobalSearch from "./components/GlobalSearch"
 import Dashboard from "./pages/admin/Dashboard"
 import Assets from "./pages/admin/Assets"
 import AddAsset from "./pages/admin/AddAsset"
@@ -18,6 +19,7 @@ import AssetHistory from "./pages/admin/AssetHistory"
 import Scanner from "./pages/admin/Scanner"
 import UserGuide from "./pages/admin/UserGuide"
 import ManageUsers from "./pages/admin/ManageUsers"
+import AssetRequests from "./pages/admin/AssetRequests"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -337,6 +339,9 @@ function AdminLayout({ user }) {
       <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
         <Sidebar />
         <main className="flex-1 overflow-auto pt-14 md:pt-0">
+          <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800/50 px-4 py-2 hidden md:flex items-center">
+            <GlobalSearch />
+          </div>
           <Routes>
             <Route path="/admin" element={<Dashboard />} />
             <Route path="/admin/assets" element={<Assets />} />
@@ -352,6 +357,7 @@ function AdminLayout({ user }) {
             <Route path="/admin/scanner" element={<Scanner />} />
             <Route path="/admin/guide" element={<UserGuide />} />
             <Route path="/admin/users" element={<ManageUsers />} />
+            <Route path="/admin/requests" element={<AssetRequests />} />
             <Route path="*" element={<Navigate to="/admin" />} />
           </Routes>
         </main>

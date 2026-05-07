@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
-import { useNavigate } from "react-router-dom"
+import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useAuth } from "../../context/AuthContext"
@@ -8,7 +8,8 @@ import { useAuth } from "../../context/AuthContext"
 export default function Assets() {
   const { canEdit, canDelete } = useAuth()
   const [assets, setAssets] = useState([])
-  const [search, setSearch] = useState("")
+  const [searchParams] = useSearchParams()
+  const [search, setSearch] = useState(searchParams.get("q") || "")
   const [loading, setLoading] = useState(true)
   const [deleteModal, setDeleteModal] = useState(null)
   const navigate = useNavigate()
@@ -33,11 +34,16 @@ export default function Assets() {
     setDeleteModal(null)
   }
 
-  const filtered = assets.filter(a =>
-    a.name?.toLowerCase().includes(search.toLowerCase()) ||
-    a.serial_number?.toLowerCase().includes(search.toLowerCase()) ||
-    a.assigned_user?.toLowerCase().includes(search.toLowerCase())
-  )
+  const filtered = assets.filter(a => {
+    const q = search.toLowerCase()
+    return (
+      a.name?.toLowerCase().includes(q) ||
+      a.serial_number?.toLowerCase().includes(q) ||
+      a.assigned_user?.toLowerCase().includes(q) ||
+      a.location?.toLowerCase().includes(q) ||
+      a.category?.toLowerCase().includes(q)
+    )
+  })
 
   const statusColor = {
     available: "bg-green-500/20 text-green-400",
