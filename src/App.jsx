@@ -1,29 +1,31 @@
-import { useState, useEffect, useRef } from "react"
+import { useState, useEffect, useRef, lazy, Suspense } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
 import Sidebar from "./components/Sidebar"
 import GlobalSearch from "./components/GlobalSearch"
-import Dashboard from "./pages/admin/Dashboard"
-import Assets from "./pages/admin/Assets"
-import AddAsset from "./pages/admin/AddAsset"
-import EditAsset from "./pages/admin/EditAsset"
-import ImportAssets from "./pages/admin/ImportAssets"
-import AssetDetail from "./pages/admin/AssetDetail"
-import Issues from "./pages/admin/Issues"
-import Reports from "./pages/admin/Reports"
-import Borrow from "./pages/admin/Borrow"
-import AISearch from "./pages/admin/AISearch"
-import AssetHistory from "./pages/admin/AssetHistory"
-import Scanner from "./pages/admin/Scanner"
-import UserGuide from "./pages/admin/UserGuide"
-import ManageUsers from "./pages/admin/ManageUsers"
-import AssetRequests from "./pages/admin/AssetRequests"
-import Maintenance from "./pages/admin/Maintenance"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
+
+// Lazy-loaded pages — each loads as a separate chunk on first visit
+const Dashboard    = lazy(() => import("./pages/admin/Dashboard"))
+const Assets       = lazy(() => import("./pages/admin/Assets"))
+const AddAsset     = lazy(() => import("./pages/admin/AddAsset"))
+const EditAsset    = lazy(() => import("./pages/admin/EditAsset"))
+const ImportAssets = lazy(() => import("./pages/admin/ImportAssets"))
+const AssetDetail  = lazy(() => import("./pages/admin/AssetDetail"))
+const Issues       = lazy(() => import("./pages/admin/Issues"))
+const Reports      = lazy(() => import("./pages/admin/Reports"))
+const Borrow       = lazy(() => import("./pages/admin/Borrow"))
+const AISearch     = lazy(() => import("./pages/admin/AISearch"))
+const AssetHistory = lazy(() => import("./pages/admin/AssetHistory"))
+const Scanner      = lazy(() => import("./pages/admin/Scanner"))
+const UserGuide    = lazy(() => import("./pages/admin/UserGuide"))
+const ManageUsers  = lazy(() => import("./pages/admin/ManageUsers"))
+const AssetRequests= lazy(() => import("./pages/admin/AssetRequests"))
+const Maintenance  = lazy(() => import("./pages/admin/Maintenance"))
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -528,6 +530,21 @@ function AIChat() {
   )
 }
 
+function PageLoader() {
+  return (
+    <div className="flex-1 flex items-center justify-center min-h-screen">
+      <div className="flex flex-col items-center gap-3">
+        <div className="flex gap-1.5">
+          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
+          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "120ms" }} />
+          <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "240ms" }} />
+        </div>
+        <p className="text-gray-600 text-xs">Loading...</p>
+      </div>
+    </div>
+  )
+}
+
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
@@ -580,25 +597,27 @@ function AdminLayout({ user }) {
           <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800/50 px-4 py-2 hidden md:flex items-center">
             <GlobalSearch />
           </div>
-          <Routes>
-            <Route path="/admin" element={<Dashboard />} />
-            <Route path="/admin/assets" element={<Assets />} />
-            <Route path="/admin/add-asset" element={<AddAsset />} />
-            <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
-            <Route path="/admin/assets/:id" element={<AssetDetail />} />
-            <Route path="/admin/import" element={<ImportAssets />} />
-            <Route path="/admin/issues" element={<Issues />} />
-            <Route path="/admin/reports" element={<Reports />} />
-            <Route path="/admin/borrow" element={<Borrow />} />
-            <Route path="/admin/ai-search" element={<AISearch />} />
-            <Route path="/admin/history" element={<AssetHistory />} />
-            <Route path="/admin/scanner" element={<Scanner />} />
-            <Route path="/admin/guide" element={<UserGuide />} />
-            <Route path="/admin/users" element={<ManageUsers />} />
-            <Route path="/admin/requests" element={<AssetRequests />} />
-            <Route path="/admin/maintenance" element={<Maintenance />} />
-            <Route path="*" element={<Navigate to="/admin" />} />
-          </Routes>
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              <Route path="/admin" element={<Dashboard />} />
+              <Route path="/admin/assets" element={<Assets />} />
+              <Route path="/admin/add-asset" element={<AddAsset />} />
+              <Route path="/admin/edit-asset/:id" element={<EditAsset />} />
+              <Route path="/admin/assets/:id" element={<AssetDetail />} />
+              <Route path="/admin/import" element={<ImportAssets />} />
+              <Route path="/admin/issues" element={<Issues />} />
+              <Route path="/admin/reports" element={<Reports />} />
+              <Route path="/admin/borrow" element={<Borrow />} />
+              <Route path="/admin/ai-search" element={<AISearch />} />
+              <Route path="/admin/history" element={<AssetHistory />} />
+              <Route path="/admin/scanner" element={<Scanner />} />
+              <Route path="/admin/guide" element={<UserGuide />} />
+              <Route path="/admin/users" element={<ManageUsers />} />
+              <Route path="/admin/requests" element={<AssetRequests />} />
+              <Route path="/admin/maintenance" element={<Maintenance />} />
+              <Route path="*" element={<Navigate to="/admin" />} />
+            </Routes>
+          </Suspense>
         </main>
       </div>
       <AIChat />
