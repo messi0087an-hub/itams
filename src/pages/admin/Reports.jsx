@@ -410,7 +410,7 @@ export default function Reports() {
   const selectReport = (id) => { setReportType(id); setDateFrom(""); setDateTo("") }
 
   return (
-    <div className="flex flex-col md:flex-row md:h-full md:min-h-screen">
+    <div className="md:flex md:flex-row md:h-full md:min-h-screen">
 
       {/* ── Mobile: dropdown selector (hidden on md+) ── */}
       <div className="md:hidden px-4 pt-4 pb-3 bg-gray-900/80 border-b border-gray-800">
@@ -499,7 +499,7 @@ export default function Reports() {
       </motion.aside>
 
       {/* ── Main panel ── */}
-      <div className="flex-1 min-w-0 p-4 md:p-6 md:overflow-auto">
+      <div className="md:flex-1 md:min-w-0 md:overflow-auto p-4 md:p-6" style={{ height: "auto", overflow: "visible", minHeight: 0 }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
@@ -582,7 +582,7 @@ export default function Reports() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Distribution</p>
-                      <ResponsiveContainer width="100%" height={180}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <PieChart>
                           <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
                             {reportData.byStatus.map((_, i) => (
@@ -595,7 +595,7 @@ export default function Reports() {
                     </div>
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">By Category</p>
-                      <ResponsiveContainer width="100%" height={180}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 8, right: 16 }}>
                           <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} width={80} axisLine={false} tickLine={false} />
@@ -625,7 +625,7 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Expiry Breakdown</p>
-                    <ResponsiveContainer width="100%" height={180}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <BarChart data={reportData.chartData}>
                         <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -656,7 +656,7 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Assets by Department</p>
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
                         <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -685,7 +685,7 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Top 10 Assets — Remaining vs Depreciated Value</p>
-                    <ResponsiveContainer width="100%" height={220}>
+                    <ResponsiveContainer width="100%" height={240}>
                       <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
                         <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -720,7 +720,7 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">License Status Overview</p>
-                    <ResponsiveContainer width="100%" height={180}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
                           label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
@@ -756,7 +756,7 @@ export default function Reports() {
                   {reportData.byStatus.length > 0 && (
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Breakdown</p>
-                      <ResponsiveContainer width="100%" height={160}>
+                      <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={reportData.byStatus}>
                           <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -788,7 +788,7 @@ export default function Reports() {
                   {reportData.chartData?.length > 0 && (
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Monthly Borrow Activity (last 6 months)</p>
-                      <ResponsiveContainer width="100%" height={180}>
+                      <ResponsiveContainer width="100%" height={200}>
                         <LineChart data={reportData.chartData}>
                           <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
                           <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
@@ -826,7 +826,7 @@ function ReportTable({ headers, rows }) {
     )
   }
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+    <div className="bg-gray-900 rounded-xl border border-gray-800 md:overflow-hidden">
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide">Data Preview</p>
         <span className="text-gray-600 text-xs">{rows.length} records</span>
