@@ -410,29 +410,34 @@ export default function Reports() {
   const selectReport = (id) => { setReportType(id); setDateFrom(""); setDateTo("") }
 
   return (
-    <div className="flex flex-col md:flex-row h-full min-h-screen">
+    <div className="flex flex-col md:flex-row md:h-full md:min-h-screen">
 
       {/* ── Mobile: horizontal tab strip (hidden on md+) ── */}
       <div
         className="md:hidden bg-gray-900/80 border-b border-gray-800 shrink-0"
-        style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}
+        style={{
+          overflowX: "scroll",
+          WebkitOverflowScrolling: "touch",
+          whiteSpace: "nowrap",
+          display: "block",
+          width: "100%",
+        }}
       >
-        <div className="flex gap-1 p-2" style={{ width: "max-content", minWidth: "100%" }}>
-          {REPORT_TYPES.map(r => (
-            <button
-              key={r.id}
-              onClick={() => selectReport(r.id)}
-              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
-                reportType === r.id
-                  ? "bg-blue-600/30 border border-blue-500/50 text-blue-300"
-                  : "text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent"
-              }`}
-            >
-              <span>{r.icon}</span>
-              <span>{r.label}</span>
-            </button>
-          ))}
-        </div>
+        {REPORT_TYPES.map(r => (
+          <button
+            key={r.id}
+            onClick={() => selectReport(r.id)}
+            style={{ display: "inline-block", whiteSpace: "nowrap" }}
+            className={`mx-0.5 my-2 px-3 py-2 rounded-lg text-xs font-medium transition-all first:ml-2 last:mr-2 ${
+              reportType === r.id
+                ? "bg-blue-600/30 border border-blue-500/50 text-blue-300"
+                : "text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent"
+            }`}
+          >
+            <span className="mr-1">{r.icon}</span>
+            <span>{r.label}</span>
+          </button>
+        ))}
       </div>
 
       {/* ── Desktop: collapsible sidebar (hidden on mobile) ── */}
@@ -508,7 +513,7 @@ export default function Reports() {
       </motion.aside>
 
       {/* ── Main panel ── */}
-      <div className="flex-1 p-4 md:p-6 overflow-auto min-w-0">
+      <div className="flex-1 p-4 md:p-6 min-w-0" style={{ overflowY: "auto", overflowX: "hidden" }}>
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
