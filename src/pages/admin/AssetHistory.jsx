@@ -2,8 +2,10 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import { useTranslation } from "react-i18next"
 
 export default function AssetHistory() {
+  const { t } = useTranslation()
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
 
@@ -44,8 +46,8 @@ export default function AssetHistory() {
   return (
     <div className="p-4 md:p-8">
       <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">Asset History</h1>
-        <p className="text-gray-400 mt-1 text-sm">Complete audit trail of all asset activities</p>
+        <h1 className="text-2xl md:text-3xl font-bold text-white">{t("historyTitle")}</h1>
+        <p className="text-gray-400 mt-1 text-sm">{t("auditTrail")}</p>
       </div>
 
       {loading ? (

@@ -6,6 +6,7 @@ import { logHistory } from "../../lib/logHistory"
 import { useAuth } from "../../context/AuthContext"
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import QRLabelModal from "../../components/QRLabelModal"
 
 const STATUS_OPTIONS = ["available", "assigned", "maintenance", "retired"]
 
@@ -71,6 +72,7 @@ export default function Assets() {
   const [bulkModal, setBulkModal] = useState(null) // "assign" | "status" | "delete"
   const [bulkInput, setBulkInput] = useState("")
   const [bulkWorking, setBulkWorking] = useState(false)
+  const [showLabelModal, setShowLabelModal] = useState(false)
 
   useEffect(() => { fetchAssets() }, [])
 
@@ -314,6 +316,10 @@ export default function Assets() {
                 className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
                 📄 Export PDF
               </button>
+              <button onClick={() => setShowLabelModal(true)}
+                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 transition-all">
+                🏷️ Print Labels
+              </button>
               {canDelete && (
                 <button onClick={() => setBulkModal("delete")}
                   className="text-xs px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 transition-all">
@@ -472,6 +478,17 @@ export default function Assets() {
           </tbody>
         </table>
       </div>
+
+      {/* QR Label bulk print modal */}
+      <AnimatePresence>
+        {showLabelModal && selected.size > 0 && (
+          <QRLabelModal
+            assets={selectedAssets}
+            assetUrlBase={`${window.location.origin}/admin/assets/`}
+            onClose={() => setShowLabelModal(false)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   )
 }

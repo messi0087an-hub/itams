@@ -2,6 +2,7 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import { useTranslation } from "react-i18next"
 
 const ROLES = ["admin", "it", "viewer"]
 
@@ -18,6 +19,7 @@ const roleLabels = {
 }
 
 export default function ManageUsers() {
+  const { t } = useTranslation()
   const { userProfile, isAdmin } = useAuth()
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
@@ -109,6 +111,7 @@ export default function ManageUsers() {
         <p className="text-gray-400 text-sm">Only admins can manage users.</p>
       </div>
     )
+
   }
 
   return (
@@ -131,7 +134,7 @@ export default function ManageUsers() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Manage Users</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">{t("manageUsersTitle")}</h1>
           <p className="text-gray-400 mt-1 text-sm">{users.length} team members</p>
         </div>
         <motion.button
@@ -140,7 +143,7 @@ export default function ManageUsers() {
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
         >
-          + Add Member
+          + {t("addNewUser")}
         </motion.button>
       </div>
 
@@ -154,10 +157,10 @@ export default function ManageUsers() {
             onSubmit={handleCreateUser}
             className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 mb-6"
           >
-            <h2 className="text-white font-semibold mb-4">Create Account</h2>
+            <h2 className="text-white font-semibold mb-4">{t("createUser")}</h2>
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Name</label>
+                <label className="text-gray-400 text-sm mb-2 block">{t("userName")}</label>
                 <input
                   type="text"
                   value={form.name}
@@ -168,7 +171,7 @@ export default function ManageUsers() {
                 />
               </div>
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Email</label>
+                <label className="text-gray-400 text-sm mb-2 block">{t("userEmail")}</label>
                 <input
                   type="email"
                   value={form.email}
@@ -179,7 +182,7 @@ export default function ManageUsers() {
                 />
               </div>
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Password</label>
+                <label className="text-gray-400 text-sm mb-2 block">{t("password")}</label>
                 <input
                   type="password"
                   value={form.password}
@@ -191,7 +194,7 @@ export default function ManageUsers() {
                 />
               </div>
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Role</label>
+                <label className="text-gray-400 text-sm mb-2 block">{t("userRole")}</label>
                 <select
                   value={form.role}
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
@@ -209,14 +212,14 @@ export default function ManageUsers() {
                 disabled={creating}
                 className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium"
               >
-                {creating ? "Creating..." : "Create Account"}
+                {creating ? t("creatingUser") : t("createUser")}
               </button>
               <button
                 type="button"
                 onClick={() => setShowForm(false)}
                 className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm"
               >
-                Cancel
+                {t("cancel")}
               </button>
             </div>
           </motion.form>

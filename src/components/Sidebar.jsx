@@ -43,9 +43,9 @@ export default function Sidebar() {
   const baseItems = [
     { label: t("dashboard"), path: "/admin" },
     { label: t("allAssets"), path: "/admin/assets" },
-    { label: "📋 Asset Requests", path: "/admin/requests" },
+    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
     { label: t("issues"), path: "/admin/issues" },
-    { label: "🔧 Maintenance", path: "/admin/maintenance" },
+    { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },
     { label: "📖 " + t("guide"), path: "/admin/guide" },
@@ -61,7 +61,7 @@ export default function Sidebar() {
 
   // Admin-only items
   const adminItems = [
-    { label: "👥 Manage Users", path: "/admin/users" },
+    { label: "👥 " + t("manageUsersTitle"), path: "/admin/users" },
   ]
 
   let navItems = [...baseItems]

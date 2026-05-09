@@ -3,8 +3,10 @@ import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
+import { useTranslation } from "react-i18next"
 
 export default function AddAsset() {
+  const { t } = useTranslation()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)

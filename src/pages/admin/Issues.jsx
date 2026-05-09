@@ -2,8 +2,10 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import { useTranslation } from "react-i18next"
 
 export default function Issues() {
+  const { t } = useTranslation()
   const [issues, setIssues] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -103,8 +105,8 @@ export default function Issues() {
               >
                 <span className="text-5xl">⚠️</span>
               </motion.div>
-              <h2 className="text-3xl font-bold text-white mb-2">Issue Reported!</h2>
-              <p className="text-gray-400">Your issue has been submitted successfully</p>
+              <h2 className="text-3xl font-bold text-white mb-2">{t("issueReported")}</h2>
+              <p className="text-gray-400">{t("submitSuccess")}</p>
               <div className="mt-4 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
@@ -143,8 +145,8 @@ export default function Issues() {
               >
                 <span className="text-5xl">✅</span>
               </motion.div>
-              <h2 className="text-3xl font-bold text-white mb-2">Issue Resolved!</h2>
-              <p className="text-gray-400">The issue has been marked as resolved</p>
+              <h2 className="text-3xl font-bold text-white mb-2">{t("issueResolved")}</h2>
+              <p className="text-gray-400">{t("issueResolvedMsg")}</p>
               <div className="mt-4 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
@@ -160,9 +162,9 @@ export default function Issues() {
 
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Issues</h1>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">{t("issuesTitle")}</h1>
           <p className="text-gray-400 mt-1 text-sm">
-            {issues.filter(i => i.status === "open").length} open issues
+            {issues.filter(i => i.status === "open").length} {t("openIssues")}
           </p>
         </div>
         <motion.button
@@ -171,7 +173,7 @@ export default function Issues() {
           onClick={() => setShowForm(!showForm)}
           className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm font-medium"
         >
-          + Report
+          {t("reportIssue")}
         </motion.button>
       </div>
 
