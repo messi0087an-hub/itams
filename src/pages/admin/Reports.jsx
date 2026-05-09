@@ -407,52 +407,107 @@ export default function Reports() {
 
   const rt = REPORT_TYPES.find(r => r.id === reportType)
 
-  return (
-    <div className="flex h-full min-h-screen">
-      {/* ── Sidebar ── */}
-      <AnimatePresence initial={false}>
-        {sidebarOpen && (
-          <motion.aside
-            initial={{ width: 0, opacity: 0 }}
-            animate={{ width: 220, opacity: 1 }}
-            exit={{ width: 0, opacity: 0 }}
-            transition={{ type: "spring", stiffness: 260, damping: 28 }}
-            className="shrink-0 bg-gray-900/80 border-r border-gray-800 overflow-hidden"
-          >
-            <div className="p-4 pt-6">
-              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 px-1">Report Type</p>
-              <nav className="space-y-1">
-                {REPORT_TYPES.map(r => (
-                  <button
-                    key={r.id}
-                    onClick={() => { setReportType(r.id); setDateFrom(""); setDateTo("") }}
-                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-all text-sm flex items-start gap-2.5 ${
-                      reportType === r.id
-                        ? "bg-blue-600/20 border border-blue-500/40 text-blue-300"
-                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                    }`}
-                  >
-                    <span className="text-base shrink-0 mt-0.5">{r.icon}</span>
-                    <span className="leading-tight">{r.label}</span>
-                  </button>
-                ))}
-              </nav>
-            </div>
-          </motion.aside>
-        )}
-      </AnimatePresence>
+  const selectReport = (id) => { setReportType(id); setDateFrom(""); setDateTo("") }
 
-      {/* ── Main panel ── */}
-      <div className="flex-1 p-4 md:p-6 overflow-auto">
-        {/* Header */}
-        <div className="flex items-center gap-3 mb-5">
+  return (
+    <div className="flex flex-col md:flex-row h-full min-h-screen">
+
+      {/* ── Mobile: horizontal tab strip (hidden on md+) ── */}
+      <div className="md:hidden bg-gray-900/80 border-b border-gray-800 overflow-x-auto shrink-0">
+        <div className="flex gap-1 p-2" style={{ minWidth: "max-content" }}>
+          {REPORT_TYPES.map(r => (
+            <button
+              key={r.id}
+              onClick={() => selectReport(r.id)}
+              className={`flex items-center gap-1.5 px-3 py-2 rounded-lg text-xs font-medium whitespace-nowrap transition-all ${
+                reportType === r.id
+                  ? "bg-blue-600/30 border border-blue-500/50 text-blue-300"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent"
+              }`}
+            >
+              <span>{r.icon}</span>
+              <span>{r.label}</span>
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* ── Desktop: collapsible sidebar (hidden on mobile) ── */}
+      <motion.aside
+        animate={{ width: sidebarOpen ? 224 : 52 }}
+        transition={{ type: "spring", stiffness: 300, damping: 30 }}
+        className="hidden md:flex shrink-0 flex-col bg-gray-900/80 border-r border-gray-800 overflow-hidden"
+        style={{ minHeight: "100%" }}
+      >
+        {/* Collapse toggle button */}
+        <div className={`flex ${sidebarOpen ? "justify-end px-2 pt-3 pb-1" : "justify-center pt-3 pb-1"}`}>
           <button
             onClick={() => setSidebarOpen(o => !o)}
-            className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-all"
-            title="Toggle sidebar"
+            title={sidebarOpen ? "Collapse sidebar" : "Expand sidebar"}
+            className="w-8 h-8 rounded-lg flex items-center justify-center text-gray-500 hover:text-white hover:bg-gray-800 transition-all"
           >
-            ☰
+            <svg width="14" height="14" viewBox="0 0 14 14" fill="none" xmlns="http://www.w3.org/2000/svg">
+              {sidebarOpen
+                ? <path d="M9 2L4 7L9 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+                : <path d="M5 2L10 7L5 12" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" strokeLinejoin="round"/>
+              }
+            </svg>
           </button>
+        </div>
+
+        {/* Label — only visible when expanded */}
+        <AnimatePresence initial={false}>
+          {sidebarOpen && (
+            <motion.p
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              transition={{ duration: 0.15 }}
+              className="text-gray-500 text-xs font-semibold uppercase tracking-wider px-4 pb-2"
+            >
+              Report Type
+            </motion.p>
+          )}
+        </AnimatePresence>
+
+        {/* Nav items */}
+        <nav className="flex-1 px-1.5 space-y-0.5 pb-4">
+          {REPORT_TYPES.map(r => (
+            <button
+              key={r.id}
+              onClick={() => selectReport(r.id)}
+              title={!sidebarOpen ? r.label : undefined}
+              className={`w-full text-left rounded-xl transition-all flex items-center gap-2.5 ${
+                sidebarOpen ? "px-3 py-2.5" : "px-0 py-2.5 justify-center"
+              } ${
+                reportType === r.id
+                  ? "bg-blue-600/20 border border-blue-500/40 text-blue-300"
+                  : "text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent"
+              }`}
+            >
+              <span className="text-base shrink-0">{r.icon}</span>
+              <AnimatePresence initial={false}>
+                {sidebarOpen && (
+                  <motion.span
+                    initial={{ opacity: 0, width: 0 }}
+                    animate={{ opacity: 1, width: "auto" }}
+                    exit={{ opacity: 0, width: 0 }}
+                    transition={{ duration: 0.15 }}
+                    className="text-sm leading-tight overflow-hidden whitespace-nowrap"
+                  >
+                    {r.label}
+                  </motion.span>
+                )}
+              </AnimatePresence>
+            </button>
+          ))}
+        </nav>
+      </motion.aside>
+
+      {/* ── Main panel ── */}
+      <div className="flex-1 p-4 md:p-6 overflow-auto min-w-0">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
             <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
               <span>{rt.icon}</span> {rt.label}
