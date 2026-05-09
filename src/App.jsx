@@ -74,9 +74,11 @@ function LoginPage({ onVerified }) {
   const otpInputs = useRef([])
 
   useEffect(() => {
-    initParticlesEngine(async (engine) => {
-      await loadSlim(engine)
-    }).then(() => setParticlesReady(true))
+    if (window.innerWidth >= 768) {
+      initParticlesEngine(async (engine) => {
+        await loadSlim(engine)
+      }).then(() => setParticlesReady(true))
+    }
   }, [])
 
   // Countdown timer for resend
@@ -196,7 +198,58 @@ function LoginPage({ onVerified }) {
     otpInputs.current[0]?.focus()
   }
 
-  const ParticlesBackground = () => (
+  const isMobile = window.innerWidth < 768
+
+  // Mobile: 15 static CSS dots — no canvas, no blur, no glow
+  const MobileBackground = () => {
+    const dots = [
+      { top: "8%",  left: "12%", size: 5,  color: "#3b82f6", opacity: 0.5, delay: "0s",    dur: "4s"  },
+      { top: "15%", left: "78%", size: 3,  color: "#06b6d4", opacity: 0.4, delay: "0.5s",  dur: "5s"  },
+      { top: "22%", left: "45%", size: 4,  color: "#a855f7", opacity: 0.35,delay: "1s",    dur: "6s"  },
+      { top: "35%", left: "88%", size: 3,  color: "#3b82f6", opacity: 0.4, delay: "1.5s",  dur: "4.5s"},
+      { top: "42%", left: "6%",  size: 5,  color: "#06b6d4", opacity: 0.3, delay: "0.8s",  dur: "7s"  },
+      { top: "55%", left: "60%", size: 3,  color: "#ec4899", opacity: 0.35,delay: "2s",    dur: "5.5s"},
+      { top: "62%", left: "25%", size: 4,  color: "#3b82f6", opacity: 0.4, delay: "0.3s",  dur: "6s"  },
+      { top: "70%", left: "82%", size: 3,  color: "#a855f7", opacity: 0.3, delay: "1.2s",  dur: "4s"  },
+      { top: "78%", left: "40%", size: 5,  color: "#06b6d4", opacity: 0.35,delay: "2.5s",  dur: "5s"  },
+      { top: "85%", left: "15%", size: 3,  color: "#3b82f6", opacity: 0.4, delay: "0.6s",  dur: "6.5s"},
+      { top: "90%", left: "70%", size: 4,  color: "#ec4899", opacity: 0.3, delay: "1.8s",  dur: "4.5s"},
+      { top: "5%",  left: "55%", size: 3,  color: "#a855f7", opacity: 0.35,delay: "3s",    dur: "5s"  },
+      { top: "48%", left: "92%", size: 4,  color: "#3b82f6", opacity: 0.3, delay: "2.2s",  dur: "7s"  },
+      { top: "30%", left: "3%",  size: 3,  color: "#06b6d4", opacity: 0.4, delay: "1s",    dur: "4s"  },
+      { top: "72%", left: "52%", size: 5,  color: "#3b82f6", opacity: 0.3, delay: "0.4s",  dur: "6s"  },
+    ]
+    return (
+      <>
+        <style>{`
+          @keyframes floatDot {
+            0%, 100% { transform: translateY(0px); }
+            50% { transform: translateY(-8px); }
+          }
+        `}</style>
+        {dots.map((d, i) => (
+          <div
+            key={i}
+            style={{
+              position: "absolute",
+              top: d.top,
+              left: d.left,
+              width: d.size,
+              height: d.size,
+              borderRadius: "50%",
+              backgroundColor: d.color,
+              opacity: d.opacity,
+              animation: `floatDot ${d.dur} ${d.delay} ease-in-out infinite`,
+              pointerEvents: "none",
+            }}
+          />
+        ))}
+      </>
+    )
+  }
+
+  // Desktop: full WebGL particles + glow orbs (unchanged)
+  const DesktopBackground = () => (
     <>
       {particlesReady && (
         <Particles
@@ -219,6 +272,8 @@ function LoginPage({ onVerified }) {
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
     </>
   )
+
+  const ParticlesBackground = () => isMobile ? <MobileBackground /> : <DesktopBackground />
 
   const Brand = () => (
     <div className="text-center mb-10">
