@@ -413,8 +413,11 @@ export default function Reports() {
     <div className="flex flex-col md:flex-row h-full min-h-screen">
 
       {/* ── Mobile: horizontal tab strip (hidden on md+) ── */}
-      <div className="md:hidden bg-gray-900/80 border-b border-gray-800 overflow-x-auto shrink-0">
-        <div className="flex gap-1 p-2" style={{ minWidth: "max-content" }}>
+      <div
+        className="md:hidden bg-gray-900/80 border-b border-gray-800 shrink-0"
+        style={{ overflowX: "auto", overflowY: "hidden", WebkitOverflowScrolling: "touch" }}
+      >
+        <div className="flex gap-1 p-2" style={{ width: "max-content", minWidth: "100%" }}>
           {REPORT_TYPES.map(r => (
             <button
               key={r.id}
