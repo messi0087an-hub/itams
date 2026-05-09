@@ -580,11 +580,11 @@ export default function Reports() {
                     <StatCard label="Retired" value={reportData.stats.retired} color="red" delay={0.15} />
                   </div>
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Distribution</p>
-                      <ResponsiveContainer width="100%" height={200}>
+                      <ResponsiveContainer width="100%" height={180}>
                         <PieChart>
-                          <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                          <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
                             {reportData.byStatus.map((_, i) => (
                               <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
                             ))}
@@ -593,22 +593,22 @@ export default function Reports() {
                         </PieChart>
                       </ResponsiveContainer>
                     </div>
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">By Category</p>
-                      <ResponsiveContainer width="100%" height={200}>
+                      <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 8, right: 16 }}>
-                          <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} width={80} axisLine={false} tickLine={false} />
+                          <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} width={70} axisLine={false} tickLine={false} />
                           <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                           <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
                         </BarChart>
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  <ReportTable headers={["Asset Name","Category","Serial No.","Assigned To","Dept","Status"]}
+                  <ReportTable headers={["Name","Category","Serial","Assigned","Status"]}
                     rows={reportData.rows.map(a => [
                       a.name, a.category||"—", a.serial_number||"—",
-                      a.assigned_user||"—", a.department||"—",
+                      a.assigned_user||"—",
                       <StatusBadge key="s" status={a.status} />,
                     ])} />
                 </>
@@ -623,12 +623,12 @@ export default function Reports() {
                     <StatCard label="31–60 days" value={reportData.stats.exp60} color="yellow" delay={0.1} />
                     <StatCard label="61–90 days" value={reportData.stats.exp90} color="green" delay={0.15} />
                   </div>
-                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Expiry Breakdown</p>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={reportData.chartData}>
-                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                         <Bar dataKey="value" name="Assets" radius={[4,4,0,0]}>
                           {reportData.chartData.map((_, i) => (
@@ -638,10 +638,10 @@ export default function Reports() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Asset Name","Serial No.","Department","Warranty Expiry","Days Left"]}
+                  <ReportTable headers={["Asset Name","Expiry","Days Left"]}
                     rows={reportData.rows.map(a => {
                       const days = Math.ceil((new Date(a.warranty_expiry) - new Date()) / 86400000)
-                      return [a.name, a.serial_number||"—", a.department||"—", a.warranty_expiry,
+                      return [a.name, a.warranty_expiry,
                         <span key="d" className={days <= 30 ? "text-red-400 font-semibold" : days <= 60 ? "text-yellow-400" : "text-green-400"}>{days}d</span>]
                     })} />
                 </>
@@ -654,22 +654,22 @@ export default function Reports() {
                     <StatCard label="Departments" value={reportData.stats.deptCount} color="blue" />
                     <StatCard label="Total Assets" value={reportData.stats.totalAssets} color="purple" />
                   </div>
-                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Assets by Department</p>
-                    <ResponsiveContainer width="100%" height={240}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
-                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 9 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 12 }} />
+                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 11 }} />
                         <Bar dataKey="available" name="Available" stackId="a" fill="#22c55e" radius={[0,0,0,0]} />
                         <Bar dataKey="assigned" name="Assigned" stackId="a" fill="#3b82f6" radius={[4,4,0,0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Department","Total","Available","Assigned","Maintenance","Retired"]}
+                  <ReportTable headers={["Department","Total","Available","Assigned"]}
                     rows={reportData.depts.map(([dept, v]) => [
-                      dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0,
+                      dept, v.total, v.available||0, v.assigned||0,
                     ])} />
                 </>
               )}
@@ -681,31 +681,27 @@ export default function Reports() {
                     <StatCard label="Total Original" value={`SGD ${Math.round(reportData.stats.totalOriginal).toLocaleString()}`} color="blue" delay={0} />
                     <StatCard label="Current Value" value={`SGD ${Math.round(reportData.stats.totalCurrent).toLocaleString()}`} color="green" delay={0.05} />
                     <StatCard label="Total Loss" value={`SGD ${Math.round(reportData.stats.loss).toLocaleString()}`} color="red" delay={0.1} />
-                    <StatCard label="Fully Depreciated" value={reportData.stats.fullyDep} color="orange" delay={0.15} />
+                    <StatCard label="Fully Dep." value={reportData.stats.fullyDep} color="orange" delay={0.15} />
                   </div>
-                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
-                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Top 10 Assets — Remaining vs Depreciated Value</p>
-                    <ResponsiveContainer width="100%" height={240}>
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Top 10 — Remaining vs Depreciated</p>
+                    <ResponsiveContainer width="100%" height={180}>
                       <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
-                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
-                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 9 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 12 }} />
-                        <Bar dataKey="remaining" name="Remaining Value" stackId="a" fill="#22c55e" />
+                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 11 }} />
+                        <Bar dataKey="remaining" name="Remaining" stackId="a" fill="#22c55e" />
                         <Bar dataKey="depreciated" name="Depreciated" stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Asset Name","Original Price","Current Value","% Remaining","Yrs Old","Status"]}
+                  <ReportTable headers={["Asset Name","Original","Current","% Left"]}
                     rows={reportData.rows.map(a => [
                       a.name,
                       `SGD ${a.dep.originalPrice.toLocaleString()}`,
                       `SGD ${Math.round(a.dep.currentValue).toLocaleString()}`,
                       <span key="p" className={a.dep.percentRemaining > 60 ? "text-green-400" : a.dep.percentRemaining > 30 ? "text-yellow-400" : "text-red-400"}>{a.dep.percentRemaining}%</span>,
-                      `${a.dep.yearsOld}yr`,
-                      a.dep.fullyDepreciated
-                        ? <span key="fd" className="text-red-400 text-xs">Fully Dep.</span>
-                        : <span key="ac" className="text-green-400 text-xs">Active</span>,
                     ])} />
                 </>
               )}
@@ -718,11 +714,11 @@ export default function Reports() {
                     <StatCard label="Expired" value={reportData.stats.expired} color="red" />
                     <StatCard label="Expiring ≤30 days" value={reportData.stats.expiring30} color="yellow" />
                   </div>
-                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">License Status Overview</p>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <PieChart>
-                        <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
+                        <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}
                           label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
                           {reportData.chartData.map((_, i) => (
                             <Cell key={i} fill={["#ef4444","#f59e0b","#22c55e"][i]} />
@@ -732,11 +728,11 @@ export default function Reports() {
                       </PieChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Asset Name","Serial No.","Department","License Expiry","Status"]}
+                  <ReportTable headers={["Asset Name","License Expiry","Status"]}
                     rows={reportData.rows.map(a => {
                       const expired = a.license_expiry < today()
                       const expiring = !expired && a.license_expiry <= daysFromNow(30)
-                      return [a.name, a.serial_number||"—", a.department||"—", a.license_expiry,
+                      return [a.name, a.license_expiry,
                         <span key="s" className={expired ? "text-red-400" : expiring ? "text-yellow-400" : "text-green-400"}>
                           {expired ? "Expired" : expiring ? "Expiring Soon" : "Active"}
                         </span>
@@ -748,18 +744,18 @@ export default function Reports() {
               {/* ── MAINTENANCE ── */}
               {reportType === "maintenance" && reportData.stats && (
                 <>
-                  <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
                     <StatCard label="Total Records" value={reportData.stats.total} color="blue" />
                     <StatCard label="Completed" value={reportData.stats.completed} color="green" />
                     <StatCard label="Pending" value={reportData.stats.pending} color="yellow" />
                   </div>
                   {reportData.byStatus.length > 0 && (
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Breakdown</p>
                       <ResponsiveContainer width="100%" height={180}>
                         <BarChart data={reportData.byStatus}>
-                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
                           <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                           <Bar dataKey="value" name="Count" radius={[4,4,0,0]}>
                             {reportData.byStatus.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
@@ -768,10 +764,9 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  <ReportTable headers={["Asset","Type","Description","Scheduled Date","Status"]}
+                  <ReportTable headers={["Asset","Type","Scheduled","Status"]}
                     rows={(reportData.rows||[]).map(m => [
                       m.assets?.name||"—", m.maintenance_type||"—",
-                      (m.description||"").slice(0,50)||"—",
                       m.scheduled_date||"—", m.status||"—",
                     ])} />
                 </>
@@ -780,29 +775,28 @@ export default function Reports() {
               {/* ── BORROW ── */}
               {reportType === "borrow" && reportData.stats && (
                 <>
-                  <div className="grid grid-cols-3 gap-3 mb-5">
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
                     <StatCard label="Total Borrows" value={reportData.stats.total} color="blue" />
-                    <StatCard label="Currently Active" value={reportData.stats.active} color="purple" />
+                    <StatCard label="Active" value={reportData.stats.active} color="purple" />
                     <StatCard label="Returned" value={reportData.stats.returned} color="green" />
                   </div>
                   {reportData.chartData?.length > 0 && (
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Monthly Borrow Activity (last 6 months)</p>
-                      <ResponsiveContainer width="100%" height={200}>
+                      <ResponsiveContainer width="100%" height={180}>
                         <LineChart data={reportData.chartData}>
-                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
-                          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} width={28} />
                           <Tooltip content={<DarkTooltip />} />
                           <Line type="monotone" dataKey="count" name="Borrows" stroke="#a855f7" strokeWidth={2} dot={{ fill: "#a855f7", r: 4 }} />
                         </LineChart>
                       </ResponsiveContainer>
                     </div>
                   )}
-                  <ReportTable headers={["Asset","Borrower","Borrow Date","Due Date","Return Date","Status"]}
+                  <ReportTable headers={["Asset","Borrower","Due Date","Status"]}
                     rows={(reportData.rows||[]).map(b => [
                       b.assets?.name||"—", b.requester_name||b.user_email||"—",
-                      (b.created_at||"").slice(0,10), b.due_date||"—",
-                      b.return_date||"—",
+                      b.due_date||"—",
                       <StatusBadge key="s" status={b.status} />,
                     ])} />
                 </>
@@ -826,12 +820,12 @@ function ReportTable({ headers, rows }) {
     )
   }
   return (
-    <div className="bg-gray-900 rounded-xl border border-gray-800 md:overflow-hidden">
+    <div className="bg-gray-900 rounded-xl border border-gray-800 md:overflow-hidden" style={{ maxWidth: "100%" }}>
       <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
         <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide">Data Preview</p>
         <span className="text-gray-600 text-xs">{rows.length} records</span>
       </div>
-      <div className="overflow-x-auto">
+      <div className="overflow-x-auto" style={{ maxWidth: "100%" }}>
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
