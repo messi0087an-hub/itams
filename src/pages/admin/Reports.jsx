@@ -503,21 +503,24 @@ export default function Reports() {
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
-            <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
-              <span>{rt.icon}</span> {rt.label}
+            <h1 className="text-sm md:text-2xl font-bold text-white flex items-center gap-1.5 md:gap-2">
+              <span>{rt.icon}</span>
+              <span className="truncate">{rt.label}</span>
             </h1>
-            <p className="text-gray-500 text-xs mt-0.5">{rt.desc}</p>
+            <p className="text-gray-500 text-xs mt-0.5 hidden md:block">{rt.desc}</p>
           </div>
-          <div className="flex gap-2 shrink-0">
+          <div className="flex gap-1.5 md:gap-2 shrink-0">
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={exportPDF}
-              className="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-              📄 PDF
+              className="bg-red-600/80 hover:bg-red-600 text-white px-2 md:px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+              <span className="md:hidden">📄</span>
+              <span className="hidden md:inline">📄 PDF</span>
             </motion.button>
             <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
               onClick={exportExcel}
-              className="bg-green-600/80 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
-              📊 Excel
+              className="bg-green-600/80 hover:bg-green-600 text-white px-2 md:px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+              <span className="md:hidden">📊</span>
+              <span className="hidden md:inline">📊 Excel</span>
             </motion.button>
           </div>
         </div>
@@ -575,19 +578,24 @@ export default function Reports() {
                 const mob = window.innerWidth < 768
                 return (
                 <div style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-3 mb-4 md:mb-5">
-                    <StatCard label="Total Assets" value={reportData.stats.total} color="blue" delay={0} compact={mob} />
+                  {/* Stat cards: 2×2 on mobile, 1×4 on desktop */}
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-3 mb-3 md:mb-5">
+                    <StatCard label="Total" value={reportData.stats.total} color="blue" delay={0} compact={mob} />
                     <StatCard label="Available" value={reportData.stats.available} color="green" delay={0.05} compact={mob} />
                     <StatCard label="Assigned" value={reportData.stats.assigned} color="purple" delay={0.1} compact={mob} />
                     <StatCard label="Retired" value={reportData.stats.retired} color="red" delay={0.15} compact={mob} />
                   </div>
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">Status Distribution</p>
-                      <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                        <ResponsiveContainer width="95%" height={mob ? 130 : 180}>
+                  {/* Charts: stacked on mobile, side-by-side on desktop */}
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-2 md:gap-4 mb-3 md:mb-5">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-2 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1 md:mb-3">Status</p>
+                      <div style={{ width: "90%", maxWidth: "90%", overflowX: "hidden", margin: "0 auto" }}>
+                        <ResponsiveContainer width="90%" height={mob ? 120 : 180}>
                           <PieChart>
-                            <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={mob ? 40 : 65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                            <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%"
+                              outerRadius={mob ? 40 : 65}
+                              label={mob ? false : ({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`}
+                              labelLine={false}>
                               {reportData.byStatus.map((_, i) => (
                                 <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
                               ))}
@@ -597,13 +605,13 @@ export default function Reports() {
                         </ResponsiveContainer>
                       </div>
                     </div>
-                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">By Category</p>
-                      <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                        <ResponsiveContainer width="95%" height={mob ? 130 : 180}>
-                          <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 4, right: 12 }}>
-                            <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 8 : 10 }} axisLine={false} tickLine={false} />
-                            <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 8 : 10 }} width={mob ? 45 : 70} axisLine={false} tickLine={false} />
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-2 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1 md:mb-3">Category</p>
+                      <div style={{ width: "90%", maxWidth: "90%", overflowX: "hidden", margin: "0 auto" }}>
+                        <ResponsiveContainer width="90%" height={mob ? 120 : 180}>
+                          <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 2, right: 8 }}>
+                            <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 7 : 10 }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 7 : 10 }} width={mob ? 40 : 70} axisLine={false} tickLine={false} />
                             <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                             <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
                           </BarChart>
@@ -611,10 +619,11 @@ export default function Reports() {
                       </div>
                     </div>
                   </div>
+                  {/* Table: 2 cols on mobile, 3 on desktop */}
                   <ReportTable
                     headers={mob ? ["Asset Name","Status"] : ["Asset Name","Category","Status"]}
                     rows={reportData.rows.map(a => mob
-                      ? [a.name, <StatusBadge key="s" status={a.status} />]
+                      ? [a.name.length > 10 ? a.name.slice(0, 10) + "…" : a.name, <StatusBadge key="s" status={a.status} />]
                       : [a.name, a.category||"—", <StatusBadge key="s" status={a.status} />]
                     )} />
                 </div>
