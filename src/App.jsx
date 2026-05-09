@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
@@ -25,12 +25,51 @@ import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
 
-function LoginPage() {
+function generateOTP() {
+  return Math.floor(100000 + Math.random() * 900000).toString()
+}
+
+async function sendOtpEmail(toEmail, otp) {
+  const html = `
+    <div style="background:#0a0a1a;color:#fff;padding:32px;font-family:-apple-system,sans-serif;border-radius:12px;max-width:480px;margin:0 auto;">
+      <div style="text-align:center;margin-bottom:24px;">
+        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#2563eb;border-radius:14px;margin-bottom:12px;">
+          <span style="color:#fff;font-size:22px;font-weight:bold;">IT</span>
+        </div>
+        <h1 style="font-size:22px;font-weight:700;margin:0;">ITAMS — 2FA Verification</h1>
+        <p style="color:#9ca3af;font-size:13px;margin-top:4px;">Trainocate Singapore</p>
+      </div>
+      <p style="color:#d1d5db;font-size:14px;margin-bottom:20px;">Your one-time verification code is:</p>
+      <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;">
+        <span style="font-size:40px;font-weight:800;letter-spacing:8px;color:#60a5fa;">${otp}</span>
+      </div>
+      <p style="color:#6b7280;font-size:12px;">This code expires in <strong style="color:#9ca3af;">5 minutes</strong>. Do not share it with anyone.</p>
+    </div>`
+  try {
+    const { error } = await supabase.functions.invoke("send-email", {
+      body: { to: [toEmail], subject: "ITAMS — Your 2FA Verification Code", html },
+    })
+    return !error
+  } catch {
+    return false
+  }
+}
+
+function LoginPage({ onVerified }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [particlesReady, setParticlesReady] = useState(false)
+  // OTP step
+  const [step, setStep] = useState("credentials") // "credentials" | "otp"
+  const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""])
+  const [otpCode, setOtpCode] = useState("")
+  const [otpExpiry, setOtpExpiry] = useState(null)
+  const [otpSending, setOtpSending] = useState(false)
+  const [otpError, setOtpError] = useState("")
+  const [resendCooldown, setResendCooldown] = useState(0)
+  const otpInputs = useRef([])
 
   useEffect(() => {
     initParticlesEngine(async (engine) => {
@@ -38,17 +77,125 @@ function LoginPage() {
     }).then(() => setParticlesReady(true))
   }, [])
 
+  // Countdown timer for resend
+  useEffect(() => {
+    if (resendCooldown <= 0) return
+    const t = setTimeout(() => setResendCooldown(c => c - 1), 1000)
+    return () => clearTimeout(t)
+  }, [resendCooldown])
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
     setError("")
-    const { error } = await supabase.auth.signInWithPassword({ email, password })
-    if (error) setError(error.message)
+
+    const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
+    if (authError) {
+      setError(authError.message)
+      setLoading(false)
+      return
+    }
+
+    // Check if 2FA is enabled for this user
+    const { data: profile } = await supabase
+      .from("user_profiles")
+      .select("two_factor_enabled")
+      .eq("id", data.user.id)
+      .single()
+
+    if (profile?.two_factor_enabled) {
+      // Sign out temporarily — user must complete OTP first
+      await supabase.auth.signOut()
+      setOtpSending(true)
+      const otp = generateOTP()
+      const expiry = new Date(Date.now() + 5 * 60 * 1000)
+      const sent = await sendOtpEmail(email, otp)
+      setOtpSending(false)
+      if (!sent) {
+        setError("Failed to send verification email. Please try again.")
+        setLoading(false)
+        return
+      }
+      setOtpCode(otp)
+      setOtpExpiry(expiry)
+      setStep("otp")
+      setResendCooldown(60)
+      setLoading(false)
+      setTimeout(() => otpInputs.current[0]?.focus(), 100)
+    } else {
+      // No 2FA — already signed in, notify parent
+      onVerified()
+      setLoading(false)
+    }
+  }
+
+  const handleOtpDigit = (i, val) => {
+    const cleaned = val.replace(/\D/g, "").slice(-1)
+    const next = [...otpDigits]
+    next[i] = cleaned
+    setOtpDigits(next)
+    setOtpError("")
+    if (cleaned && i < 5) otpInputs.current[i + 1]?.focus()
+    if (next.every(d => d)) handleVerifyOtp(next.join(""))
+  }
+
+  const handleOtpKeyDown = (i, e) => {
+    if (e.key === "Backspace" && !otpDigits[i] && i > 0) {
+      otpInputs.current[i - 1]?.focus()
+    }
+  }
+
+  const handleOtpPaste = (e) => {
+    const pasted = e.clipboardData.getData("text").replace(/\D/g, "").slice(0, 6)
+    if (pasted.length === 6) {
+      setOtpDigits(pasted.split(""))
+      handleVerifyOtp(pasted)
+    }
+  }
+
+  const handleVerifyOtp = async (code) => {
+    const entered = code || otpDigits.join("")
+    if (entered.length !== 6) return
+    if (new Date() > otpExpiry) {
+      setOtpError("Code expired. Please request a new one.")
+      return
+    }
+    if (entered !== otpCode) {
+      setOtpError("Incorrect code. Please try again.")
+      setOtpDigits(["", "", "", "", "", ""])
+      setTimeout(() => otpInputs.current[0]?.focus(), 50)
+      return
+    }
+    // OTP correct — sign in for real
+    setLoading(true)
+    setOtpError("")
+    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
+    if (signInError) {
+      setOtpError("Sign-in failed. Please go back and try again.")
+      setLoading(false)
+      return
+    }
+    onVerified()
     setLoading(false)
   }
 
-  return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+  const handleResend = async () => {
+    if (resendCooldown > 0) return
+    setOtpSending(true)
+    const otp = generateOTP()
+    const expiry = new Date(Date.now() + 5 * 60 * 1000)
+    await sendOtpEmail(email, otp)
+    setOtpCode(otp)
+    setOtpExpiry(expiry)
+    setOtpDigits(["", "", "", "", "", ""])
+    setOtpError("")
+    setOtpSending(false)
+    setResendCooldown(60)
+    otpInputs.current[0]?.focus()
+  }
+
+  const ParticlesBackground = () => (
+    <>
       {particlesReady && (
         <Particles
           options={{
@@ -59,46 +206,136 @@ function LoginPage() {
               opacity: { value: 0.3 },
               size: { value: { min: 1, max: 3 } },
               move: { enable: true, speed: 1 },
-              links: {
-                enable: true,
-                color: "#3b82f6",
-                opacity: 0.2,
-                distance: 150,
-              },
+              links: { enable: true, color: "#3b82f6", opacity: 0.2, distance: 150 },
             },
-            interactivity: {
-              events: {
-                onHover: { enable: true, mode: "repulse" },
-              },
-            },
+            interactivity: { events: { onHover: { enable: true, mode: "repulse" } } },
           }}
           className="absolute inset-0"
         />
       )}
-
       <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
       <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
+    </>
+  )
 
+  const Brand = () => (
+    <div className="text-center mb-10">
+      <motion.div
+        initial={{ scale: 0 }}
+        animate={{ scale: 1 }}
+        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
+        className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30"
+      >
+        <span className="text-white text-2xl font-bold">IT</span>
+      </motion.div>
+      <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
+      <p className="text-gray-400">IT Asset Management System</p>
+      <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
+    </div>
+  )
+
+  if (step === "otp") {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+        <ParticlesBackground />
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="w-full max-w-md relative z-10"
+        >
+          <Brand />
+          <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
+            <div className="text-center mb-6">
+              <motion.div
+                initial={{ scale: 0 }}
+                animate={{ scale: 1 }}
+                transition={{ type: "spring", stiffness: 200 }}
+                className="inline-flex items-center justify-center w-14 h-14 bg-blue-500/20 border border-blue-500/40 rounded-2xl mb-3"
+              >
+                <span className="text-2xl">🔐</span>
+              </motion.div>
+              <h2 className="text-white text-xl font-semibold">Two-Factor Verification</h2>
+              <p className="text-gray-400 text-sm mt-1">
+                Enter the 6-digit code sent to
+              </p>
+              <p className="text-blue-400 text-sm font-medium">{email}</p>
+            </div>
+
+            {otpError && (
+              <motion.div
+                initial={{ opacity: 0, x: -4 }}
+                animate={{ opacity: 1, x: 0 }}
+                className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 mb-4 text-sm text-center"
+              >
+                {otpError}
+              </motion.div>
+            )}
+
+            {/* OTP digit boxes */}
+            <div className="flex gap-2 justify-center mb-6" onPaste={handleOtpPaste}>
+              {otpDigits.map((d, i) => (
+                <input
+                  key={i}
+                  ref={el => otpInputs.current[i] = el}
+                  type="text"
+                  inputMode="numeric"
+                  maxLength={1}
+                  value={d}
+                  onChange={e => handleOtpDigit(i, e.target.value)}
+                  onKeyDown={e => handleOtpKeyDown(i, e)}
+                  className={`w-12 h-14 text-center text-xl font-bold rounded-xl border bg-gray-800 text-white focus:outline-none transition-all ${
+                    d ? "border-blue-500 bg-blue-500/10" : "border-gray-700 focus:border-blue-500"
+                  }`}
+                />
+              ))}
+            </div>
+
+            <motion.button
+              whileHover={{ scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => handleVerifyOtp()}
+              disabled={loading || otpDigits.some(d => !d)}
+              className="w-full bg-blue-600 hover:bg-blue-500 disabled:opacity-40 text-white font-semibold py-3 rounded-xl transition-all"
+            >
+              {loading ? "Verifying..." : "Verify Code →"}
+            </motion.button>
+
+            <div className="mt-4 flex items-center justify-between text-sm">
+              <button
+                onClick={() => { setStep("credentials"); setOtpDigits(["","","","","",""]); setOtpError("") }}
+                className="text-gray-500 hover:text-gray-300 transition-all"
+              >
+                ← Back
+              </button>
+              <button
+                onClick={handleResend}
+                disabled={resendCooldown > 0 || otpSending}
+                className="text-blue-400 hover:text-blue-300 disabled:text-gray-600 transition-all"
+              >
+                {otpSending ? "Sending…" : resendCooldown > 0 ? `Resend in ${resendCooldown}s` : "Resend code"}
+              </button>
+            </div>
+
+            <p className="text-gray-600 text-xs text-center mt-4">Code expires in 5 minutes</p>
+          </div>
+          <p className="text-center text-gray-600 text-xs mt-6">
+            © 2026 Trainocate Singapore · ITAMS v1.0
+          </p>
+        </motion.div>
+      </div>
+    )
+  }
+
+  return (
+    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+      <ParticlesBackground />
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
         transition={{ duration: 0.5 }}
         className="w-full max-w-md relative z-10"
       >
-        <div className="text-center mb-10">
-          <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30"
-          >
-            <span className="text-white text-2xl font-bold">IT</span>
-          </motion.div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
-          <p className="text-gray-400">IT Asset Management System</p>
-          <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
-        </div>
-
+        <Brand />
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
           <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
           {error && (
@@ -131,10 +368,10 @@ function LoginPage() {
             </div>
             <button
               type="submit"
-              disabled={loading}
+              disabled={loading || otpSending}
               className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 mt-2"
             >
-              {loading ? "Signing in..." : "Sign In →"}
+              {loading ? "Signing in..." : otpSending ? "Sending 2FA code..." : "Sign In →"}
             </button>
           </form>
         </div>
@@ -373,14 +610,18 @@ function AdminLayout({ user }) {
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [mfaVerified, setMfaVerified] = useState(false)
 
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
+      // Existing sessions skip MFA (already verified in a prior login)
+      if (session?.user) setMfaVerified(true)
       setLoading(false)
     })
     supabase.auth.onAuthStateChange((_event, session) => {
       setUser(session?.user ?? null)
+      if (!session?.user) setMfaVerified(false)
     })
   }, [])
 
@@ -390,12 +631,19 @@ export default function App() {
     </div>
   )
 
+  const showAdmin = user && mfaVerified
+  const showLogin = !user || !mfaVerified
+
   return (
     <ThemeProvider>
       <BrowserRouter>
         <Routes>
-          <Route path="/login" element={user ? <Navigate to="/admin" /> : <LoginPage />} />
-          <Route path="/*" element={user ? <AdminLayout user={user} /> : <Navigate to="/login" />} />
+          <Route path="/login" element={
+            showAdmin ? <Navigate to="/admin" /> : <LoginPage onVerified={() => setMfaVerified(true)} />
+          } />
+          <Route path="/*" element={
+            showAdmin ? <AdminLayout user={user} /> : <Navigate to="/login" />
+          } />
         </Routes>
       </BrowserRouter>
     </ThemeProvider>

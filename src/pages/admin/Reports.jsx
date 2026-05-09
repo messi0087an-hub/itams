@@ -1,277 +1,827 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
+import {
+  BarChart, Bar, PieChart, Pie, Cell, LineChart, Line,
+  XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
+} from "recharts"
+import { calcDepreciation } from "../../lib/depreciation"
 
+// ── Constants ─────────────────────────────────────────────────────────────────
+const REPORT_TYPES = [
+  { id: "inventory",    icon: "📦", label: "Full Asset Inventory",     desc: "Complete list of all assets" },
+  { id: "warranty",     icon: "🛡️",  label: "Warranty Expiry",          desc: "Assets expiring in 30/60/90 days" },
+  { id: "department",   icon: "🏢", label: "Department Assets",        desc: "Assets grouped by department" },
+  { id: "depreciation", icon: "📉", label: "Asset Depreciation",       desc: "Value & depreciation per asset" },
+  { id: "license",      icon: "📋", label: "License Usage",            desc: "License expiry tracking" },
+  { id: "maintenance",  icon: "🔧", label: "Maintenance History",      desc: "Asset maintenance records" },
+  { id: "borrow",       icon: "📤", label: "Borrow History",           desc: "Borrowing & return records" },
+]
+
+const STATUS_COLORS = {
+  available:   "#22c55e",
+  assigned:    "#3b82f6",
+  maintenance: "#eab308",
+  retired:     "#ef4444",
+}
+
+const CHART_COLORS = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ef4444","#06b6d4","#f97316","#ec4899"]
+
+// ── Tooltip ───────────────────────────────────────────────────────────────────
+const DarkTooltip = ({ active, payload, label }) => {
+  if (!active || !payload?.length) return null
+  return (
+    <div className="bg-gray-800 border border-gray-700 rounded-lg px-3 py-2 text-xs shadow-xl">
+      {label && <p className="text-gray-400 mb-1">{label}</p>}
+      {payload.map((p, i) => (
+        <p key={i} style={{ color: p.color || "#fff" }}>{p.name}: <span className="font-semibold">{p.value}</span></p>
+      ))}
+    </div>
+  )
+}
+
+// ── Stat Card ─────────────────────────────────────────────────────────────────
+const StatCard = ({ label, value, sub, color = "blue", delay = 0 }) => {
+  const colors = {
+    blue:   "border-blue-500/30 text-blue-400",
+    green:  "border-green-500/30 text-green-400",
+    purple: "border-purple-500/30 text-purple-400",
+    yellow: "border-yellow-500/30 text-yellow-400",
+    red:    "border-red-500/30 text-red-400",
+    teal:   "border-teal-500/30 text-teal-400",
+    orange: "border-orange-500/30 text-orange-400",
+  }
+  const [border, text] = (colors[color] || colors.blue).split(" ")
+  return (
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ delay }}
+      className={`bg-gray-800/60 rounded-xl border ${border} p-4`}
+    >
+      <p className="text-gray-400 text-xs mb-1">{label}</p>
+      <p className={`text-2xl font-bold ${text}`}>{value}</p>
+      {sub && <p className="text-gray-500 text-xs mt-0.5">{sub}</p>}
+    </motion.div>
+  )
+}
+
+// ── Date range helper ─────────────────────────────────────────────────────────
+const today = () => new Date().toISOString().split("T")[0]
+const daysFromNow = (n) => {
+  const d = new Date()
+  d.setDate(d.getDate() + n)
+  return d.toISOString().split("T")[0]
+}
+
+// ── PDF header helper ─────────────────────────────────────────────────────────
+function pdfHeader(doc, title) {
+  doc.setFillColor(37, 99, 235)
+  doc.rect(0, 0, 210, 28, "F")
+  doc.setTextColor(255, 255, 255)
+  doc.setFontSize(16)
+  doc.setFont("helvetica", "bold")
+  doc.text(`ITAMS — ${title}`, 14, 16)
+  doc.setFontSize(8)
+  doc.setFont("helvetica", "normal")
+  doc.text(`Trainocate Singapore · Generated: ${new Date().toLocaleDateString("en-SG")}`, 14, 24)
+  doc.setTextColor(0, 0, 0)
+}
+
+function pdfFooter(doc) {
+  const n = doc.internal.getNumberOfPages()
+  for (let i = 1; i <= n; i++) {
+    doc.setPage(i)
+    doc.setFontSize(8)
+    doc.setTextColor(150, 150, 150)
+    doc.text(`ITAMS — Trainocate Singapore · Page ${i} of ${n}`, 14, doc.internal.pageSize.height - 8)
+  }
+}
+
+// ── Main page ─────────────────────────────────────────────────────────────────
 export default function Reports() {
+  const [reportType, setReportType] = useState("inventory")
   const [assets, setAssets] = useState([])
+  const [borrows, setBorrows] = useState([])
+  const [maintenance, setMaintenance] = useState([])
   const [loading, setLoading] = useState(true)
-  const [stats, setStats] = useState({
-    total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0
-  })
+  const [dateFrom, setDateFrom] = useState("")
+  const [dateTo, setDateTo] = useState("")
+  const [warrantyDays, setWarrantyDays] = useState(90)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  useEffect(() => {
-    fetchData()
-  }, [])
+  useEffect(() => { fetchAll() }, [])
 
-  const fetchData = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("*")
-      .order("name")
-    setAssets(data || [])
-    setStats({
-      total: data?.length || 0,
-      available: data?.filter(a => a.status === "available").length || 0,
-      assigned: data?.filter(a => a.status === "assigned").length || 0,
-      maintenance: data?.filter(a => a.status === "maintenance").length || 0,
-      retired: data?.filter(a => a.status === "retired").length || 0,
-    })
+  const fetchAll = async () => {
+    setLoading(true)
+    const [{ data: a }, { data: b }, { data: m }] = await Promise.all([
+      supabase.from("assets").select("*").order("name"),
+      supabase.from("borrow_requests").select("*, assets(name,serial_number)").order("created_at", { ascending: false }),
+      supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
+    ])
+    setAssets(a || [])
+    setBorrows(b || [])
+    setMaintenance(m || [])
     setLoading(false)
   }
 
-  const exportToExcel = () => {
-    const rows = assets.map(a => ({
-      "Asset Name": a.name,
-      "Category": a.category || "",
-      "Brand/Model": a.brand_model || "",
-      "Serial Number": a.serial_number || "",
-      "Asset Tag": a.asset_tag || "",
-      "Status": a.status,
-      "Location": a.location || "",
-      "Assigned To": a.assigned_user || "",
-      "Department": a.department || "",
-      "Purchase Date": a.purchase_date || "",
-      "Purchase Price (SGD)": a.purchase_price || "",
-      "Warranty Expiry": a.warranty_expiry || "",
-      "Remarks": a.remarks || "",
-    }))
-    const ws = XLSX.utils.json_to_sheet(rows)
-    const wb = XLSX.utils.book_new()
-    XLSX.utils.book_append_sheet(wb, ws, "Assets")
-    XLSX.writeFile(wb, `ITAMS_Assets_${new Date().toISOString().split("T")[0]}.xlsx`)
-  }
+  // ── Per-report data ──────────────────────────────────────────────────────────
+  const reportData = useMemo(() => {
+    const todayStr = today()
 
-  const exportToPDF = () => {
-    const doc = new jsPDF()
-    doc.setFillColor(37, 99, 235)
-    doc.rect(0, 0, 210, 30, "F")
-    doc.setTextColor(255, 255, 255)
-    doc.setFontSize(20)
-    doc.setFont("helvetica", "bold")
-    doc.text("ITAMS — IT Asset Report", 14, 18)
-    doc.setFontSize(10)
-    doc.setFont("helvetica", "normal")
-    doc.text(`Trainocate Singapore · Generated: ${new Date().toLocaleDateString()}`, 14, 25)
-
-    doc.setTextColor(0, 0, 0)
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "bold")
-    doc.text("Summary", 14, 42)
-
-    autoTable(doc, {
-      startY: 46,
-      head: [["Category", "Count"]],
-      body: [
-        ["Total Assets", stats.total],
-        ["Available", stats.available],
-        ["Assigned", stats.assigned],
-        ["Maintenance", stats.maintenance],
-        ["Retired", stats.retired],
-      ],
-      theme: "grid",
-      headStyles: { fillColor: [37, 99, 235] },
-      margin: { left: 14 },
-      tableWidth: 80,
-    })
-
-    doc.setFontSize(12)
-    doc.setFont("helvetica", "bold")
-    doc.text("Asset List", 14, doc.lastAutoTable.finalY + 15)
-
-    autoTable(doc, {
-      startY: doc.lastAutoTable.finalY + 19,
-      head: [["Asset Name", "Category", "Serial No.", "Assigned To", "Status"]],
-      body: assets.map(a => [
-        a.name,
-        a.category || "—",
-        a.serial_number || "—",
-        a.assigned_user || "—",
-        a.status,
-      ]),
-      theme: "striped",
-      headStyles: { fillColor: [37, 99, 235] },
-      styles: { fontSize: 8 },
-      margin: { left: 14 },
-    })
-
-    const pageCount = doc.internal.getNumberOfPages()
-    for (let i = 1; i <= pageCount; i++) {
-      doc.setPage(i)
-      doc.setFontSize(8)
-      doc.setTextColor(150, 150, 150)
-      doc.text(
-        `ITAMS — Trainocate Singapore · Page ${i} of ${pageCount}`,
-        14,
-        doc.internal.pageSize.height - 10
-      )
+    if (reportType === "inventory") {
+      let rows = [...assets]
+      if (dateFrom) rows = rows.filter(a => (a.purchase_date || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(a => (a.purchase_date || "") <= dateTo)
+      const byStatus = Object.entries(
+        rows.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
+      ).map(([name, value]) => ({ name, value }))
+      const byCategory = Object.entries(
+        rows.reduce((acc, a) => { const c = a.category || "Unknown"; acc[c] = (acc[c] || 0) + 1; return acc }, {})
+      ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8)
+      return { rows, byStatus, byCategory,
+        stats: {
+          total: rows.length,
+          available: rows.filter(a => a.status === "available").length,
+          assigned: rows.filter(a => a.status === "assigned").length,
+          retired: rows.filter(a => a.status === "retired").length,
+        }
+      }
     }
 
-    doc.save(`ITAMS_Report_${new Date().toISOString().split("T")[0]}.pdf`)
+    if (reportType === "warranty") {
+      const cutoff = daysFromNow(warrantyDays)
+      let rows = assets.filter(a => a.warranty_expiry && a.warranty_expiry >= todayStr && a.warranty_expiry <= cutoff)
+      if (dateFrom) rows = rows.filter(a => a.warranty_expiry >= dateFrom)
+      if (dateTo)   rows = rows.filter(a => a.warranty_expiry <= dateTo)
+      rows = rows.sort((a, b) => a.warranty_expiry.localeCompare(b.warranty_expiry))
+      const exp30 = rows.filter(a => a.warranty_expiry <= daysFromNow(30)).length
+      const exp60 = rows.filter(a => a.warranty_expiry > daysFromNow(30) && a.warranty_expiry <= daysFromNow(60)).length
+      const exp90 = rows.filter(a => a.warranty_expiry > daysFromNow(60)).length
+      const chartData = [
+        { name: "0–30 days", value: exp30 },
+        { name: "31–60 days", value: exp60 },
+        { name: "61–90 days", value: exp90 },
+      ]
+      return { rows, chartData, stats: { total: rows.length, exp30, exp60, exp90 } }
+    }
+
+    if (reportType === "department") {
+      const deptMap = assets.reduce((acc, a) => {
+        const dept = a.department || "Unassigned"
+        if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0, assets: [] }
+        acc[dept].total++
+        acc[dept][a.status] = (acc[dept][a.status] || 0) + 1
+        acc[dept].assets.push(a)
+        return acc
+      }, {})
+      const chartData = Object.entries(deptMap).map(([name, v]) => ({
+        name, total: v.total, available: v.available, assigned: v.assigned,
+      })).sort((a, b) => b.total - a.total).slice(0, 8)
+      const depts = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
+      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: assets.length } }
+    }
+
+    if (reportType === "depreciation") {
+      const rows = assets
+        .map(a => ({ ...a, dep: calcDepreciation(a.purchase_price, a.purchase_date) }))
+        .filter(a => a.dep)
+        .sort((a, b) => a.dep.percentRemaining - b.dep.percentRemaining)
+      const totalOriginal = rows.reduce((s, a) => s + a.dep.originalPrice, 0)
+      const totalCurrent = rows.reduce((s, a) => s + a.dep.currentValue, 0)
+      const fullyDep = rows.filter(a => a.dep.fullyDepreciated).length
+      const chartData = rows.slice(0, 10).map(a => ({
+        name: a.name.length > 14 ? a.name.slice(0, 14) + "…" : a.name,
+        remaining: a.dep.currentValue,
+        depreciated: a.dep.originalPrice - a.dep.currentValue,
+      }))
+      return { rows, chartData, stats: { totalOriginal, totalCurrent, fullyDep, loss: totalOriginal - totalCurrent } }
+    }
+
+    if (reportType === "license") {
+      let rows = assets.filter(a => a.license_expiry)
+      if (dateFrom) rows = rows.filter(a => a.license_expiry >= dateFrom)
+      if (dateTo)   rows = rows.filter(a => a.license_expiry <= dateTo)
+      rows = rows.sort((a, b) => a.license_expiry.localeCompare(b.license_expiry))
+      const expired = rows.filter(a => a.license_expiry < todayStr).length
+      const expiring30 = rows.filter(a => a.license_expiry >= todayStr && a.license_expiry <= daysFromNow(30)).length
+      const active = rows.filter(a => a.license_expiry > daysFromNow(30)).length
+      const chartData = [
+        { name: "Expired", value: expired },
+        { name: "Expiring ≤30d", value: expiring30 },
+        { name: "Active", value: active },
+      ]
+      return { rows, chartData, stats: { total: rows.length, expired, expiring30, active } }
+    }
+
+    if (reportType === "maintenance") {
+      let rows = [...maintenance]
+      if (dateFrom) rows = rows.filter(m => (m.scheduled_date || m.created_at || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(m => (m.scheduled_date || m.created_at || "") <= dateTo)
+      const byStatus = Object.entries(
+        rows.reduce((acc, m) => { const s = m.status || "unknown"; acc[s] = (acc[s] || 0) + 1; return acc }, {})
+      ).map(([name, value]) => ({ name, value }))
+      return { rows, byStatus, stats: {
+        total: rows.length,
+        completed: rows.filter(m => m.status === "completed").length,
+        pending: rows.filter(m => m.status === "scheduled" || m.status === "pending").length,
+      }}
+    }
+
+    if (reportType === "borrow") {
+      let rows = [...borrows]
+      if (dateFrom) rows = rows.filter(b => (b.created_at || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(b => (b.created_at || "") <= dateTo)
+      const active = rows.filter(b => b.status === "borrowed" || b.status === "approved").length
+      const returned = rows.filter(b => b.status === "returned").length
+      const byMonth = rows.reduce((acc, b) => {
+        const m = (b.created_at || "").slice(0, 7)
+        if (m) acc[m] = (acc[m] || 0) + 1
+        return acc
+      }, {})
+      const chartData = Object.entries(byMonth).sort().slice(-6).map(([name, count]) => ({ name, count }))
+      return { rows, chartData, stats: { total: rows.length, active, returned } }
+    }
+
+    return {}
+  }, [reportType, assets, borrows, maintenance, dateFrom, dateTo, warrantyDays])
+
+  // ── Export PDF ───────────────────────────────────────────────────────────────
+  const exportPDF = () => {
+    const doc = new jsPDF()
+    const rt = REPORT_TYPES.find(r => r.id === reportType)
+    pdfHeader(doc, rt.label)
+    let y = 36
+
+    if (reportType === "inventory") {
+      const { rows, stats } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Metric","Count"]],
+        body: [["Total",stats.total],["Available",stats.available],["Assigned",stats.assigned],["Retired",stats.retired]],
+        theme: "grid", headStyles: { fillColor: [37,99,235] }, tableWidth: 80, margin: { left: 14 },
+      })
+      y = doc.lastAutoTable.finalY + 8
+      autoTable(doc, {
+        startY: y, head: [["Asset Name","Category","Serial No.","Dept","Status"]],
+        body: rows.map(a => [a.name, a.category||"—", a.serial_number||"—", a.department||"—", a.status]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "warranty") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset Name","Serial No.","Dept","Warranty Expiry","Days Left"]],
+        body: rows.map(a => {
+          const days = Math.ceil((new Date(a.warranty_expiry) - new Date()) / 86400000)
+          return [a.name, a.serial_number||"—", a.department||"—", a.warranty_expiry, `${days}d`]
+        }),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "department") {
+      const { depts } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Department","Total","Available","Assigned","Maintenance","Retired"]],
+        body: depts.map(([name, v]) => [name, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "depreciation") {
+      const { rows, stats } = reportData
+      doc.setFontSize(9)
+      doc.text(`Total Original Value: SGD ${stats.totalOriginal.toLocaleString()}  |  Current Value: SGD ${Math.round(stats.totalCurrent).toLocaleString()}  |  Fully Depreciated: ${stats.fullyDep}`, 14, y)
+      y += 6
+      autoTable(doc, {
+        startY: y, head: [["Asset Name","Purchase Price","Current Value","% Remaining","Yrs Old","Status"]],
+        body: rows.map(a => [
+          a.name, `SGD ${a.dep.originalPrice.toLocaleString()}`,
+          `SGD ${Math.round(a.dep.currentValue).toLocaleString()}`,
+          `${a.dep.percentRemaining}%`, `${a.dep.yearsOld}yr`,
+          a.dep.fullyDepreciated ? "Fully Dep." : "Active",
+        ]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "license") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset Name","Serial No.","Dept","License Expiry","Status"]],
+        body: rows.map(a => {
+          const expired = a.license_expiry < today()
+          return [a.name, a.serial_number||"—", a.department||"—", a.license_expiry, expired ? "Expired" : "Active"]
+        }),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "maintenance") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset","Type","Description","Scheduled","Status"]],
+        body: rows.map(m => [
+          m.assets?.name||"—", m.maintenance_type||"—",
+          (m.description||"").slice(0,40), m.scheduled_date||"—", m.status||"—",
+        ]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "borrow") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset","Borrower","Borrow Date","Due Date","Return Date","Status"]],
+        body: rows.map(b => [
+          b.assets?.name||"—", b.requester_name||b.user_email||"—",
+          (b.created_at||"").slice(0,10), b.due_date||"—", b.return_date||"—", b.status||"—",
+        ]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    pdfFooter(doc)
+    doc.save(`ITAMS_${reportType}_${today()}.pdf`)
   }
 
-  const statCards = [
-    { label: "Total Assets", value: stats.total, color: "border-blue-500/20", text: "text-blue-400" },
-    { label: "Available", value: stats.available, color: "border-green-500/20", text: "text-green-400" },
-    { label: "Assigned", value: stats.assigned, color: "border-purple-500/20", text: "text-purple-400" },
-    { label: "Maintenance", value: stats.maintenance, color: "border-yellow-500/20", text: "text-yellow-400" },
-    { label: "Retired", value: stats.retired, color: "border-red-500/20", text: "text-red-400" },
-  ]
+  // ── Export Excel ─────────────────────────────────────────────────────────────
+  const exportExcel = () => {
+    let rows = []
 
-  const categoryCount = assets.reduce((acc, a) => {
-    const cat = a.category || "Unknown"
-    acc[cat] = (acc[cat] || 0) + 1
-    return acc
-  }, {})
+    if (reportType === "inventory") {
+      rows = (reportData.rows || []).map(a => ({
+        "Asset Name": a.name, "Category": a.category||"", "Brand/Model": a.brand_model||"",
+        "Serial Number": a.serial_number||"", "Asset Tag": a.asset_tag||"",
+        "Status": a.status, "Location": a.location||"", "Assigned To": a.assigned_user||"",
+        "Department": a.department||"", "Purchase Date": a.purchase_date||"",
+        "Purchase Price (SGD)": a.purchase_price||"", "Warranty Expiry": a.warranty_expiry||"", "Remarks": a.remarks||"",
+      }))
+    } else if (reportType === "warranty") {
+      rows = (reportData.rows || []).map(a => ({
+        "Asset Name": a.name, "Serial Number": a.serial_number||"", "Department": a.department||"",
+        "Warranty Expiry": a.warranty_expiry,
+        "Days Left": Math.ceil((new Date(a.warranty_expiry) - new Date()) / 86400000),
+      }))
+    } else if (reportType === "department") {
+      rows = (reportData.depts || []).map(([dept, v]) => ({
+        "Department": dept, "Total": v.total, "Available": v.available||0,
+        "Assigned": v.assigned||0, "Maintenance": v.maintenance||0, "Retired": v.retired||0,
+      }))
+    } else if (reportType === "depreciation") {
+      rows = (reportData.rows || []).map(a => ({
+        "Asset Name": a.name, "Purchase Price": a.dep.originalPrice,
+        "Current Value": Math.round(a.dep.currentValue),
+        "% Remaining": a.dep.percentRemaining, "Years Old": a.dep.yearsOld,
+        "Fully Depreciated": a.dep.fullyDepreciated ? "Yes" : "No",
+      }))
+    } else if (reportType === "license") {
+      rows = (reportData.rows || []).map(a => ({
+        "Asset Name": a.name, "Serial Number": a.serial_number||"",
+        "Department": a.department||"", "License Expiry": a.license_expiry,
+        "Status": a.license_expiry < today() ? "Expired" : "Active",
+      }))
+    } else if (reportType === "maintenance") {
+      rows = (reportData.rows || []).map(m => ({
+        "Asset": m.assets?.name||"", "Type": m.maintenance_type||"",
+        "Description": m.description||"", "Scheduled Date": m.scheduled_date||"",
+        "Status": m.status||"",
+      }))
+    } else if (reportType === "borrow") {
+      rows = (reportData.rows || []).map(b => ({
+        "Asset": b.assets?.name||"", "Borrower": b.requester_name||b.user_email||"",
+        "Borrow Date": (b.created_at||"").slice(0,10), "Due Date": b.due_date||"",
+        "Return Date": b.return_date||"", "Status": b.status||"",
+      }))
+    }
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Report")
+    XLSX.writeFile(wb, `ITAMS_${reportType}_${today()}.xlsx`)
+  }
+
+  const rt = REPORT_TYPES.find(r => r.id === reportType)
 
   return (
-    <div className="p-4 md:p-8">
-      <div className="flex items-center justify-between mb-6">
-        <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">Reports</h1>
-          <p className="text-gray-400 mt-1 text-sm">Asset summary and exports</p>
-        </div>
-        <div className="flex gap-2">
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={exportToPDF}
-            className="bg-red-600 hover:bg-red-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium"
+    <div className="flex h-full min-h-screen">
+      {/* ── Sidebar ── */}
+      <AnimatePresence initial={false}>
+        {sidebarOpen && (
+          <motion.aside
+            initial={{ width: 0, opacity: 0 }}
+            animate={{ width: 220, opacity: 1 }}
+            exit={{ width: 0, opacity: 0 }}
+            transition={{ type: "spring", stiffness: 260, damping: 28 }}
+            className="shrink-0 bg-gray-900/80 border-r border-gray-800 overflow-hidden"
           >
-            📄 PDF
-          </motion.button>
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={exportToExcel}
-            className="bg-green-600 hover:bg-green-700 text-white px-3 md:px-4 py-2 rounded-lg text-sm font-medium"
-          >
-            📊 Excel
-          </motion.button>
-        </div>
-      </div>
-
-      {/* Stats - 2 col on mobile, 5 on desktop */}
-      <div className="grid grid-cols-2 md:grid-cols-5 gap-3 mb-6">
-        {statCards.map((card, i) => (
-          <motion.div
-            key={card.label}
-            initial={{ opacity: 0, y: 10 }}
-            animate={{ opacity: 1, y: 0 }}
-            transition={{ delay: i * 0.1 }}
-            className={`bg-gray-900/80 rounded-xl border ${card.color} p-4`}
-          >
-            <p className="text-gray-400 text-xs mb-2">{card.label}</p>
-            <p className={`text-3xl font-bold ${card.text}`}>{card.value}</p>
-          </motion.div>
-        ))}
-      </div>
-
-      {/* Category Breakdown */}
-      <div className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 md:p-6 mb-6">
-        <h2 className="text-white font-semibold mb-4">Assets by Category</h2>
-        <div className="space-y-3">
-          {Object.entries(categoryCount).sort((a, b) => b[1] - a[1]).map(([cat, count]) => (
-            <div key={cat} className="flex items-center gap-3">
-              <span className="text-gray-400 text-sm w-24 shrink-0">{cat}</span>
-              <div className="flex-1 bg-gray-800 rounded-full h-2">
-                <motion.div
-                  initial={{ width: 0 }}
-                  animate={{ width: `${(count / stats.total) * 100}%` }}
-                  transition={{ duration: 1, ease: "easeOut" }}
-                  className="bg-blue-500 h-2 rounded-full"
-                />
-              </div>
-              <span className="text-white text-sm w-6 text-right shrink-0">{count}</span>
+            <div className="p-4 pt-6">
+              <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-3 px-1">Report Type</p>
+              <nav className="space-y-1">
+                {REPORT_TYPES.map(r => (
+                  <button
+                    key={r.id}
+                    onClick={() => { setReportType(r.id); setDateFrom(""); setDateTo("") }}
+                    className={`w-full text-left px-3 py-2.5 rounded-xl transition-all text-sm flex items-start gap-2.5 ${
+                      reportType === r.id
+                        ? "bg-blue-600/20 border border-blue-500/40 text-blue-300"
+                        : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                    }`}
+                  >
+                    <span className="text-base shrink-0 mt-0.5">{r.icon}</span>
+                    <span className="leading-tight">{r.label}</span>
+                  </button>
+                ))}
+              </nav>
             </div>
-          ))}
-        </div>
-      </div>
+          </motion.aside>
+        )}
+      </AnimatePresence>
 
-      {/* Asset List — Cards on mobile, Table on desktop */}
-      <div className="bg-gray-900/80 rounded-xl border border-gray-800 overflow-hidden">
-        <div className="px-4 md:px-6 py-4 border-b border-gray-800 flex items-center justify-between">
-          <h2 className="text-white font-semibold">Full Asset List</h2>
-          <span className="text-gray-500 text-sm">{assets.length} assets</span>
+      {/* ── Main panel ── */}
+      <div className="flex-1 p-4 md:p-6 overflow-auto">
+        {/* Header */}
+        <div className="flex items-center gap-3 mb-5">
+          <button
+            onClick={() => setSidebarOpen(o => !o)}
+            className="text-gray-500 hover:text-white p-1.5 rounded-lg hover:bg-gray-800 transition-all"
+            title="Toggle sidebar"
+          >
+            ☰
+          </button>
+          <div className="flex-1 min-w-0">
+            <h1 className="text-xl md:text-2xl font-bold text-white flex items-center gap-2">
+              <span>{rt.icon}</span> {rt.label}
+            </h1>
+            <p className="text-gray-500 text-xs mt-0.5">{rt.desc}</p>
+          </div>
+          <div className="flex gap-2 shrink-0">
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={exportPDF}
+              className="bg-red-600/80 hover:bg-red-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+              📄 PDF
+            </motion.button>
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={exportExcel}
+              className="bg-green-600/80 hover:bg-green-600 text-white px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+              📊 Excel
+            </motion.button>
+          </div>
         </div>
 
-        {/* Mobile Cards */}
-        <div className="block md:hidden divide-y divide-gray-800">
-          {loading ? (
-            <p className="text-center text-gray-500 py-8">Loading...</p>
-          ) : (
-            assets.map((asset) => (
-              <div key={asset.id} className="p-4">
-                <div className="flex items-start justify-between">
-                  <div className="flex-1">
-                    <p className="text-white text-sm font-medium">{asset.name}</p>
-                    <p className="text-gray-500 text-xs mt-1">{asset.category || "—"}</p>
-                    <p className="text-gray-400 text-xs mt-1">{asset.serial_number || "No serial"}</p>
-                    <p className="text-gray-400 text-xs">{asset.assigned_user || "Unassigned"}</p>
-                  </div>
-                  <span className={`px-2 py-1 rounded-full text-xs font-medium shrink-0 ml-2 ${
-                    asset.status === "available" ? "bg-green-500/20 text-green-400" :
-                    asset.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
-                    "bg-gray-500/20 text-gray-400"
+        {/* Filters */}
+        <div className="flex flex-wrap gap-3 mb-5">
+          {reportType === "warranty" && (
+            <div className="flex gap-2">
+              {[30, 60, 90].map(d => (
+                <button key={d} onClick={() => setWarrantyDays(d)}
+                  className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-all ${
+                    warrantyDays === d
+                      ? "bg-blue-600 border-blue-500 text-white"
+                      : "bg-gray-800 border-gray-700 text-gray-400 hover:border-gray-500"
                   }`}>
-                    {asset.status}
-                  </span>
-                </div>
+                  {d} days
+                </button>
+              ))}
+            </div>
+          )}
+          {(reportType === "inventory" || reportType === "warranty" || reportType === "license" || reportType === "maintenance" || reportType === "borrow") && (
+            <>
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-xs">From</span>
+                <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500" />
               </div>
-            ))
+              <div className="flex items-center gap-2">
+                <span className="text-gray-500 text-xs">To</span>
+                <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
+                  className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500" />
+              </div>
+              {(dateFrom || dateTo) && (
+                <button onClick={() => { setDateFrom(""); setDateTo("") }}
+                  className="text-gray-500 hover:text-white text-xs px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-all">
+                  ✕ Clear
+                </button>
+              )}
+            </>
           )}
         </div>
 
-        {/* Desktop Table */}
-        <div className="hidden md:block overflow-x-auto">
-          <table className="w-full">
-            <thead>
-              <tr className="border-b border-gray-800">
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Name</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Category</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Serial No.</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Assigned To</th>
-                <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Status</th>
-              </tr>
-            </thead>
-            <tbody>
-              {loading ? (
-                <tr><td colSpan={5} className="text-center text-gray-500 py-12">Loading...</td></tr>
-              ) : (
-                assets.map((asset) => (
-                  <tr key={asset.id} className="border-b border-gray-800 hover:bg-gray-800/50">
-                    <td className="px-6 py-3 text-white text-sm">{asset.name}</td>
-                    <td className="px-6 py-3 text-gray-400 text-sm">{asset.category || "—"}</td>
-                    <td className="px-6 py-3 text-gray-400 text-sm">{asset.serial_number || "—"}</td>
-                    <td className="px-6 py-3 text-gray-400 text-sm">{asset.assigned_user || "—"}</td>
-                    <td className="px-6 py-3">
-                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${
-                        asset.status === "available" ? "bg-green-500/20 text-green-400" :
-                        asset.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
-                        "bg-gray-500/20 text-gray-400"
-                      }`}>
-                        {asset.status}
-                      </span>
-                    </td>
-                  </tr>
-                ))
+        {loading ? (
+          <div className="flex items-center justify-center py-24 text-gray-500">Loading...</div>
+        ) : (
+          <AnimatePresence mode="wait">
+            <motion.div key={reportType}
+              initial={{ opacity: 0, y: 12 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -8 }}
+              transition={{ duration: 0.2 }}>
+
+              {/* ── INVENTORY ── */}
+              {reportType === "inventory" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                    <StatCard label="Total Assets" value={reportData.stats.total} color="blue" delay={0} />
+                    <StatCard label="Available" value={reportData.stats.available} color="green" delay={0.05} />
+                    <StatCard label="Assigned" value={reportData.stats.assigned} color="purple" delay={0.1} />
+                    <StatCard label="Retired" value={reportData.stats.retired} color="red" delay={0.15} />
+                  </div>
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-5">
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Distribution</p>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <PieChart>
+                          <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                            {reportData.byStatus.map((_, i) => (
+                              <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
+                            ))}
+                          </Pie>
+                          <Tooltip content={<DarkTooltip />} />
+                        </PieChart>
+                      </ResponsiveContainer>
+                    </div>
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4">
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">By Category</p>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 8, right: 16 }}>
+                          <XAxis type="number" tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} width={80} axisLine={false} tickLine={false} />
+                          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                          <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  </div>
+                  <ReportTable headers={["Asset Name","Category","Serial No.","Assigned To","Dept","Status"]}
+                    rows={reportData.rows.map(a => [
+                      a.name, a.category||"—", a.serial_number||"—",
+                      a.assigned_user||"—", a.department||"—",
+                      <StatusBadge key="s" status={a.status} />,
+                    ])} />
+                </>
               )}
-            </tbody>
-          </table>
-        </div>
+
+              {/* ── WARRANTY ── */}
+              {reportType === "warranty" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                    <StatCard label="Total Expiring" value={reportData.stats.total} color="orange" delay={0} />
+                    <StatCard label="Within 30 days" value={reportData.stats.exp30} color="red" delay={0.05} />
+                    <StatCard label="31–60 days" value={reportData.stats.exp60} color="yellow" delay={0.1} />
+                    <StatCard label="61–90 days" value={reportData.stats.exp90} color="green" delay={0.15} />
+                  </div>
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Expiry Breakdown</p>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <BarChart data={reportData.chartData}>
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                        <Bar dataKey="value" name="Assets" radius={[4,4,0,0]}>
+                          {reportData.chartData.map((_, i) => (
+                            <Cell key={i} fill={["#ef4444","#f59e0b","#22c55e"][i]} />
+                          ))}
+                        </Bar>
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ReportTable headers={["Asset Name","Serial No.","Department","Warranty Expiry","Days Left"]}
+                    rows={reportData.rows.map(a => {
+                      const days = Math.ceil((new Date(a.warranty_expiry) - new Date()) / 86400000)
+                      return [a.name, a.serial_number||"—", a.department||"—", a.warranty_expiry,
+                        <span key="d" className={days <= 30 ? "text-red-400 font-semibold" : days <= 60 ? "text-yellow-400" : "text-green-400"}>{days}d</span>]
+                    })} />
+                </>
+              )}
+
+              {/* ── DEPARTMENT ── */}
+              {reportType === "department" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <StatCard label="Departments" value={reportData.stats.deptCount} color="blue" />
+                    <StatCard label="Total Assets" value={reportData.stats.totalAssets} color="purple" />
+                  </div>
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Assets by Department</p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 12 }} />
+                        <Bar dataKey="available" name="Available" stackId="a" fill="#22c55e" radius={[0,0,0,0]} />
+                        <Bar dataKey="assigned" name="Assigned" stackId="a" fill="#3b82f6" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ReportTable headers={["Department","Total","Available","Assigned","Maintenance","Retired"]}
+                    rows={reportData.depts.map(([dept, v]) => [
+                      dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0,
+                    ])} />
+                </>
+              )}
+
+              {/* ── DEPRECIATION ── */}
+              {reportType === "depreciation" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
+                    <StatCard label="Total Original" value={`SGD ${Math.round(reportData.stats.totalOriginal).toLocaleString()}`} color="blue" delay={0} />
+                    <StatCard label="Current Value" value={`SGD ${Math.round(reportData.stats.totalCurrent).toLocaleString()}`} color="green" delay={0.05} />
+                    <StatCard label="Total Loss" value={`SGD ${Math.round(reportData.stats.loss).toLocaleString()}`} color="red" delay={0.1} />
+                    <StatCard label="Fully Depreciated" value={reportData.stats.fullyDep} color="orange" delay={0.15} />
+                  </div>
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Top 10 Assets — Remaining vs Depreciated Value</p>
+                    <ResponsiveContainer width="100%" height={220}>
+                      <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
+                        <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 10 }} axisLine={false} tickLine={false} />
+                        <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                        <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                        <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 12 }} />
+                        <Bar dataKey="remaining" name="Remaining Value" stackId="a" fill="#22c55e" />
+                        <Bar dataKey="depreciated" name="Depreciated" stackId="a" fill="#ef4444" radius={[4,4,0,0]} />
+                      </BarChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ReportTable headers={["Asset Name","Original Price","Current Value","% Remaining","Yrs Old","Status"]}
+                    rows={reportData.rows.map(a => [
+                      a.name,
+                      `SGD ${a.dep.originalPrice.toLocaleString()}`,
+                      `SGD ${Math.round(a.dep.currentValue).toLocaleString()}`,
+                      <span key="p" className={a.dep.percentRemaining > 60 ? "text-green-400" : a.dep.percentRemaining > 30 ? "text-yellow-400" : "text-red-400"}>{a.dep.percentRemaining}%</span>,
+                      `${a.dep.yearsOld}yr`,
+                      a.dep.fullyDepreciated
+                        ? <span key="fd" className="text-red-400 text-xs">Fully Dep.</span>
+                        : <span key="ac" className="text-green-400 text-xs">Active</span>,
+                    ])} />
+                </>
+              )}
+
+              {/* ── LICENSE ── */}
+              {reportType === "license" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+                    <StatCard label="Total Licensed" value={reportData.stats.total} color="blue" />
+                    <StatCard label="Expired" value={reportData.stats.expired} color="red" />
+                    <StatCard label="Expiring ≤30 days" value={reportData.stats.expiring30} color="yellow" />
+                  </div>
+                  <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                    <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">License Status Overview</p>
+                    <ResponsiveContainer width="100%" height={180}>
+                      <PieChart>
+                        <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
+                          label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                          {reportData.chartData.map((_, i) => (
+                            <Cell key={i} fill={["#ef4444","#f59e0b","#22c55e"][i]} />
+                          ))}
+                        </Pie>
+                        <Tooltip content={<DarkTooltip />} />
+                      </PieChart>
+                    </ResponsiveContainer>
+                  </div>
+                  <ReportTable headers={["Asset Name","Serial No.","Department","License Expiry","Status"]}
+                    rows={reportData.rows.map(a => {
+                      const expired = a.license_expiry < today()
+                      const expiring = !expired && a.license_expiry <= daysFromNow(30)
+                      return [a.name, a.serial_number||"—", a.department||"—", a.license_expiry,
+                        <span key="s" className={expired ? "text-red-400" : expiring ? "text-yellow-400" : "text-green-400"}>
+                          {expired ? "Expired" : expiring ? "Expiring Soon" : "Active"}
+                        </span>
+                      ]
+                    })} />
+                </>
+              )}
+
+              {/* ── MAINTENANCE ── */}
+              {reportType === "maintenance" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <StatCard label="Total Records" value={reportData.stats.total} color="blue" />
+                    <StatCard label="Completed" value={reportData.stats.completed} color="green" />
+                    <StatCard label="Pending" value={reportData.stats.pending} color="yellow" />
+                  </div>
+                  {reportData.byStatus.length > 0 && (
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Status Breakdown</p>
+                      <ResponsiveContainer width="100%" height={160}>
+                        <BarChart data={reportData.byStatus}>
+                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                          <Bar dataKey="value" name="Count" radius={[4,4,0,0]}>
+                            {reportData.byStatus.map((_, i) => <Cell key={i} fill={CHART_COLORS[i]} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  <ReportTable headers={["Asset","Type","Description","Scheduled Date","Status"]}
+                    rows={(reportData.rows||[]).map(m => [
+                      m.assets?.name||"—", m.maintenance_type||"—",
+                      (m.description||"").slice(0,50)||"—",
+                      m.scheduled_date||"—", m.status||"—",
+                    ])} />
+                </>
+              )}
+
+              {/* ── BORROW ── */}
+              {reportType === "borrow" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-3 gap-3 mb-5">
+                    <StatCard label="Total Borrows" value={reportData.stats.total} color="blue" />
+                    <StatCard label="Currently Active" value={reportData.stats.active} color="purple" />
+                    <StatCard label="Returned" value={reportData.stats.returned} color="green" />
+                  </div>
+                  {reportData.chartData?.length > 0 && (
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Monthly Borrow Activity (last 6 months)</p>
+                      <ResponsiveContainer width="100%" height={180}>
+                        <LineChart data={reportData.chartData}>
+                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "#6b7280", fontSize: 11 }} axisLine={false} tickLine={false} />
+                          <Tooltip content={<DarkTooltip />} />
+                          <Line type="monotone" dataKey="count" name="Borrows" stroke="#a855f7" strokeWidth={2} dot={{ fill: "#a855f7", r: 4 }} />
+                        </LineChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  <ReportTable headers={["Asset","Borrower","Borrow Date","Due Date","Return Date","Status"]}
+                    rows={(reportData.rows||[]).map(b => [
+                      b.assets?.name||"—", b.requester_name||b.user_email||"—",
+                      (b.created_at||"").slice(0,10), b.due_date||"—",
+                      b.return_date||"—",
+                      <StatusBadge key="s" status={b.status} />,
+                    ])} />
+                </>
+              )}
+
+            </motion.div>
+          </AnimatePresence>
+        )}
       </div>
     </div>
+  )
+}
+
+// ── ReportTable ───────────────────────────────────────────────────────────────
+function ReportTable({ headers, rows }) {
+  if (!rows?.length) {
+    return (
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center text-gray-500 text-sm">
+        No data available for this report.
+      </div>
+    )
+  }
+  return (
+    <div className="bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
+      <div className="px-4 py-3 border-b border-gray-800 flex items-center justify-between">
+        <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide">Data Preview</p>
+        <span className="text-gray-600 text-xs">{rows.length} records</span>
+      </div>
+      <div className="overflow-x-auto">
+        <table className="w-full">
+          <thead>
+            <tr className="border-b border-gray-800">
+              {headers.map(h => (
+                <th key={h} className="text-left text-gray-500 text-xs font-medium px-4 py-3 whitespace-nowrap">{h}</th>
+              ))}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row, i) => (
+              <tr key={i} className="border-b border-gray-800/50 hover:bg-gray-800/30 transition-all">
+                {row.map((cell, j) => (
+                  <td key={j} className="px-4 py-2.5 text-gray-300 text-xs whitespace-nowrap">{cell}</td>
+                ))}
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </div>
+  )
+}
+
+// ── StatusBadge ───────────────────────────────────────────────────────────────
+function StatusBadge({ status }) {
+  const map = {
+    available: "bg-green-500/20 text-green-400",
+    assigned:  "bg-blue-500/20 text-blue-400",
+    maintenance:"bg-yellow-500/20 text-yellow-400",
+    retired:   "bg-red-500/20 text-red-400",
+    borrowed:  "bg-purple-500/20 text-purple-400",
+    returned:  "bg-green-500/20 text-green-400",
+    approved:  "bg-blue-500/20 text-blue-400",
+    pending:   "bg-yellow-500/20 text-yellow-400",
+    rejected:  "bg-red-500/20 text-red-400",
+  }
+  return (
+    <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status] || "bg-gray-500/20 text-gray-400"}`}>
+      {status || "—"}
+    </span>
   )
 }

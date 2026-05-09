@@ -93,6 +93,14 @@ export default function ManageUsers() {
     }
   }
 
+  const handleToggle2FA = async (u) => {
+    const newVal = !u.two_factor_enabled
+    await supabase.from("user_profiles").update({ two_factor_enabled: newVal }).eq("id", u.id)
+    setUsers(users.map(x => x.id === u.id ? { ...x, two_factor_enabled: newVal } : x))
+    setSuccess(`2FA ${newVal ? "enabled" : "disabled"} for ${u.name || u.email}`)
+    setTimeout(() => setSuccess(""), 3000)
+  }
+
   const handleDeleteUser = async (u) => {
     if (u.id === userProfile?.id) {
       alert("You cannot delete your own account.")
@@ -286,6 +294,19 @@ export default function ManageUsers() {
                     </button>
                   ))}
                 </div>
+
+                {/* 2FA toggle */}
+                <button
+                  onClick={() => handleToggle2FA(u)}
+                  title={u.two_factor_enabled ? "2FA enabled — click to disable" : "2FA disabled — click to enable"}
+                  className={`text-xs px-2 py-1 rounded border transition-all font-medium ${
+                    u.two_factor_enabled
+                      ? "bg-green-500/20 border-green-500/40 text-green-400 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                      : "bg-gray-800 border-gray-700 text-gray-500 hover:border-blue-500/40 hover:text-blue-400"
+                  }`}
+                >
+                  {u.two_factor_enabled ? "🔐 2FA" : "🔓 2FA"}
+                </button>
 
                 {/* Delete */}
                 {u.id !== userProfile?.id && (
