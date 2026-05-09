@@ -60,10 +60,10 @@ const StatCard = ({ label, value, sub, color = "blue", delay = 0, compact = fals
       initial={{ opacity: 0, y: 10 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ delay }}
-      className={`bg-gray-800/60 rounded-xl border ${border} ${compact ? "p-2" : "p-4"}`}
+      className={`bg-gray-800/60 rounded-xl border ${border} ${compact ? "p-1.5" : "p-4"}`}
     >
-      <p className={`text-gray-400 mb-0.5 ${compact ? "text-xs leading-tight" : "text-xs mb-1"}`}>{label}</p>
-      <p className={`font-bold ${text} ${compact ? "text-lg" : "text-2xl"}`}>{value}</p>
+      <p className={`text-gray-400 text-xs leading-tight ${compact ? "mb-0" : "mb-1"}`}>{label}</p>
+      <p className={`font-bold ${text} ${compact ? "text-base" : "text-2xl"}`}>{value}</p>
       {sub && <p className="text-gray-500 text-xs mt-0.5">{sub}</p>}
     </motion.div>
   )
@@ -575,7 +575,7 @@ export default function Reports() {
                 const mob = window.innerWidth < 768
                 return (
                 <div style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
-                  <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-5">
+                  <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-3 mb-4 md:mb-5">
                     <StatCard label="Total Assets" value={reportData.stats.total} color="blue" delay={0} compact={mob} />
                     <StatCard label="Available" value={reportData.stats.available} color="green" delay={0.05} compact={mob} />
                     <StatCard label="Assigned" value={reportData.stats.assigned} color="purple" delay={0.1} compact={mob} />
@@ -585,9 +585,9 @@ export default function Reports() {
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">Status Distribution</p>
                       <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                        <ResponsiveContainer width="99%" height={mob ? 150 : 180}>
+                        <ResponsiveContainer width="95%" height={mob ? 130 : 180}>
                           <PieChart>
-                            <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={mob ? 50 : 65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                            <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={mob ? 40 : 65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
                               {reportData.byStatus.map((_, i) => (
                                 <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
                               ))}
@@ -600,10 +600,10 @@ export default function Reports() {
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">By Category</p>
                       <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
-                        <ResponsiveContainer width="99%" height={mob ? 150 : 180}>
+                        <ResponsiveContainer width="95%" height={mob ? 130 : 180}>
                           <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 4, right: 12 }}>
-                            <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 9 : 10 }} axisLine={false} tickLine={false} />
-                            <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 9 : 10 }} width={mob ? 55 : 70} axisLine={false} tickLine={false} />
+                            <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 8 : 10 }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 8 : 10 }} width={mob ? 45 : 70} axisLine={false} tickLine={false} />
                             <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                             <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
                           </BarChart>
