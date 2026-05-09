@@ -412,56 +412,18 @@ export default function Reports() {
   return (
     <div className="flex flex-col md:flex-row md:h-full md:min-h-screen">
 
-      {/* ── Mobile: horizontal tab strip (hidden on md+) ── */}
-      <div className="md:hidden" style={{ backgroundColor: "rgba(17,24,39,0.8)", borderBottom: "1px solid rgb(31,41,55)", flexShrink: 0 }}>
-        <div
-          style={{
-            overflowX: "scroll",
-            overflowY: "hidden",
-            WebkitOverflowScrolling: "touch",
-            scrollbarWidth: "none",
-            msOverflowStyle: "none",
-            padding: "0 16px",
-            marginBottom: "0",
-          }}
+      {/* ── Mobile: dropdown selector (hidden on md+) ── */}
+      <div className="md:hidden px-4 pt-4 pb-3 bg-gray-900/80 border-b border-gray-800">
+        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wider mb-2">Report Type</p>
+        <select
+          value={reportType}
+          onChange={e => selectReport(e.target.value)}
+          className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
         >
-          <div
-            style={{
-              display: "flex",
-              flexDirection: "row",
-              gap: "8px",
-              width: "max-content",
-              minWidth: "100%",
-              paddingTop: "8px",
-              paddingBottom: "8px",
-            }}
-          >
-            {REPORT_TYPES.map(r => (
-              <button
-                key={r.id}
-                onClick={() => selectReport(r.id)}
-                style={{
-                  display: "inline-flex",
-                  alignItems: "center",
-                  gap: "6px",
-                  padding: "8px 12px",
-                  borderRadius: "8px",
-                  fontSize: "12px",
-                  fontWeight: 500,
-                  whiteSpace: "nowrap",
-                  flexShrink: 0,
-                  border: reportType === r.id ? "1px solid rgba(59,130,246,0.5)" : "1px solid transparent",
-                  backgroundColor: reportType === r.id ? "rgba(37,99,235,0.3)" : "transparent",
-                  color: reportType === r.id ? "rgb(147,197,253)" : "rgb(156,163,175)",
-                  cursor: "pointer",
-                }}
-              >
-                <span>{r.icon}</span>
-                <span>{r.label}</span>
-              </button>
-            ))}
-          </div>
-        </div>
+          {REPORT_TYPES.map(r => (
+            <option key={r.id} value={r.id}>{r.icon} {r.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* ── Desktop: collapsible sidebar (hidden on mobile) ── */}
@@ -537,7 +499,7 @@ export default function Reports() {
       </motion.aside>
 
       {/* ── Main panel ── */}
-      <div className="flex-1 p-4 md:p-6 min-w-0" style={{ overflowY: "auto", overflowX: "hidden" }}>
+      <div className="flex-1 min-w-0 p-4 md:p-6 md:overflow-auto">
         {/* Header */}
         <div className="flex items-center gap-3 mb-5">
           <div className="flex-1 min-w-0">
