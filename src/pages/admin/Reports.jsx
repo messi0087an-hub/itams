@@ -574,7 +574,7 @@ export default function Reports() {
               {reportType === "inventory" && reportData.stats && (() => {
                 const mob = window.innerWidth < 768
                 return (
-                <>
+                <div style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-2 md:gap-3 mb-4 md:mb-5">
                     <StatCard label="Total Assets" value={reportData.stats.total} color="blue" delay={0} compact={mob} />
                     <StatCard label="Available" value={reportData.stats.available} color="green" delay={0.05} compact={mob} />
@@ -584,27 +584,31 @@ export default function Reports() {
                   <div className="grid grid-cols-1 md:grid-cols-2 gap-3 md:gap-4 mb-4 md:mb-5">
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">Status Distribution</p>
-                      <ResponsiveContainer width="100%" height={mob ? 150 : 180}>
-                        <PieChart>
-                          <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={mob ? 50 : 65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
-                            {reportData.byStatus.map((_, i) => (
-                              <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
-                            ))}
-                          </Pie>
-                          <Tooltip content={<DarkTooltip />} />
-                        </PieChart>
-                      </ResponsiveContainer>
+                      <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                        <ResponsiveContainer width="99%" height={mob ? 150 : 180}>
+                          <PieChart>
+                            <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={mob ? 50 : 65} label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                              {reportData.byStatus.map((_, i) => (
+                                <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
+                              ))}
+                            </Pie>
+                            <Tooltip content={<DarkTooltip />} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-3 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-2 md:mb-3">By Category</p>
-                      <ResponsiveContainer width="100%" height={mob ? 150 : 180}>
-                        <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 4, right: 12 }}>
-                          <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 9 : 10 }} axisLine={false} tickLine={false} />
-                          <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 9 : 10 }} width={mob ? 55 : 70} axisLine={false} tickLine={false} />
-                          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
-                          <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
-                        </BarChart>
-                      </ResponsiveContainer>
+                      <div style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                        <ResponsiveContainer width="99%" height={mob ? 150 : 180}>
+                          <BarChart data={reportData.byCategory} layout="vertical" margin={{ left: 4, right: 12 }}>
+                            <XAxis type="number" tick={{ fill: "#6b7280", fontSize: mob ? 9 : 10 }} axisLine={false} tickLine={false} />
+                            <YAxis type="category" dataKey="name" tick={{ fill: "#9ca3af", fontSize: mob ? 9 : 10 }} width={mob ? 55 : 70} axisLine={false} tickLine={false} />
+                            <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                            <Bar dataKey="value" fill="#3b82f6" radius={[0, 4, 4, 0]} name="Count" />
+                          </BarChart>
+                        </ResponsiveContainer>
+                      </div>
                     </div>
                   </div>
                   <ReportTable
@@ -613,7 +617,7 @@ export default function Reports() {
                       ? [a.name, <StatusBadge key="s" status={a.status} />]
                       : [a.name, a.category||"—", <StatusBadge key="s" status={a.status} />]
                     )} />
-                </>
+                </div>
                 )
               })()}
 
