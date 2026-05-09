@@ -605,10 +605,9 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
                   </div>
-                  <ReportTable headers={["Name","Category","Serial","Assigned","Status"]}
+                  <ReportTable headers={["Asset Name","Category","Status"]}
                     rows={reportData.rows.map(a => [
-                      a.name, a.category||"—", a.serial_number||"—",
-                      a.assigned_user||"—",
+                      a.name, a.category||"—",
                       <StatusBadge key="s" status={a.status} />,
                     ])} />
                 </>
