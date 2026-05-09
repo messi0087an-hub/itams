@@ -413,31 +413,55 @@ export default function Reports() {
     <div className="flex flex-col md:flex-row md:h-full md:min-h-screen">
 
       {/* ── Mobile: horizontal tab strip (hidden on md+) ── */}
-      <div
-        className="md:hidden bg-gray-900/80 border-b border-gray-800 shrink-0"
-        style={{
-          overflowX: "scroll",
-          WebkitOverflowScrolling: "touch",
-          whiteSpace: "nowrap",
-          display: "block",
-          width: "100%",
-        }}
-      >
-        {REPORT_TYPES.map(r => (
-          <button
-            key={r.id}
-            onClick={() => selectReport(r.id)}
-            style={{ display: "inline-block", whiteSpace: "nowrap" }}
-            className={`mx-0.5 my-2 px-3 py-2 rounded-lg text-xs font-medium transition-all first:ml-2 last:mr-2 ${
-              reportType === r.id
-                ? "bg-blue-600/30 border border-blue-500/50 text-blue-300"
-                : "text-gray-400 hover:bg-gray-800 hover:text-white border border-transparent"
-            }`}
+      <div className="md:hidden" style={{ backgroundColor: "rgba(17,24,39,0.8)", borderBottom: "1px solid rgb(31,41,55)", flexShrink: 0 }}>
+        <div
+          style={{
+            overflowX: "scroll",
+            overflowY: "hidden",
+            WebkitOverflowScrolling: "touch",
+            scrollbarWidth: "none",
+            msOverflowStyle: "none",
+            padding: "0 16px",
+            marginBottom: "0",
+          }}
+        >
+          <div
+            style={{
+              display: "flex",
+              flexDirection: "row",
+              gap: "8px",
+              width: "max-content",
+              minWidth: "100%",
+              paddingTop: "8px",
+              paddingBottom: "8px",
+            }}
           >
-            <span className="mr-1">{r.icon}</span>
-            <span>{r.label}</span>
-          </button>
-        ))}
+            {REPORT_TYPES.map(r => (
+              <button
+                key={r.id}
+                onClick={() => selectReport(r.id)}
+                style={{
+                  display: "inline-flex",
+                  alignItems: "center",
+                  gap: "6px",
+                  padding: "8px 12px",
+                  borderRadius: "8px",
+                  fontSize: "12px",
+                  fontWeight: 500,
+                  whiteSpace: "nowrap",
+                  flexShrink: 0,
+                  border: reportType === r.id ? "1px solid rgba(59,130,246,0.5)" : "1px solid transparent",
+                  backgroundColor: reportType === r.id ? "rgba(37,99,235,0.3)" : "transparent",
+                  color: reportType === r.id ? "rgb(147,197,253)" : "rgb(156,163,175)",
+                  cursor: "pointer",
+                }}
+              >
+                <span>{r.icon}</span>
+                <span>{r.label}</span>
+              </button>
+            ))}
+          </div>
+        </div>
       </div>
 
       {/* ── Desktop: collapsible sidebar (hidden on mobile) ── */}
