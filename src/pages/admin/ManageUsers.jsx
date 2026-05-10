@@ -123,7 +123,7 @@ export default function ManageUsers() {
   }
 
   return (
-    <div className="p-4 md:p-8">
+    <div className="p-3 md:p-8" style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
 
       {/* Success toast */}
       <AnimatePresence>
@@ -140,16 +140,17 @@ export default function ManageUsers() {
         )}
       </AnimatePresence>
 
-      <div className="flex items-center justify-between mb-6">
+      {/* Header: side-by-side on desktop, stacked on mobile */}
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 md:gap-0 mb-4 md:mb-6">
         <div>
-          <h1 className="text-2xl md:text-3xl font-bold text-white">{t("manageUsersTitle")}</h1>
-          <p className="text-gray-400 mt-1 text-sm">{users.length} team members</p>
+          <h1 className="text-lg md:text-3xl font-bold text-white">{t("manageUsersTitle")}</h1>
+          <p className="text-gray-400 mt-0.5 text-xs md:text-sm">{users.length} team members</p>
         </div>
         <motion.button
           whileHover={{ scale: 1.05 }}
           whileTap={{ scale: 0.95 }}
           onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium"
+          className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium self-start md:self-auto"
         >
           + {t("addNewUser")}
         </motion.button>
@@ -235,53 +236,55 @@ export default function ManageUsers() {
       </AnimatePresence>
 
       {/* Role legend */}
-      <div className="flex flex-wrap gap-2 mb-6">
+      <div className="flex flex-wrap gap-1.5 md:gap-2 mb-4 md:mb-6">
         {ROLES.map(r => (
-          <span key={r} className={`text-xs px-3 py-1 rounded-full border font-medium ${roleColors[r]}`}>
+          <span key={r} className={`text-xs px-2 md:px-3 py-0.5 md:py-1 rounded-full border font-medium ${roleColors[r]}`}>
             {r === "admin" && "👑 "}
             {r === "it" && "🛠 "}
             {r === "viewer" && "👁 "}
             {roleLabels[r]}
           </span>
         ))}
-        <span className="text-gray-600 text-xs self-center ml-1">— click a role badge on a user to change it</span>
+        <span className="text-gray-600 text-xs self-center ml-1 hidden md:inline">— click a role badge on a user to change it</span>
       </div>
 
       {/* Users List */}
       {loading ? (
         <p className="text-gray-500 text-sm">Loading...</p>
       ) : (
-        <div className="space-y-3">
+        <div className="space-y-2 md:space-y-3">
           {users.map((u) => (
             <motion.div
               key={u.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 flex items-center justify-between gap-4"
+              className="bg-gray-900/80 rounded-xl border border-gray-800 p-2.5 md:p-4 flex items-center justify-between gap-2 md:gap-4"
             >
-              <div className="flex items-center gap-3 min-w-0">
-                <div className="w-10 h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-sm shrink-0">
+              {/* Avatar + name */}
+              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+                <div className="w-7 h-7 md:w-10 md:h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs md:text-sm shrink-0">
                   {(u.name || u.email)[0].toUpperCase()}
                 </div>
                 <div className="min-w-0">
-                  <p className="text-white font-medium truncate">
+                  <p className="text-white text-xs md:text-sm font-medium truncate">
                     {u.name || "—"}
                     {u.id === userProfile?.id && (
-                      <span className="ml-2 text-xs text-gray-500">(you)</span>
+                      <span className="ml-1 text-xs text-gray-500">(you)</span>
                     )}
                   </p>
                   <p className="text-gray-500 text-xs truncate">{u.email}</p>
                 </div>
               </div>
 
-              <div className="flex items-center gap-2 shrink-0">
+              {/* Actions */}
+              <div className="flex items-center gap-1 md:gap-2 shrink-0">
                 {/* Role selector */}
-                <div className="flex gap-1">
+                <div className="flex gap-0.5 md:gap-1">
                   {ROLES.map(r => (
                     <button
                       key={r}
                       onClick={() => handleRoleChange(u.id, r)}
-                      className={`text-xs px-2 py-1 rounded-full border transition-all font-medium ${
+                      className={`text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded-full border transition-all font-medium ${
                         u.role === r
                           ? roleColors[r]
                           : "bg-transparent border-gray-700 text-gray-600 hover:text-gray-400"
@@ -290,29 +293,30 @@ export default function ManageUsers() {
                       {r === "admin" && "👑"}
                       {r === "it" && "🛠"}
                       {r === "viewer" && "👁"}
-                      <span className="ml-1 hidden sm:inline">{roleLabels[r]}</span>
+                      <span className="ml-0.5 hidden md:inline">{roleLabels[r]}</span>
                     </button>
                   ))}
                 </div>
 
-                {/* 2FA toggle */}
+                {/* 2FA toggle — icon only on mobile */}
                 <button
                   onClick={() => handleToggle2FA(u)}
                   title={u.two_factor_enabled ? "2FA enabled — click to disable" : "2FA disabled — click to enable"}
-                  className={`text-xs px-2 py-1 rounded border transition-all font-medium ${
+                  className={`text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded border transition-all font-medium ${
                     u.two_factor_enabled
                       ? "bg-green-500/20 border-green-500/40 text-green-400 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
                       : "bg-gray-800 border-gray-700 text-gray-500 hover:border-blue-500/40 hover:text-blue-400"
                   }`}
                 >
-                  {u.two_factor_enabled ? "🔐 2FA" : "🔓 2FA"}
+                  <span>{u.two_factor_enabled ? "🔐" : "🔓"}</span>
+                  <span className="hidden md:inline ml-1">2FA</span>
                 </button>
 
                 {/* Delete */}
                 {u.id !== userProfile?.id && (
                   <button
                     onClick={() => handleDeleteUser(u)}
-                    className="text-red-400/50 hover:text-red-400 text-sm px-2 py-1 rounded border border-red-400/20 hover:border-red-400/40 transition-all"
+                    className="text-red-400/50 hover:text-red-400 text-xs md:text-sm px-1.5 md:px-2 py-0.5 md:py-1 rounded border border-red-400/20 hover:border-red-400/40 transition-all"
                   >
                     ✕
                   </button>
