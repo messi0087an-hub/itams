@@ -25,6 +25,7 @@ export default function Dashboard() {
   const [statusData, setStatusData] = useState([])
   const [recentAssets, setRecentAssets] = useState([])
   const [expiringAssets, setExpiringAssets] = useState([])
+  const [expiredAssets, setExpiredAssets] = useState([])
   const [departmentData, setDepartmentData] = useState([])
   const [procurementData, setProcurementData] = useState([])
   const [conditionData, setConditionData] = useState([])
@@ -75,16 +76,26 @@ export default function Dashboard() {
   }
 
   const fetchExpiringWarranties = async () => {
-    const today = new Date()
-    const in90Days = new Date()
-    in90Days.setDate(today.getDate() + 90)
-    const { data } = await supabase
-      .from("assets").select("id, name, warranty_expiry, assigned_user")
-      .not("warranty_expiry", "is", null)
-      .lte("warranty_expiry", in90Days.toISOString().split("T")[0])
-      .gte("warranty_expiry", today.toISOString().split("T")[0])
-      .order("warranty_expiry", { ascending: true }).limit(5)
-    setExpiringAssets(data || [])
+    const todayStr = new Date().toISOString().split("T")[0]
+    const in30Days = new Date()
+    in30Days.setDate(in30Days.getDate() + 30)
+    const in30Str = in30Days.toISOString().split("T")[0]
+
+    const [{ data: expiring }, { data: expired }] = await Promise.all([
+      supabase
+        .from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
+        .not("warranty_expiry", "is", null)
+        .gte("warranty_expiry", todayStr)
+        .lte("warranty_expiry", in30Str)
+        .order("warranty_expiry", { ascending: true }).limit(10),
+      supabase
+        .from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
+        .not("warranty_expiry", "is", null)
+        .lt("warranty_expiry", todayStr)
+        .order("warranty_expiry", { ascending: false }).limit(10),
+    ])
+    setExpiringAssets(expiring || [])
+    setExpiredAssets(expired || [])
   }
 
   const fetchDepartmentValue = async () => {
@@ -333,34 +344,89 @@ export default function Dashboard() {
       )}
 
       {/* Warranty Expiry Alerts */}
-      {expiringAssets.length > 0 && (
-        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-          className="bg-yellow-500/10 border border-yellow-500/30 rounded-2xl p-4 md:p-6 mb-6">
-          <div className="flex items-center gap-2 mb-4">
-            <span className="text-2xl">⚠️</span>
-            <h2 className="text-yellow-400 font-semibold">{t("warrantyExpiring")}</h2>
-            <span className="bg-yellow-500/20 text-yellow-400 text-xs px-2 py-1 rounded-full">
-              {expiringAssets.length} assets
-            </span>
+      {(expiredAssets.length > 0 || expiringAssets.length > 0) && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.28 }}
+          className="rounded-2xl border mb-6 overflow-hidden"
+          style={{ borderColor: expiredAssets.length > 0 ? "rgba(239,68,68,0.4)" : "rgba(234,179,8,0.3)" }}>
+
+          {/* Card header */}
+          <div className={`flex items-center gap-3 px-4 md:px-6 py-4 ${
+            expiredAssets.length > 0 ? "bg-red-500/10" : "bg-yellow-500/10"
+          }`}>
+            <span className="text-2xl">{expiredAssets.length > 0 ? "🚨" : "⚠️"}</span>
+            <div className="flex-1">
+              <h2 className={`font-semibold ${expiredAssets.length > 0 ? "text-red-400" : "text-yellow-400"}`}>
+                Warranty Alerts
+              </h2>
+              <p className="text-gray-500 text-xs mt-0.5">
+                {expiredAssets.length > 0 && `${expiredAssets.length} expired`}
+                {expiredAssets.length > 0 && expiringAssets.length > 0 && " · "}
+                {expiringAssets.length > 0 && `${expiringAssets.length} expiring within 30 days`}
+              </p>
+            </div>
           </div>
-          <div className="space-y-2">
-            {expiringAssets.map((asset) => {
-              const days = getDaysUntilExpiry(asset.warranty_expiry)
-              return (
-                <div key={asset.id} className="flex items-center justify-between bg-yellow-500/5 rounded-xl px-4 py-3">
-                  <div>
-                    <p className="text-white text-sm font-medium">{asset.name}</p>
-                    <p className="text-gray-400 text-xs">{asset.assigned_user || "Unassigned"}</p>
-                  </div>
-                  <div className="text-right">
-                    <p className={`text-sm font-semibold ${days <= 30 ? "text-red-400" : "text-yellow-400"}`}>
-                      {days} days left
-                    </p>
-                    <p className="text-gray-500 text-xs">{asset.warranty_expiry}</p>
-                  </div>
+
+          <div className="bg-gray-900/80 p-4 md:p-6 space-y-4">
+            {/* Expired — red */}
+            {expiredAssets.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  <p className="text-red-400 text-xs font-semibold uppercase tracking-wide">
+                    Expired ({expiredAssets.length})
+                  </p>
                 </div>
-              )
-            })}
+                <div className="space-y-2">
+                  {expiredAssets.map(asset => (
+                    <div key={asset.id}
+                      className="flex items-center justify-between bg-red-500/5 border border-red-500/20 rounded-xl px-3 md:px-4 py-2.5">
+                      <div className="min-w-0 mr-3">
+                        <p className="text-white text-sm font-medium truncate">{asset.name}</p>
+                        <p className="text-gray-500 text-xs">
+                          {asset.asset_tag ? `Tag: ${asset.asset_tag}` : (asset.assigned_user || "Unassigned")}
+                        </p>
+                      </div>
+                      <div className="text-right shrink-0">
+                        <p className="text-red-400 text-xs font-semibold">Expired</p>
+                        <p className="text-gray-500 text-xs">{asset.warranty_expiry}</p>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Expiring soon — yellow */}
+            {expiringAssets.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-yellow-500 shrink-0" />
+                  <p className="text-yellow-400 text-xs font-semibold uppercase tracking-wide">
+                    Expiring within 30 days ({expiringAssets.length})
+                  </p>
+                </div>
+                <div className="space-y-2">
+                  {expiringAssets.map(asset => {
+                    const days = getDaysUntilExpiry(asset.warranty_expiry)
+                    return (
+                      <div key={asset.id}
+                        className="flex items-center justify-between bg-yellow-500/5 border border-yellow-500/20 rounded-xl px-3 md:px-4 py-2.5">
+                        <div className="min-w-0 mr-3">
+                          <p className="text-white text-sm font-medium truncate">{asset.name}</p>
+                          <p className="text-gray-500 text-xs">
+                            {asset.asset_tag ? `Tag: ${asset.asset_tag}` : (asset.assigned_user || "Unassigned")}
+                          </p>
+                        </div>
+                        <div className="text-right shrink-0">
+                          <p className="text-yellow-400 text-xs font-semibold">{days}d left</p>
+                          <p className="text-gray-500 text-xs">{asset.warranty_expiry}</p>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         </motion.div>
       )}
