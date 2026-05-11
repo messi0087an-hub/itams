@@ -190,6 +190,34 @@ function borrowHtml({ assetName, borrowerName, dueDate, days, isAdmin, isOverdue
 }
 
 // ---------------------------------------------------------------------------
+// Welcome email — sent after bulk user import
+// ---------------------------------------------------------------------------
+export async function sendWelcomeEmail(toEmail, name, role, tempPassword) {
+  const roleLabel = role === "admin" ? "Admin" : role === "it" ? "IT Staff" : "Viewer"
+  const loginUrl = `${window.location.origin}/login`
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">👋</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to ITAMS!</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your account has been created, ${name || toEmail}.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Your Login Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Email", toEmail)}
+        ${detailRow("Temporary Password", tempPassword, "#f59e0b")}
+        ${detailRow("Role", roleLabel)}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Login to ITAMS →</a>
+    </div>
+    <p style="color:#6b7280;font-size:12px;text-align:center;margin:0;">Please change your password after first login. If you did not expect this email, please contact your IT administrator.</p>
+  `)
+  await sendEmail(toEmail, "Welcome to ITAMS — Your account is ready", html)
+}
+
+// ---------------------------------------------------------------------------
 // Warranty Alerts — called from Dashboard on load
 // ---------------------------------------------------------------------------
 export async function checkWarrantyAlerts() {

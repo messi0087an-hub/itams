@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
+import { sendWelcomeEmail } from "../../lib/emailService"
 
 const ROLES = ["admin", "it", "viewer"]
 
@@ -27,6 +29,9 @@ export default function ManageUsers() {
   const [creating, setCreating] = useState(false)
   const [success, setSuccess] = useState("")
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "viewer" })
+  const [importing, setImporting] = useState(false)
+  const [importResult, setImportResult] = useState(null) // { ok, failed[] }
+  const fileInputRef = useRef()
 
   useEffect(() => {
     fetchUsers()
@@ -101,6 +106,103 @@ export default function ManageUsers() {
     setTimeout(() => setSuccess(""), 3000)
   }
 
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0]
+    if (!file) return
+    e.target.value = ""
+    setImporting(true)
+    setImportResult(null)
+
+    try {
+      // Parse file → rows
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: "array" })
+      const ws = wb.Sheets[wb.SheetNames[0]]
+      const raw = XLSX.utils.sheet_to_json(ws, { defval: "" })
+
+      if (!raw.length) throw new Error("File is empty or unreadable.")
+
+      // Normalise column names (case-insensitive, trim)
+      const normalise = (obj) => {
+        const out = {}
+        for (const k of Object.keys(obj)) out[k.trim().toLowerCase()] = String(obj[k]).trim()
+        return out
+      }
+      const rows = raw.map(normalise)
+
+      // Detect columns
+      const col = (row, ...names) => {
+        for (const n of names) if (row[n] !== undefined && row[n] !== "") return row[n]
+        return ""
+      }
+
+      const { data: { session: adminSession } } = await supabase.auth.getSession()
+
+      let ok = 0
+      const failed = []
+
+      for (let i = 0; i < rows.length; i++) {
+        const row = rows[i]
+        const name  = col(row, "full name", "name", "fullname")
+        const email = col(row, "email", "e-mail", "email address")
+        const dept  = col(row, "department", "dept")
+        const rawRole = col(row, "role").toLowerCase()
+        const role  = ["admin", "it", "viewer"].includes(rawRole) ? rawRole
+                    : rawRole === "view" ? "viewer"
+                    : "viewer"
+
+        if (!email || !email.includes("@")) {
+          failed.push({ row: i + 2, email: email || "(blank)", reason: "Invalid or missing email" })
+          continue
+        }
+
+        // Generate a temporary password
+        const tempPassword = Math.random().toString(36).slice(2, 10) + "A1!"
+
+        try {
+          const { data, error } = await supabase.auth.signUp({ email, password: tempPassword })
+          if (error) {
+            if (error.message?.toLowerCase().includes("already")) {
+              failed.push({ row: i + 2, email, reason: "Account already exists (skipped)" })
+            } else {
+              failed.push({ row: i + 2, email, reason: error.message })
+            }
+            continue
+          }
+
+          await supabase.from("user_profiles").upsert({
+            id: data.user.id, email, name, role,
+            ...(dept ? { department: dept } : {}),
+          })
+
+          // Restore admin session after each signUp replaces it
+          if (adminSession) {
+            await supabase.auth.setSession({
+              access_token: adminSession.access_token,
+              refresh_token: adminSession.refresh_token,
+            })
+          }
+
+          await sendWelcomeEmail(email, name, role, tempPassword)
+          ok++
+        } catch (err) {
+          failed.push({ row: i + 2, email, reason: err.message || "Unknown error" })
+        }
+      }
+
+      setImportResult({ ok, failed })
+      if (ok > 0) {
+        setSuccess(`${ok} user${ok !== 1 ? "s" : ""} imported!`)
+        setTimeout(() => setSuccess(""), 5000)
+        fetchUsers()
+      }
+    } catch (err) {
+      setImportResult({ ok: 0, failed: [{ row: "—", email: "—", reason: err.message }] })
+    } finally {
+      setImporting(false)
+    }
+  }
+
   const handleDeleteUser = async (u) => {
     if (u.id === userProfile?.id) {
       alert("You cannot delete your own account.")
@@ -146,15 +248,90 @@ export default function ManageUsers() {
           <h1 className="text-lg md:text-3xl font-bold text-white">{t("manageUsersTitle")}</h1>
           <p className="text-gray-400 mt-0.5 text-xs md:text-sm">{users.length} team members</p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium self-start md:self-auto"
-        >
-          + {t("addNewUser")}
-        </motion.button>
+        <div className="flex gap-2 self-start md:self-auto">
+          {/* Hidden file input */}
+          <input
+            ref={fileInputRef}
+            type="file"
+            accept=".xlsx,.xls,.csv"
+            className="hidden"
+            onChange={handleImportFile}
+          />
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => fileInputRef.current?.click()}
+            disabled={importing}
+            className="bg-gray-700 hover:bg-gray-600 disabled:opacity-50 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium flex items-center gap-1.5"
+          >
+            {importing ? (
+              <>
+                <svg className="animate-spin w-3 h-3" viewBox="0 0 24 24" fill="none">
+                  <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4"/>
+                  <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"/>
+                </svg>
+                <span className="hidden md:inline">Importing…</span>
+              </>
+            ) : (
+              <>
+                <span>📥</span>
+                <span className="hidden md:inline">Import Users</span>
+              </>
+            )}
+          </motion.button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium"
+          >
+            + {t("addNewUser")}
+          </motion.button>
+        </div>
       </div>
+
+      {/* Import result panel */}
+      <AnimatePresence>
+        {importResult && (
+          <motion.div
+            initial={{ opacity: 0, y: -8 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -8 }}
+            className="mb-4 bg-gray-900/80 border border-gray-700 rounded-xl p-4"
+          >
+            <div className="flex items-center justify-between mb-3">
+              <p className="text-white font-semibold text-sm">Import Results</p>
+              <button onClick={() => setImportResult(null)} className="text-gray-500 hover:text-white text-lg leading-none">✕</button>
+            </div>
+            {importResult.ok > 0 && (
+              <div className="flex items-center gap-2 mb-2">
+                <span className="w-2 h-2 rounded-full bg-green-500 shrink-0" />
+                <p className="text-green-400 text-sm font-medium">
+                  {importResult.ok} user{importResult.ok !== 1 ? "s" : ""} imported successfully — welcome emails sent.
+                </p>
+              </div>
+            )}
+            {importResult.failed.length > 0 && (
+              <div>
+                <div className="flex items-center gap-2 mb-2">
+                  <span className="w-2 h-2 rounded-full bg-red-500 shrink-0" />
+                  <p className="text-red-400 text-sm font-medium">{importResult.failed.length} row{importResult.failed.length !== 1 ? "s" : ""} failed:</p>
+                </div>
+                <div className="space-y-1 ml-4">
+                  {importResult.failed.map((f, i) => (
+                    <p key={i} className="text-gray-400 text-xs">
+                      Row {f.row} · <span className="text-gray-300">{f.email}</span> — {f.reason}
+                    </p>
+                  ))}
+                </div>
+              </div>
+            )}
+            <div className="mt-3 pt-3 border-t border-gray-800">
+              <p className="text-gray-600 text-xs">Expected columns: <span className="text-gray-400">Full Name · Email · Department · Role (admin/it/viewer)</span></p>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Create User Form */}
       <AnimatePresence>
