@@ -440,58 +440,99 @@ function LoginPage({ onVerified }) {
   )
 }
 
+// Fetch a rich snapshot of live data to pass as AI context
+async function fetchAIContext() {
+  const todayStr = new Date().toISOString().split("T")[0]
+  const in30 = new Date(); in30.setDate(in30.getDate() + 30)
+  const in30Str = in30.toISOString().split("T")[0]
+
+  const [
+    { data: assets },
+    { data: borrows },
+    { data: expiring },
+    { data: expired },
+    { data: maintenance },
+    { data: recentHistory },
+  ] = await Promise.all([
+    supabase.from("assets").select("id, name, category, status, assigned_user, department, warranty_expiry, purchase_price"),
+    supabase.from("borrow_requests").select("id, status, requester_name, assets(name)").in("status", ["borrowed", "approved"]),
+    supabase.from("assets").select("name, warranty_expiry").not("warranty_expiry", "is", null).gte("warranty_expiry", todayStr).lte("warranty_expiry", in30Str).order("warranty_expiry"),
+    supabase.from("assets").select("name, warranty_expiry").not("warranty_expiry", "is", null).lt("warranty_expiry", todayStr).order("warranty_expiry", { ascending: false }).limit(5),
+    supabase.from("maintenance_schedules").select("status").eq("status", "pending"),
+    supabase.from("asset_history").select("action, details, created_at").order("created_at", { ascending: false }).limit(5),
+  ])
+
+  const total = assets?.length ?? 0
+  const byStatus = (assets ?? []).reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
+  const byCategory = (assets ?? []).reduce((acc, a) => { const c = a.category || "Unknown"; acc[c] = (acc[c] || 0) + 1; return acc }, {})
+  const byDept = (assets ?? []).reduce((acc, a) => { const d = a.department || "Unassigned"; acc[d] = (acc[d] || 0) + 1; return acc }, {})
+  const byPerson = (assets ?? []).filter(a => a.assigned_user).reduce((acc, a) => { acc[a.assigned_user] = (acc[a.assigned_user] || 0) + 1; return acc }, {})
+  const topHolder = Object.entries(byPerson).sort((a, b) => b[1] - a[1])[0]
+
+  const lines = [
+    `Total assets: ${total}`,
+    `Status breakdown: ${Object.entries(byStatus).map(([k,v]) => `${v} ${k}`).join(", ")}`,
+    `By category: ${Object.entries(byCategory).map(([k,v]) => `${v} ${k}`).join(", ")}`,
+    `By department: ${Object.entries(byDept).map(([k,v]) => `${k}: ${v}`).join(", ")}`,
+    topHolder ? `Most assets held by: ${topHolder[0]} (${topHolder[1]} assets)` : "",
+    `Currently borrowed/active loans: ${borrows?.length ?? 0}`,
+    borrows?.length ? `Active borrowers: ${[...new Set(borrows.map(b => b.requester_name).filter(Boolean))].join(", ")}` : "",
+    `Pending maintenance tasks: ${maintenance?.length ?? 0}`,
+    expiring?.length
+      ? `Warranties expiring within 30 days (${expiring.length}): ${expiring.slice(0,5).map(a => `${a.name} (${a.warranty_expiry})`).join(", ")}`
+      : "No warranties expiring in the next 30 days",
+    expired?.length
+      ? `Already expired warranties (${expired.length}): ${expired.slice(0,5).map(a => `${a.name} (${a.warranty_expiry})`).join(", ")}`
+      : "No expired warranties",
+    recentHistory?.length
+      ? `Recent activity: ${recentHistory.map(h => `${h.action} — ${h.details || ""}`).join("; ")}`
+      : "",
+  ]
+  return lines.filter(Boolean).join("\n")
+}
+
 function AIChat() {
   const [open, setOpen] = useState(false)
   const [query, setQuery] = useState("")
   const [messages, setMessages] = useState([
-    { role: "ai", text: "Hi! Ask me anything about your assets 😊" }
+    { role: "ai", text: "Hi! Ask me anything about your assets — warranties, assignments, counts, and more." }
   ])
   const [loading, setLoading] = useState(false)
+  const bottomRef = useRef()
 
-  const handleSearch = async (e) => {
+  // Scroll to bottom whenever messages change
+  useEffect(() => {
+    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
+  }, [messages, loading])
+
+  const handleSend = async (e) => {
     e.preventDefault()
-    if (!query.trim()) return
+    if (!query.trim() || loading) return
 
-    const userMsg = { role: "user", text: query }
-    setMessages(prev => [...prev, userMsg])
+    const userText = query.trim()
+    setMessages(prev => [...prev, { role: "user", text: userText }])
     setQuery("")
     setLoading(true)
 
-    const { data: assets } = await supabase
-      .from("assets")
-      .select("id, name, category, serial_number, assigned_user, status, location")
+    try {
+      const context = await fetchAIContext()
+      const { data, error } = await supabase.functions.invoke("ai-chat", {
+        body: { message: userText, context },
+      })
 
-    const q = query.toLowerCase()
-    const words = q.split(" ").filter(w => w.length > 2)
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || "Unknown error")
+      }
 
-    let matched = assets.filter(a => {
-      const text = `${a.name} ${a.category} ${a.serial_number} ${a.assigned_user} ${a.status} ${a.location}`.toLowerCase()
-      return words.some(w => text.includes(w))
-    })
-
-    if (q.includes("available")) matched = matched.filter(a => a.status === "available")
-    if (q.includes("assigned")) matched = matched.filter(a => a.status === "assigned")
-    if (q.includes("laptop")) matched = matched.filter(a => a.category?.toLowerCase() === "laptop")
-    if (q.includes("desktop")) matched = matched.filter(a => a.category?.toLowerCase() === "desktop")
-    if (q.includes("no serial") || q.includes("missing serial")) matched = assets.filter(a => !a.serial_number)
-    if (q.includes("unassigned")) matched = assets.filter(a => !a.assigned_user)
-
-    let answer = ""
-    if (matched.length === 0) {
-      answer = `No assets found for "${query}". Try different keywords!`
-    } else if (q.includes("how many") || q.includes("count")) {
-      answer = `There are ${matched.length} assets matching your query.`
-    } else {
-      answer = `Found ${matched.length} matching assets:`
+      setMessages(prev => [...prev, { role: "ai", text: data.text }])
+    } catch (err) {
+      setMessages(prev => [...prev, {
+        role: "ai",
+        text: `Sorry, I couldn't connect to the AI right now. (${err.message})`,
+      }])
+    } finally {
+      setLoading(false)
     }
-
-    const aiMsg = {
-      role: "ai",
-      text: answer,
-      results: matched.length > 0 && !q.includes("how many") ? matched.slice(0, 5) : []
-    }
-    setMessages(prev => [...prev, aiMsg])
-    setLoading(false)
   }
 
   return (
@@ -516,43 +557,37 @@ function AIChat() {
             className="fixed bottom-24 right-6 z-50 w-80 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl flex flex-col overflow-hidden"
             style={{ height: "420px", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}
           >
-            <div className="bg-blue-600 px-4 py-3 flex items-center gap-2">
+            {/* Header */}
+            <div className="bg-blue-600 px-4 py-3 flex items-center gap-2 shrink-0">
               <span className="text-xl">🤖</span>
               <div>
                 <p className="text-white font-semibold text-sm">ITAMS AI</p>
-                <p className="text-blue-200 text-xs">Ask about your assets</p>
+                <p className="text-blue-200 text-xs">Powered by live data</p>
               </div>
             </div>
 
+            {/* Messages */}
             <div className="flex-1 overflow-y-auto p-4 space-y-3">
               {messages.map((msg, i) => (
                 <motion.div
                   key={i}
-                  initial={{ opacity: 0, y: 10 }}
+                  initial={{ opacity: 0, y: 8 }}
                   animate={{ opacity: 1, y: 0 }}
                   className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
                 >
-                  <div className={`max-w-xs rounded-xl px-3 py-2 text-sm ${
+                  <div className={`max-w-xs rounded-xl px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
                     msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
                   }`}>
-                    <p>{msg.text}</p>
-                    {msg.results && msg.results.length > 0 && (
-                      <div className="mt-2 space-y-1">
-                        {msg.results.map(a => (
-                          <div key={a.id} className="bg-gray-700 rounded-lg px-2 py-1">
-                            <p className="text-white text-xs font-medium">{a.name}</p>
-                            <p className="text-gray-400 text-xs">{a.assigned_user || "Unassigned"} · {a.status}</p>
-                          </div>
-                        ))}
-                      </div>
-                    )}
+                    {msg.text}
                   </div>
                 </motion.div>
               ))}
+
+              {/* Typing indicator */}
               {loading && (
                 <div className="flex justify-start">
-                  <div className="bg-gray-800 rounded-xl px-3 py-2">
-                    <div className="flex gap-1">
+                  <div className="bg-gray-800 rounded-xl px-3 py-2.5">
+                    <div className="flex gap-1 items-center">
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
                       <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
@@ -560,9 +595,11 @@ function AIChat() {
                   </div>
                 </div>
               )}
+              <div ref={bottomRef} />
             </div>
 
-            <form onSubmit={handleSearch} className="p-3 border-t border-gray-700 flex gap-2">
+            {/* Input */}
+            <form onSubmit={handleSend} className="p-3 border-t border-gray-700 flex gap-2 shrink-0">
               <input
                 type="text"
                 value={query}
@@ -572,8 +609,8 @@ function AIChat() {
               />
               <button
                 type="submit"
-                disabled={loading}
-                className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-xl text-sm transition-all"
+                disabled={loading || !query.trim()}
+                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-sm transition-all"
               >
                 →
               </button>
