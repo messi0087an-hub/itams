@@ -26,6 +26,7 @@ const UserGuide    = lazy(() => import("./pages/admin/UserGuide"))
 const ManageUsers  = lazy(() => import("./pages/admin/ManageUsers"))
 const AssetRequests= lazy(() => import("./pages/admin/AssetRequests"))
 const Maintenance  = lazy(() => import("./pages/admin/Maintenance"))
+const Settings     = lazy(() => import("./pages/admin/Settings"))
 
 function generateOTP() {
   return Math.floor(100000 + Math.random() * 900000).toString()
@@ -707,6 +708,7 @@ function AdminLayout({ user }) {
               <Route path="/admin/users" element={<ManageUsers />} />
               <Route path="/admin/requests" element={<AssetRequests />} />
               <Route path="/admin/maintenance" element={<Maintenance />} />
+              <Route path="/admin/settings" element={<Settings />} />
               <Route path="*" element={<Navigate to="/admin" />} />
             </Routes>
           </Suspense>

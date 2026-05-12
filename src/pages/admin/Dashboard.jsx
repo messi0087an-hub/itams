@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next"
 import { checkWarrantyAlerts, checkLicenseAlerts } from "../../lib/emailService"
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
+import { useAuth } from "../../context/AuthContext"
 
 const CHART_TOOLTIP = {
   contentStyle: { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px" },
@@ -17,9 +18,19 @@ const CHART_TOOLTIP = {
 }
 
 const DONUT_COLORS = ["#3b82f6","#8b5cf6","#06b6d4","#ec4899","#f59e0b","#22c55e","#ef4444","#f97316"]
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
 
 export default function Dashboard() {
   const { t } = useTranslation()
+  const { userProfile, isSuperAdmin, userCountry, profileLoading } = useAuth()
+
+  // Country filter: super admin can switch, others are locked to their country
+  const [selectedCountry, setSelectedCountry] = useState("all")
+  // Effective filter passed to all queries: null means no filter (all countries)
+  const countryFilter = isSuperAdmin
+    ? (selectedCountry === "all" ? null : selectedCountry)
+    : (userCountry || null)
+
   const [stats, setStats] = useState({ totalAssets: 0, available: 0, assigned: 0, issues: 0 })
   const [categoryData, setCategoryData] = useState([])
   const [statusData, setStatusData] = useState([])
@@ -33,21 +44,32 @@ export default function Dashboard() {
   const [deprStats, setDeprStats] = useState(null)
   const [loading, setLoading] = useState(true)
 
+  // Email alerts run once on mount — system-wide, not country-filtered
   useEffect(() => {
-    fetchStats()
-    fetchRecentAssets()
-    fetchExpiringWarranties()
-    fetchDepartmentValue()
-    fetchProcurement()
-    fetchCondition()
-    fetchHealthStats()
-    fetchDeprStats()
-    checkWarrantyAlerts()
-    checkLicenseAlerts()
-  }, [])
+    if (!profileLoading) {
+      checkWarrantyAlerts()
+      checkLicenseAlerts()
+    }
+  }, [profileLoading])
 
-  const fetchStats = async () => {
-    const { data } = await supabase.from("assets").select("status, category")
+  // Data fetches re-run when country filter changes (or profile finishes loading)
+  useEffect(() => {
+    if (profileLoading) return
+    setLoading(true)
+    fetchStats(countryFilter)
+    fetchRecentAssets(countryFilter)
+    fetchExpiringWarranties(countryFilter)
+    fetchDepartmentValue(countryFilter)
+    fetchProcurement(countryFilter)
+    fetchCondition(countryFilter)
+    fetchHealthStats(countryFilter)
+    fetchDeprStats(countryFilter)
+  }, [countryFilter, profileLoading])
+
+  const fetchStats = async (country) => {
+    let q = supabase.from("assets").select("status, category")
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     const total = data?.length || 0
     const available = data?.filter(a => a.status === "available").length || 0
     const assigned = data?.filter(a => a.status === "assigned").length || 0
@@ -70,36 +92,36 @@ export default function Dashboard() {
     setLoading(false)
   }
 
-  const fetchRecentAssets = async () => {
-    const { data } = await supabase.from("assets").select("*").order("created_at", { ascending: false }).limit(5)
+  const fetchRecentAssets = async (country) => {
+    let q = supabase.from("assets").select("*").order("created_at", { ascending: false }).limit(5)
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     setRecentAssets(data || [])
   }
 
-  const fetchExpiringWarranties = async () => {
+  const fetchExpiringWarranties = async (country) => {
     const todayStr = new Date().toISOString().split("T")[0]
     const in30Days = new Date()
     in30Days.setDate(in30Days.getDate() + 30)
     const in30Str = in30Days.toISOString().split("T")[0]
 
-    const [{ data: expiring }, { data: expired }] = await Promise.all([
-      supabase
-        .from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
-        .not("warranty_expiry", "is", null)
-        .gte("warranty_expiry", todayStr)
-        .lte("warranty_expiry", in30Str)
-        .order("warranty_expiry", { ascending: true }).limit(10),
-      supabase
-        .from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
-        .not("warranty_expiry", "is", null)
-        .lt("warranty_expiry", todayStr)
-        .order("warranty_expiry", { ascending: false }).limit(10),
-    ])
+    let qExp = supabase.from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
+      .not("warranty_expiry", "is", null).gte("warranty_expiry", todayStr).lte("warranty_expiry", in30Str)
+      .order("warranty_expiry", { ascending: true }).limit(10)
+    let qOld = supabase.from("assets").select("id, name, asset_tag, warranty_expiry, assigned_user")
+      .not("warranty_expiry", "is", null).lt("warranty_expiry", todayStr)
+      .order("warranty_expiry", { ascending: false }).limit(10)
+    if (country) { qExp = qExp.eq("country", country); qOld = qOld.eq("country", country) }
+
+    const [{ data: expiring }, { data: expired }] = await Promise.all([qExp, qOld])
     setExpiringAssets(expiring || [])
     setExpiredAssets(expired || [])
   }
 
-  const fetchDepartmentValue = async () => {
-    const { data } = await supabase.from("assets").select("department, purchase_price")
+  const fetchDepartmentValue = async (country) => {
+    let q = supabase.from("assets").select("department, purchase_price")
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     const map = {}
     data?.forEach(a => {
       const dept = a.department || "Unassigned"
@@ -113,9 +135,11 @@ export default function Dashboard() {
     )
   }
 
-  const fetchProcurement = async () => {
-    const { data } = await supabase.from("assets").select("purchase_date, purchase_price")
+  const fetchProcurement = async (country) => {
+    let q = supabase.from("assets").select("purchase_date, purchase_price")
       .not("purchase_date", "is", null).not("purchase_price", "is", null)
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     const map = {}
     data?.forEach(a => {
       const d = new Date(a.purchase_date)
@@ -130,8 +154,10 @@ export default function Dashboard() {
     )
   }
 
-  const fetchCondition = async () => {
-    const { data } = await supabase.from("assets").select("warranty_expiry")
+  const fetchCondition = async (country) => {
+    let q = supabase.from("assets").select("warranty_expiry")
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     const today = new Date()
     const in30 = new Date(); in30.setDate(today.getDate() + 30)
     const in90 = new Date(); in90.setDate(today.getDate() + 90)
@@ -153,10 +179,10 @@ export default function Dashboard() {
     ].filter(d => d.value > 0))
   }
 
-  const fetchHealthStats = async () => {
-    const { data: assets, error } = await supabase
-      .from("assets")
-      .select("id, purchase_date, warranty_expiry, status")
+  const fetchHealthStats = async (country) => {
+    let q = supabase.from("assets").select("id, purchase_date, warranty_expiry, status")
+    if (country) q = q.eq("country", country)
+    const { data: assets, error } = await q
 
     if (error || !assets || assets.length === 0) {
       setHealthStats({ avg: 0, green: 0, yellow: 0, red: 0, total: 0 })
@@ -185,12 +211,11 @@ export default function Dashboard() {
     setHealthStats({ avg: Math.round(scoreSum / assets.length), green, yellow, red, total: assets.length })
   }
 
-  const fetchDeprStats = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("purchase_price, purchase_date")
-      .not("purchase_price", "is", null)
-      .not("purchase_date", "is", null)
+  const fetchDeprStats = async (country) => {
+    let q = supabase.from("assets").select("purchase_price, purchase_date")
+      .not("purchase_price", "is", null).not("purchase_date", "is", null)
+    if (country) q = q.eq("country", country)
+    const { data } = await q
     if (!data?.length) { setDeprStats({ totalOriginal: 0, totalCurrent: 0, totalLost: 0, count: 0 }); return }
     let totalOriginal = 0, totalCurrent = 0
     data.forEach(a => {
@@ -217,11 +242,36 @@ export default function Dashboard() {
 
   return (
     <div className="p-4 md:p-8 relative min-h-screen">
-      <div className="mb-6">
-        <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
-          className="text-2xl md:text-3xl font-bold text-white">{t("dashboard")}</motion.h1>
-        <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-          className="text-gray-400 mt-1 text-sm">{t("welcomeMessage")}</motion.p>
+      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-3 mb-6">
+        <div>
+          <motion.h1 initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="text-2xl md:text-3xl font-bold text-white">{t("dashboard")}</motion.h1>
+          <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+            className="text-gray-400 mt-1 text-sm">
+            {t("welcomeMessage")}
+            {!isSuperAdmin && userCountry && (
+              <span className="ml-2 text-blue-400 font-medium">🌏 {userCountry}</span>
+            )}
+          </motion.p>
+        </div>
+
+        {/* Country filter — only visible to super admin */}
+        {isSuperAdmin && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
+            className="flex items-center gap-2">
+            <span className="text-gray-500 text-sm shrink-0">🌏 Country:</span>
+            <select
+              value={selectedCountry}
+              onChange={e => setSelectedCountry(e.target.value)}
+              className="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none"
+            >
+              <option value="all">All Countries</option>
+              {COUNTRIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </motion.div>
+        )}
       </div>
 
       {/* Stat Cards */}

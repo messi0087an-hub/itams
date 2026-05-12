@@ -5,6 +5,8 @@ import { motion } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
 
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
+
 export default function EditAsset() {
   const { t } = useTranslation()
   const navigate = useNavigate()
@@ -16,7 +18,7 @@ export default function EditAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
-    warranty_expiry: "", license_expiry: "", remarks: ""
+    warranty_expiry: "", license_expiry: "", remarks: "", country: "Singapore",
   })
 
   useEffect(() => {
@@ -40,7 +42,8 @@ export default function EditAsset() {
         purchase_price: data.purchase_price || "",
         warranty_expiry: data.warranty_expiry || "",
         license_expiry: data.license_expiry || "",
-        remarks: data.remarks || ""
+        remarks: data.remarks || "",
+        country: data.country || "Singapore",
       })
     }
     setFetching(false)
@@ -57,6 +60,7 @@ export default function EditAsset() {
     const cleanForm = {
       name: form.name,
       status: form.status,
+      country: form.country || "Singapore",
       serial_number: form.serial_number.trim() || null,
       asset_tag: form.asset_tag.trim() || null,
     }
@@ -165,6 +169,19 @@ export default function EditAsset() {
               <option value="assigned">Assigned</option>
               <option value="maintenance">Maintenance</option>
               <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Country</label>
+            <select
+              name="country"
+              value={form.country}
+              onChange={handleChange}
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            >
+              {COUNTRIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
           <div className="md:col-span-2">

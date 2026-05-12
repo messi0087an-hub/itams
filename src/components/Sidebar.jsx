@@ -60,6 +60,7 @@ export default function Sidebar() {
   // Admin-only items
   const adminItems = [
     { label: "👥 " + t("manageUsersTitle"), path: "/admin/users" },
+    { label: "⚙️ Settings", path: "/admin/settings" },
   ]
 
   let navItems = [...baseItems]

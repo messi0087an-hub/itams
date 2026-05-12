@@ -190,6 +190,53 @@ function borrowHtml({ assetName, borrowerName, dueDate, days, isAdmin, isOverdue
 }
 
 // ---------------------------------------------------------------------------
+// Asset Request Approval email — sent when employee submits a request
+// ---------------------------------------------------------------------------
+async function getApprovingOfficerEmail() {
+  try {
+    const { data } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "approving_officer_email")
+      .single()
+    return data?.value || "jamaludin.ali@trainocate.com"
+  } catch {
+    return "jamaludin.ali@trainocate.com"
+  }
+}
+
+function assetRequestHtml({ requestedBy, assetType, reason, priority, dateSubmitted }) {
+  const priorityColor = priority === "high" ? "#ef4444" : priority === "medium" ? "#f59e0b" : "#6b7280"
+  const priorityLabel = priority === "high" ? "High" : priority === "medium" ? "Medium" : "Low"
+
+  return baseTemplate("#3b82f6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">📋</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">New Asset Request</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">A team member has submitted an asset request requiring your approval.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Request Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Requested by", requestedBy)}
+        ${detailRow("Asset needed", assetType)}
+        ${detailRow("Reason", reason)}
+        ${detailRow("Priority", priorityLabel, priorityColor)}
+        ${detailRow("Date submitted", dateSubmitted)}
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+  `)
+}
+
+export async function sendAssetRequestNotification({ requestedBy, assetType, reason, priority, createdAt }) {
+  const to = await getApprovingOfficerEmail()
+  const dateSubmitted = fmtDate(createdAt || new Date().toISOString())
+  const html = assetRequestHtml({ requestedBy, assetType, reason, priority, dateSubmitted })
+  await sendEmail(to, `📋 New Asset Request: ${assetType} (${priority} priority)`, html)
+}
+
+// ---------------------------------------------------------------------------
 // Welcome email — sent after bulk user import
 // ---------------------------------------------------------------------------
 export async function sendWelcomeEmail(toEmail, name, role, tempPassword) {

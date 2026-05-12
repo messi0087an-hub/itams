@@ -4,9 +4,13 @@ import { useNavigate } from "react-router-dom"
 import { motion } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
+import { useAuth } from "../../context/AuthContext"
+
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
 
 export default function AddAsset() {
   const { t } = useTranslation()
+  const { userCountry } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
@@ -15,7 +19,8 @@ export default function AddAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
-    warranty_expiry: "", license_expiry: "", remarks: ""
+    warranty_expiry: "", license_expiry: "", remarks: "",
+    country: userCountry || "Singapore",
   })
 
   const handleChange = (e) => {
@@ -28,7 +33,7 @@ export default function AddAsset() {
 
     const cleanForm = {
       name: form.name,
-      country: "Singapore",
+      country: form.country || "Singapore",
       status: form.status,
       // Explicitly null out unique fields when blank so the DB never stores ""
       serial_number: form.serial_number.trim() || null,
@@ -199,6 +204,20 @@ export default function AddAsset() {
               <option value="assigned">Assigned</option>
               <option value="maintenance">Maintenance</option>
               <option value="retired">Retired</option>
+            </select>
+          </div>
+
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Country</label>
+            <select
+              name="country"
+              value={form.country}
+              onChange={handleChange}
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            >
+              {COUNTRIES.map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
             </select>
           </div>
 

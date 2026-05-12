@@ -7,6 +7,7 @@ import { useTranslation } from "react-i18next"
 import { sendWelcomeEmail } from "../../lib/emailService"
 
 const ROLES = ["admin", "it", "viewer"]
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
 
 const roleColors = {
   admin: "bg-blue-500/20 text-blue-400 border-blue-500/30",
@@ -28,7 +29,7 @@ export default function ManageUsers() {
   const [showForm, setShowForm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [success, setSuccess] = useState("")
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "viewer" })
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "viewer", country: "Singapore" })
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null) // { ok, failed[] }
   const fileInputRef = useRef()
@@ -76,6 +77,7 @@ export default function ManageUsers() {
         email: form.email,
         name: form.name,
         role: form.role,
+        country: form.country || null,
       })
 
       // Restore admin session
@@ -86,7 +88,7 @@ export default function ManageUsers() {
         })
       }
 
-      setForm({ name: "", email: "", password: "", role: "viewer" })
+      setForm({ name: "", email: "", password: "", role: "viewer", country: "Singapore" })
       setShowForm(false)
       setSuccess(`Account created for ${form.name || form.email}`)
       setTimeout(() => setSuccess(""), 3000)
@@ -150,6 +152,8 @@ export default function ManageUsers() {
         const role  = ["admin", "it", "viewer"].includes(rawRole) ? rawRole
                     : rawRole === "view" ? "viewer"
                     : "viewer"
+        const rawCountry = col(row, "country")
+        const country = COUNTRIES.includes(rawCountry) ? rawCountry : (rawCountry ? "Other" : null)
 
         if (!email || !email.includes("@")) {
           failed.push({ row: i + 2, email: email || "(blank)", reason: "Invalid or missing email" })
@@ -173,6 +177,7 @@ export default function ManageUsers() {
           await supabase.from("user_profiles").upsert({
             id: data.user.id, email, name, role,
             ...(dept ? { department: dept } : {}),
+            ...(country ? { country } : {}),
           })
 
           // Restore admin session after each signUp replaces it
@@ -327,7 +332,7 @@ export default function ManageUsers() {
               </div>
             )}
             <div className="mt-3 pt-3 border-t border-gray-800">
-              <p className="text-gray-600 text-xs">Expected columns: <span className="text-gray-400">Full Name · Email · Department · Role (admin/it/viewer)</span></p>
+              <p className="text-gray-600 text-xs">Expected columns: <span className="text-gray-400">Full Name · Email · Department · Role (admin/it/viewer) · Country (optional)</span></p>
             </div>
           </motion.div>
         )}
@@ -391,6 +396,19 @@ export default function ManageUsers() {
                   <option value="admin">Admin — full control</option>
                 </select>
               </div>
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Country *</label>
+                <select
+                  value={form.country}
+                  onChange={(e) => setForm({ ...form, country: e.target.value })}
+                  required
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                >
+                  {COUNTRIES.map(c => (
+                    <option key={c} value={c}>{c}</option>
+                  ))}
+                </select>
+              </div>
             </div>
             <div className="mt-4 flex gap-3">
               <button
@@ -450,6 +468,9 @@ export default function ManageUsers() {
                     )}
                   </p>
                   <p className="text-gray-500 text-xs truncate">{u.email}</p>
+                  {u.country && (
+                    <p className="text-gray-600 text-xs mt-0.5">🌏 {u.country}</p>
+                  )}
                 </div>
               </div>
 

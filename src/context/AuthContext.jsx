@@ -39,6 +39,8 @@ export function AuthProvider({ children, user }) {
   }
 
   const role = userProfile?.role || "viewer"
+  // jamaludin.ali@trainocate.com is the super admin who sees all countries
+  const isSuperAdmin = userProfile?.email === "jamaludin.ali@trainocate.com"
 
   return (
     <AuthContext.Provider value={{
@@ -51,6 +53,8 @@ export function AuthProvider({ children, user }) {
       canEdit: role === "admin" || role === "it",
       canDelete: role === "admin",
       canManageUsers: role === "admin",
+      isSuperAdmin,
+      userCountry: userProfile?.country || null,
       refetchProfile: () => user && fetchProfile(user),
     }}>
       {children}

@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import { sendAssetRequestNotification } from "../../lib/emailService"
 
 const PRIORITY_STYLES = {
   low:    { pill: "bg-gray-500/20 text-gray-400 border-gray-500/30",    label: "Low" },
@@ -56,6 +57,14 @@ export default function AssetRequests() {
       setForm({ asset_type: "", reason: "", priority: "medium", notes: "" })
       setShowForm(false)
       setSubmitSuccess(true)
+      // Fire-and-forget email to approving officer
+      sendAssetRequestNotification({
+        requestedBy: userProfile?.name || userProfile?.email || "Unknown",
+        assetType: form.asset_type,
+        reason: form.reason,
+        priority: form.priority,
+        createdAt: new Date().toISOString(),
+      })
       setTimeout(() => { setSubmitSuccess(false); fetchRequests() }, 2500)
     } else {
       alert(error.message)
