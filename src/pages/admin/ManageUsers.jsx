@@ -6,19 +6,19 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
 import { sendWelcomeEmail } from "../../lib/emailService"
 
-const ROLES = ["admin", "it", "viewer"]
+const ROLES = ["admin", "standard_user", "guest"]
 const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
 
 const roleColors = {
   admin: "bg-blue-500/20 text-blue-400 border-blue-500/30",
-  it: "bg-purple-500/20 text-purple-400 border-purple-500/30",
-  viewer: "bg-gray-500/20 text-gray-400 border-gray-500/30",
+  standard_user: "bg-green-500/20 text-green-400 border-green-500/30",
+  guest: "bg-gray-500/20 text-gray-400 border-gray-500/30",
 }
 
 const roleLabels = {
   admin: "Admin",
-  it: "IT Staff",
-  viewer: "View Only",
+  standard_user: "Standard User",
+  guest: "Guest",
 }
 
 export default function ManageUsers() {
@@ -29,7 +29,7 @@ export default function ManageUsers() {
   const [showForm, setShowForm] = useState(false)
   const [creating, setCreating] = useState(false)
   const [success, setSuccess] = useState("")
-  const [form, setForm] = useState({ name: "", email: "", password: "", role: "viewer", country: "Singapore" })
+  const [form, setForm] = useState({ name: "", email: "", password: "", role: "standard_user", country: "Singapore" })
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null) // { ok, failed[] }
   const fileInputRef = useRef()
@@ -88,7 +88,7 @@ export default function ManageUsers() {
         })
       }
 
-      setForm({ name: "", email: "", password: "", role: "viewer", country: "Singapore" })
+      setForm({ name: "", email: "", password: "", role: "standard_user", country: "Singapore" })
       setShowForm(false)
       setSuccess(`Account created for ${form.name || form.email}`)
       setTimeout(() => setSuccess(""), 3000)
@@ -149,9 +149,11 @@ export default function ManageUsers() {
         const email = col(row, "email", "e-mail", "email address")
         const dept  = col(row, "department", "dept")
         const rawRole = col(row, "role").toLowerCase()
-        const role  = ["admin", "it", "viewer"].includes(rawRole) ? rawRole
-                    : rawRole === "view" ? "viewer"
-                    : "viewer"
+        // Normalise legacy role names from old CSV files
+        const role  = rawRole === "admin" ? "admin"
+                    : rawRole === "standard_user" || rawRole === "standard" || rawRole === "it" ? "standard_user"
+                    : rawRole === "guest" || rawRole === "view" || rawRole === "viewer" ? "guest"
+                    : "standard_user"
         const rawCountry = col(row, "country")
         const country = COUNTRIES.includes(rawCountry) ? rawCountry : (rawCountry ? "Other" : null)
 
@@ -226,7 +228,6 @@ export default function ManageUsers() {
         <p className="text-gray-400 text-sm">Only admins can manage users.</p>
       </div>
     )
-
   }
 
   return (
@@ -332,7 +333,7 @@ export default function ManageUsers() {
               </div>
             )}
             <div className="mt-3 pt-3 border-t border-gray-800">
-              <p className="text-gray-600 text-xs">Expected columns: <span className="text-gray-400">Full Name · Email · Department · Role (admin/it/viewer) · Country (optional)</span></p>
+              <p className="text-gray-600 text-xs">Expected columns: <span className="text-gray-400">Full Name · Email · Department · Role (admin/standard_user/guest) · Country (optional)</span></p>
             </div>
           </motion.div>
         )}
@@ -391,8 +392,8 @@ export default function ManageUsers() {
                   onChange={(e) => setForm({ ...form, role: e.target.value })}
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 >
-                  <option value="viewer">View Only — read-only access</option>
-                  <option value="it">IT Staff — manage assets, no delete</option>
+                  <option value="standard_user">Standard User — view and submit requests</option>
+                  <option value="guest">Guest — view assets and reports only</option>
                   <option value="admin">Admin — full control</option>
                 </select>
               </div>
@@ -435,8 +436,8 @@ export default function ManageUsers() {
         {ROLES.map(r => (
           <span key={r} className={`text-xs px-2 md:px-3 py-0.5 md:py-1 rounded-full border font-medium ${roleColors[r]}`}>
             {r === "admin" && "👑 "}
-            {r === "it" && "🛠 "}
-            {r === "viewer" && "👁 "}
+            {r === "standard_user" && "👤 "}
+            {r === "guest" && "👁 "}
             {roleLabels[r]}
           </span>
         ))}
@@ -489,8 +490,8 @@ export default function ManageUsers() {
                       }`}
                     >
                       {r === "admin" && "👑"}
-                      {r === "it" && "🛠"}
-                      {r === "viewer" && "👁"}
+                      {r === "standard_user" && "👤"}
+                      {r === "guest" && "👁"}
                       <span className="ml-0.5 hidden md:inline">{roleLabels[r]}</span>
                     </button>
                   ))}

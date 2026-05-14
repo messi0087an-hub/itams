@@ -18,54 +18,64 @@ const languages = [
 
 const roleColors = {
   admin: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
-  it: "bg-purple-500/20 text-purple-400 border border-purple-500/30",
-  viewer: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
+  standard_user: "bg-green-500/20 text-green-400 border border-green-500/30",
+  guest: "bg-gray-500/20 text-gray-400 border border-gray-500/30",
 }
 
 const roleLabels = {
   admin: "👑 Admin",
-  it: "🛠 IT Staff",
-  viewer: "👁 View Only",
+  standard_user: "👤 Standard User",
+  guest: "👁 Guest",
 }
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { t, i18n } = useTranslation()
-  const { userProfile, role, isAdmin, canEdit } = useAuth()
+  const { userProfile, role, isAdmin, isStandardUser } = useAuth()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
-  // Items visible to all roles
-  const baseItems = [
+  // Items visible to all roles (Guest, Standard User, Admin)
+  const guestItems = [
     { label: t("dashboard"), path: "/admin" },
     { label: t("allAssets"), path: "/admin/assets" },
-    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
-    { label: t("issues"), path: "/admin/issues" },
-    { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
     { label: t("reports"), path: "/admin/reports" },
     { label: t("history"), path: "/admin/history" },
     { label: "📖 " + t("guide"), path: "/admin/guide" },
   ]
 
-  // Extra items for IT and Admin
-  const itItems = [
-    { label: t("addAsset"), path: "/admin/add-asset" },
-    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
-    { label: t("importAssets"), path: "/admin/import" },
+  // Standard User additional items
+  const standardItems = [
+    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
+    { label: t("issues"), path: "/admin/issues" },
+    { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
     { label: t("borrowReturn"), path: "/admin/borrow" },
   ]
 
   // Admin-only items
-  const adminItems = [
+  const adminOnlyItems = [
+    { label: t("addAsset"), path: "/admin/add-asset" },
+    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
+    { label: t("importAssets"), path: "/admin/import" },
     { label: "👥 " + t("manageUsersTitle"), path: "/admin/users" },
     { label: "⚙️ Settings", path: "/admin/settings" },
   ]
 
-  let navItems = [...baseItems]
-  if (canEdit) navItems = [...baseItems.slice(0, 2), ...itItems, ...baseItems.slice(2)]
-  if (isAdmin) navItems = [...navItems, ...adminItems]
+  let navItems = [...guestItems]
+  if (isStandardUser) {
+    navItems = [guestItems[0], guestItems[1], ...standardItems, guestItems[2], guestItems[3], guestItems[4]]
+  }
+  if (isAdmin) {
+    navItems = [
+      guestItems[0], guestItems[1],
+      adminOnlyItems[0], adminOnlyItems[1], adminOnlyItems[2],
+      ...standardItems,
+      guestItems[2], guestItems[3], guestItems[4],
+      adminOnlyItems[3], adminOnlyItems[4],
+    ]
+  }
 
   return (
     <>
@@ -109,8 +119,8 @@ export default function Sidebar() {
               </div>
               <div className="min-w-0">
                 <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role]}`}>
-                  {roleLabels[role]}
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
+                  {roleLabels[role] || "👁 Guest"}
                 </span>
               </div>
             </div>
