@@ -27,10 +27,10 @@ export function AuthProvider({ children, user }) {
     if (data) {
       setUserProfile(data)
     } else {
-      // Auto-create viewer profile on first login
+      // Auto-create guest profile on first login
       const { data: created } = await supabase
         .from("user_profiles")
-        .insert({ id: u.id, email: u.email, name: u.email.split("@")[0], role: "viewer" })
+        .insert({ id: u.id, email: u.email, name: u.email.split("@")[0], role: "guest" })
         .select()
         .single()
       setUserProfile(created)
@@ -38,9 +38,7 @@ export function AuthProvider({ children, user }) {
     setProfileLoading(false)
   }
 
-  const role = userProfile?.role || "viewer"
-  // jamaludin.ali@trainocate.com is the super admin who sees all countries
-  const isSuperAdmin = userProfile?.email === "jamaludin.ali@trainocate.com"
+  const role = userProfile?.role || "guest"
 
   return (
     <AuthContext.Provider value={{
@@ -48,12 +46,13 @@ export function AuthProvider({ children, user }) {
       profileLoading,
       role,
       isAdmin: role === "admin",
-      isIT: role === "it",
-      isViewer: role === "viewer",
-      canEdit: role === "admin" || role === "it",
+      isStandardUser: role === "standard_user",
+      isGuest: role === "guest",
+      canEdit: role === "admin",
       canDelete: role === "admin",
       canManageUsers: role === "admin",
-      isSuperAdmin,
+      canBorrow: role === "admin" || role === "standard_user",
+      canSubmitRequests: role === "admin" || role === "standard_user",
       userCountry: userProfile?.country || null,
       refetchProfile: () => user && fetchProfile(user),
     }}>
