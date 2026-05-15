@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { motion } from "framer-motion"
 import { useTranslation } from "react-i18next"
-import { checkWarrantyAlerts, checkLicenseAlerts } from "../../lib/emailService"
+import { checkWarrantyAlerts, checkLicenseAlerts, checkApprovalReminders } from "../../lib/emailService"
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 import { useAuth } from "../../context/AuthContext"
@@ -43,12 +43,15 @@ export default function Dashboard() {
   const [healthStats, setHealthStats] = useState(null)
   const [deprStats, setDeprStats] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [pendingRequests, setPendingRequests] = useState([])
 
   // Email alerts run once on mount — system-wide, not country-filtered
   useEffect(() => {
     if (!profileLoading) {
       checkWarrantyAlerts()
       checkLicenseAlerts()
+      checkApprovalReminders()
+      fetchPendingRequests()
     }
   }, [profileLoading])
 
@@ -230,6 +233,17 @@ export default function Dashboard() {
     })
   }
 
+  const fetchPendingRequests = async () => {
+    try {
+      const { data } = await supabase
+        .from("asset_requests")
+        .select("id, asset_type, requested_by, created_at, priority")
+        .eq("status", "pending")
+        .order("created_at", { ascending: true })
+      setPendingRequests(data || [])
+    } catch {}
+  }
+
   const getDaysUntilExpiry = (date) =>
     Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
 
@@ -389,6 +403,59 @@ export default function Dashboard() {
           <div className="flex justify-between text-xs text-gray-600 mt-1">
             <span>{Math.round((deprStats.totalCurrent / deprStats.totalOriginal) * 100)}% remaining value</span>
             <span>{Math.round((deprStats.totalLost / deprStats.totalOriginal) * 100)}% depreciated</span>
+          </div>
+        </motion.div>
+      )}
+
+      {/* Pending Asset Requests */}
+      {pendingRequests.length > 0 && (
+        <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.27 }}
+          className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
+          <div className="flex items-center gap-2 mb-4">
+            <span className="text-xl">📋</span>
+            <h2 className="text-white font-semibold">Pending Asset Requests</h2>
+            <span className="ml-auto text-xs bg-blue-500/20 text-blue-400 border border-blue-500/30 px-2 py-0.5 rounded-full font-medium">
+              {pendingRequests.length} pending
+            </span>
+          </div>
+          <div className="space-y-2">
+            {pendingRequests.slice(0, 6).map(req => {
+              const daysPending = Math.floor((Date.now() - new Date(req.created_at)) / 86400000)
+              const priorityColor = req.priority === "high" ? "text-red-400" : req.priority === "medium" ? "text-yellow-400" : "text-gray-500"
+              return (
+                <div key={req.id} className={`flex items-center justify-between rounded-xl px-3 py-2.5 border ${
+                  daysPending >= 7 ? "bg-red-500/5 border-red-500/20" :
+                  daysPending >= 3 ? "bg-yellow-500/5 border-yellow-500/20" :
+                  "bg-gray-800/40 border-gray-700/50"
+                }`}>
+                  <div className="min-w-0">
+                    <div className="flex items-center gap-2">
+                      <p className="text-white text-sm font-medium">{req.asset_type}</p>
+                      <span className={`text-xs font-medium ${priorityColor}`}>{req.priority}</span>
+                    </div>
+                    <p className="text-gray-500 text-xs mt-0.5">By {req.requested_by}</p>
+                  </div>
+                  <div className="flex items-center gap-2 shrink-0 ml-3">
+                    {daysPending >= 7 ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-red-500/20 text-red-400 border-red-500/30">
+                        🚨 {daysPending}d overdue
+                      </span>
+                    ) : daysPending >= 3 ? (
+                      <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                        ⏰ {daysPending}d pending
+                      </span>
+                    ) : (
+                      <span className="text-xs text-gray-600">{daysPending}d ago</span>
+                    )}
+                  </div>
+                </div>
+              )
+            })}
+            {pendingRequests.length > 6 && (
+              <p className="text-gray-600 text-xs text-center pt-1">
+                +{pendingRequests.length - 6} more pending requests
+              </p>
+            )}
           </div>
         </motion.div>
       )}
