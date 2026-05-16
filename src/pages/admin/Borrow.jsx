@@ -43,7 +43,7 @@ function DueBadge({ dueDate }) {
 }
 
 export default function Borrow() {
-  const { canEdit } = useAuth()
+  const { userProfile, canBorrow } = useAuth()
   const [borrows, setBorrows] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -59,7 +59,8 @@ export default function Borrow() {
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
   const [form, setForm] = useState({
-    asset_id: "", borrower_name: "", borrower_email: "", notes: "", due_date: ""
+    asset_id: "", borrowing_for: "myself", customer_name: "",
+    borrower_email: "", notes: "", due_date: ""
   })
 
   useEffect(() => {
@@ -101,24 +102,40 @@ export default function Borrow() {
   const handleBorrow = async (e) => {
     e.preventDefault()
     const selectedAsset = assets.find(a => a.id === form.asset_id)
+    const isForCustomer  = form.borrowing_for === "customer"
+    const signedOffBy    = userProfile?.name || userProfile?.email || "Unknown"
+    const signedOffEmail = userProfile?.email || null
+
+    // The person physically holding the asset
+    const borrowerName  = isForCustomer ? form.customer_name : signedOffBy
+    const borrowerEmail = isForCustomer ? (form.borrower_email || null) : signedOffEmail
+
+    const notesParts = [`Borrowed by ${signedOffBy}`]
+    if (isForCustomer) notesParts.push(`for customer: ${form.customer_name}`)
+    if (form.notes) notesParts.push(form.notes)
+
     const { error } = await supabase.from("borrow_history").insert([{
-      asset_id: form.asset_id,
-      borrowed_at: new Date().toISOString(),
-      due_date: form.due_date || null,
-      borrower_name: form.borrower_name || null,
-      borrower_email: form.borrower_email || null,
-      notes: `Borrowed by ${form.borrower_name}${form.borrower_email ? ` (${form.borrower_email})` : ""}${form.notes ? ` - ${form.notes}` : ""}`
+      asset_id:         form.asset_id,
+      borrowed_at:      new Date().toISOString(),
+      due_date:         form.due_date || null,
+      borrower_name:    borrowerName,
+      borrower_email:   borrowerEmail,
+      borrowing_for:    form.borrowing_for,
+      customer_name:    isForCustomer ? form.customer_name : null,
+      signed_off_by:    signedOffBy,
+      signed_off_email: signedOffEmail,
+      notes:            notesParts.join(" — "),
     }])
 
     if (!error) {
       await supabase.from("assets").update({
         status: "assigned",
-        assigned_user: form.borrower_name
+        assigned_user: borrowerName,
       }).eq("id", form.asset_id)
 
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
-      setForm({ asset_id: "", borrower_name: "", borrower_email: "", notes: "", due_date: "" })
+      setForm({ asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", due_date: "" })
       setBorrowSuccess(true)
       setTimeout(() => {
         setBorrowSuccess(false)
@@ -362,7 +379,7 @@ export default function Borrow() {
           <h1 className="text-2xl md:text-3xl font-bold text-white">Borrow / Return</h1>
           <p className="text-gray-400 mt-1 text-sm">{activeBorrows.length} active borrows</p>
         </div>
-        {canEdit && (
+        {canBorrow && (
           <motion.button
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
@@ -386,15 +403,17 @@ export default function Borrow() {
           >
             <h2 className="text-white font-semibold mb-4">Borrow an Asset</h2>
             <div className="space-y-3">
+
+              {/* Asset */}
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Asset</label>
+                <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
                 <select
                   value={form.asset_id}
                   onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
                   required
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 >
-                  <option value="">Select available asset...</option>
+                  <option value="">Select available asset…</option>
                   {assets.map(a => (
                     <option key={a.id} value={a.id}>
                       {a.name} {a.serial_number ? `(${a.serial_number})` : ""}
@@ -402,27 +421,84 @@ export default function Borrow() {
                   ))}
                 </select>
               </div>
+
+              {/* Borrowing for */}
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Borrower Name</label>
+                <label className="text-gray-400 text-sm mb-2 block">Borrowing For *</label>
+                <div className="flex gap-2">
+                  {[
+                    { value: "myself",   label: "👤 Myself" },
+                    { value: "customer", label: "🤝 Customer / External" },
+                  ].map(opt => (
+                    <button
+                      key={opt.value}
+                      type="button"
+                      onClick={() => setForm({ ...form, borrowing_for: opt.value, customer_name: "", borrower_email: "" })}
+                      className={`flex-1 py-2.5 rounded-lg text-sm font-medium border transition-all ${
+                        form.borrowing_for === opt.value
+                          ? "bg-blue-600 border-blue-600 text-white"
+                          : "bg-gray-800 border-gray-700 text-gray-400 hover:text-white"
+                      }`}
+                    >
+                      {opt.label}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* Signed-off by (always the logged-in user) */}
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Signed Off By</label>
                 <input
                   type="text"
-                  value={form.borrower_name}
-                  onChange={(e) => setForm({ ...form, borrower_name: e.target.value })}
-                  placeholder="e.g. John Doe"
-                  required
-                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                  value={userProfile?.name || userProfile?.email || ""}
+                  readOnly
+                  className="w-full bg-gray-800/50 text-gray-400 rounded-lg px-4 py-3 border border-gray-700/50 text-sm cursor-not-allowed"
                 />
               </div>
-              <div>
-                <label className="text-gray-400 text-sm mb-2 block">Borrower Email</label>
-                <input
-                  type="email"
-                  value={form.borrower_email}
-                  onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
-                  placeholder="e.g. john@trainocate.com"
-                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                />
-              </div>
+
+              {/* Customer name — only shown when borrowing for customer */}
+              <AnimatePresence>
+                {form.borrowing_for === "customer" && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
+                  >
+                    <label className="text-gray-400 text-sm mb-2 block">Customer / External Name *</label>
+                    <input
+                      type="text"
+                      value={form.customer_name}
+                      onChange={(e) => setForm({ ...form, customer_name: e.target.value })}
+                      placeholder="e.g. John Smith"
+                      required={form.borrowing_for === "customer"}
+                      className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Customer email — only shown when borrowing for customer */}
+              <AnimatePresence>
+                {form.borrowing_for === "customer" && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
+                  >
+                    <label className="text-gray-400 text-sm mb-2 block">
+                      Customer Email <span className="text-gray-600">(optional)</span>
+                    </label>
+                    <input
+                      type="email"
+                      value={form.borrower_email}
+                      onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
+                      placeholder="e.g. john@customer.com"
+                      className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                    />
+                  </motion.div>
+                )}
+              </AnimatePresence>
+
+              {/* Return date */}
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">
                   Return Date <span className="text-gray-600">(optional)</span>
@@ -435,13 +511,17 @@ export default function Borrow() {
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm [color-scheme:dark]"
                 />
               </div>
+
+              {/* Notes */}
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Notes</label>
+                <label className="text-gray-400 text-sm mb-2 block">
+                  Notes <span className="text-gray-600">(optional)</span>
+                </label>
                 <input
                   type="text"
                   value={form.notes}
                   onChange={(e) => setForm({ ...form, notes: e.target.value })}
-                  placeholder="Optional notes..."
+                  placeholder="Any additional notes…"
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 />
               </div>
@@ -486,6 +566,12 @@ export default function Borrow() {
                     </div>
                     <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
                     <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
+                    {borrow.borrowing_for === "customer" && borrow.customer_name && (
+                      <p className="text-xs text-blue-400 mt-1">
+                        🤝 For customer: {borrow.customer_name}
+                        {borrow.signed_off_by && ` · Signed off by: ${borrow.signed_off_by}`}
+                      </p>
+                    )}
 
                     {/* Borrow / Extension History */}
                     <div className="mt-2 space-y-0.5">
@@ -548,7 +634,7 @@ export default function Borrow() {
                   </div>
 
                   {/* Action buttons */}
-                  {canEdit && (
+                  {canBorrow && (
                     <div className="flex flex-col gap-2 shrink-0">
                       <motion.button
                         whileHover={{ scale: 1.05 }}

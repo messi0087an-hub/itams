@@ -5,14 +5,15 @@ import { motion, AnimatePresence } from "framer-motion"
 
 export default function Settings() {
   const { isAdmin } = useAuth()
-  const [approvingEmail, setApprovingEmail] = useState("jamaludin.ali@trainocate.com")
+  const [approvingEmail, setApprovingEmail] = useState("")
+  const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
-    fetchSettings()
+    Promise.all([fetchSettings(), fetchUsers()])
   }, [])
 
   const fetchSettings = async () => {
@@ -29,8 +30,19 @@ export default function Settings() {
     setLoading(false)
   }
 
+  const fetchUsers = async () => {
+    try {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("id, name, email, role")
+        .order("name")
+      setUsers(data || [])
+    } catch {}
+  }
+
   const handleSave = async (e) => {
     e.preventDefault()
+    if (!approvingEmail) return
     setSaving(true)
     setError("")
     try {
@@ -57,6 +69,9 @@ export default function Settings() {
       </div>
     )
   }
+
+  // Selected user object for the preview
+  const selectedUser = users.find(u => u.email === approvingEmail)
 
   return (
     <div className="p-4 md:p-8 max-w-2xl">
@@ -89,25 +104,47 @@ export default function Settings() {
           <h2 className="text-white font-semibold">Asset Request Approvals</h2>
         </div>
         <p className="text-gray-500 text-sm mb-4 ml-8">
-          When an employee submits an asset request, an email notification is automatically sent to the approving officer below.
+          When an employee submits an asset request, an email and in-app notification are sent to the approving officer below.
         </p>
 
         {loading ? (
           <div className="animate-pulse h-12 bg-gray-800 rounded-lg" />
         ) : (
           <form onSubmit={handleSave}>
-            <label className="text-gray-400 text-sm mb-2 block">Approving Officer Email</label>
-            <input
-              type="email"
+            <label className="text-gray-400 text-sm mb-2 block">Approving Officer</label>
+
+            {/* User dropdown */}
+            <select
               value={approvingEmail}
               onChange={e => setApprovingEmail(e.target.value)}
               required
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-4"
-              placeholder="approver@company.com"
-            />
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-3"
+            >
+              <option value="">Select a user…</option>
+              {users.map(u => (
+                <option key={u.id} value={u.email}>
+                  {u.name || u.email} — {u.email}
+                </option>
+              ))}
+            </select>
+
+            {/* Preview chip */}
+            {selectedUser && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-blue-500/10 border border-blue-500/20 rounded-lg">
+                <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                  {(selectedUser.name || selectedUser.email)[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{selectedUser.name || selectedUser.email}</p>
+                  <p className="text-gray-400 text-xs truncate">{selectedUser.email}</p>
+                </div>
+                <span className="ml-auto text-blue-400 text-xs font-medium shrink-0">Approving Officer</span>
+              </div>
+            )}
+
             <button
               type="submit"
-              disabled={saving}
+              disabled={saving || !approvingEmail}
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
             >
               {saving ? "Saving…" : "Save Settings"}
@@ -118,8 +155,9 @@ export default function Settings() {
 
       <div className="bg-gray-900/40 rounded-xl border border-gray-800/50 p-4">
         <p className="text-gray-600 text-xs">
-          <span className="text-gray-500 font-medium">Note:</span> If the <code className="text-gray-400">app_settings</code> table has not been created yet, run the SQL migration file at{" "}
-          <code className="text-gray-400">supabase/migrations/001_add_country_and_settings.sql</code> in your Supabase SQL Editor.
+          <span className="text-gray-500 font-medium">Note:</span> Run{" "}
+          <code className="text-gray-400">supabase/migrations/001_add_country_and_settings.sql</code> and{" "}
+          <code className="text-gray-400">004_notifications.sql</code> in your Supabase SQL Editor if you haven't already.
         </p>
       </div>
     </div>

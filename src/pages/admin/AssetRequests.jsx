@@ -3,7 +3,8 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { sendAssetRequestNotification } from "../../lib/emailService"
+import { sendAssetRequestNotification, sendApprovalDecisionEmail, getApprovingOfficerProfile } from "../../lib/emailService"
+import { createNotification, getUserIdByEmail } from "../../lib/notifications"
 
 const PRIORITY_STYLES = {
   low:    { pill: "bg-gray-500/20 text-gray-400 border-gray-500/30",       label: "Low" },
@@ -114,20 +115,39 @@ export default function AssetRequests() {
       requested_by_email: userProfile?.email || null,
     }
 
-    const { error } = await supabase.from("asset_requests").insert([payload])
+    // Fetch approving officer before insert so we can store email + notify them
+    const officer = await getApprovingOfficerProfile()
+    payload.approving_officer_email = officer.email
+
+    const { data: inserted, error } = await supabase
+      .from("asset_requests")
+      .insert([payload])
+      .select("id")
+      .single()
 
     if (!error) {
       setForm(EMPTY_FORM)
       setDocFiles([])
       setShowForm(false)
       setSubmitSuccess(true)
-      sendAssetRequestNotification({
-        requestedBy: userProfile?.name || userProfile?.email || "Unknown",
-        assetType:   form.asset_type,
-        reason:      form.reason,
-        priority:    form.priority,
-        createdAt:   new Date().toISOString(),
-      })
+
+      const requestedBy = userProfile?.name || userProfile?.email || "Unknown"
+      const createdAt   = new Date().toISOString()
+
+      // Email to approving officer
+      sendAssetRequestNotification({ requestedBy, assetType: form.asset_type, reason: form.reason, priority: form.priority, createdAt })
+
+      // In-app notification to approving officer
+      if (officer.id) {
+        createNotification(
+          officer.id,
+          "📋 New Asset Request",
+          `${requestedBy} requested ${form.asset_type} (${form.priority} priority)`,
+          "request",
+          inserted?.id
+        )
+      }
+
       setTimeout(() => { setSubmitSuccess(false); fetchRequests() }, 2500)
     } else {
       alert(error.message)
@@ -151,6 +171,30 @@ export default function AssetRequests() {
       .eq("id", actionModal.request.id)
 
     if (!error) {
+      // Email to requester
+      sendApprovalDecisionEmail({
+        status:            actionModal.type === "approve" ? "approved" : "rejected",
+        requestedByEmail:  actionModal.request.requested_by_email,
+        requestedBy:       actionModal.request.requested_by,
+        assetType:         actionModal.request.asset_type,
+        adminResponse:     actionReason || null,
+        actionedBy:        userProfile?.name || userProfile?.email,
+      })
+
+      // In-app notification to requester
+      getUserIdByEmail(actionModal.request.requested_by_email).then(requesterId => {
+        if (requesterId) {
+          const approved = actionModal.type === "approve"
+          createNotification(
+            requesterId,
+            approved ? "✅ Request Approved" : "❌ Request Not Approved",
+            `Your request for ${actionModal.request.asset_type} was ${approved ? "approved" : "not approved"}${actionReason ? `: "${actionReason}"` : "."}`,
+            approved ? "success" : "warning",
+            actionModal.request.id
+          )
+        }
+      })
+
       setActionModal(null)
       setActionReason("")
       fetchRequests()
@@ -167,6 +211,11 @@ export default function AssetRequests() {
   })
 
   const pendingCount = requests.filter(r => r.status === "pending").length
+
+  const daysPending = (req) => {
+    if (req.status !== "pending") return 0
+    return Math.floor((Date.now() - new Date(req.created_at)) / 86400000)
+  }
 
   return (
     <div className="p-4 md:p-8">
@@ -505,6 +554,16 @@ export default function AssetRequests() {
                       <span className={`text-xs px-2 py-0.5 rounded-full border font-medium ${status.pill}`}>
                         {status.emoji} {status.label}
                       </span>
+                      {daysPending(req) >= 7 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-red-500/20 text-red-400 border-red-500/30">
+                          🚨 {daysPending(req)}d overdue
+                        </span>
+                      )}
+                      {daysPending(req) >= 3 && daysPending(req) < 7 && (
+                        <span className="text-xs px-2 py-0.5 rounded-full border font-medium bg-yellow-500/20 text-yellow-400 border-yellow-500/30">
+                          ⏰ {daysPending(req)}d pending
+                        </span>
+                      )}
                     </div>
 
                     {/* Laptop specs */}

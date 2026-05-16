@@ -205,6 +205,21 @@ async function getApprovingOfficerEmail() {
   }
 }
 
+// Returns { email, id } so callers can also create in-app notifications
+export async function getApprovingOfficerProfile() {
+  try {
+    const email = await getApprovingOfficerEmail()
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("id, email")
+      .eq("email", email)
+      .single()
+    return { email, id: data?.id || null }
+  } catch {
+    return { email: "jamaludin.ali@trainocate.com", id: null }
+  }
+}
+
 function assetRequestHtml({ requestedBy, assetType, reason, priority, dateSubmitted }) {
   const priorityColor = priority === "high" ? "#ef4444" : priority === "medium" ? "#f59e0b" : "#6b7280"
   const priorityLabel = priority === "high" ? "High" : priority === "medium" ? "Medium" : "Low"
@@ -237,10 +252,137 @@ export async function sendAssetRequestNotification({ requestedBy, assetType, rea
 }
 
 // ---------------------------------------------------------------------------
+// Approval Decision email — sent to requester when approved or rejected
+// ---------------------------------------------------------------------------
+function approvalDecisionHtml({ status, requestedBy, assetType, adminResponse, actionedBy }) {
+  const approved = status === "approved"
+  const accentColor = approved ? "#22c55e" : "#ef4444"
+  const emoji = approved ? "✅" : "❌"
+  const title = approved ? "Request Approved!" : "Request Not Approved"
+  const subtitle = approved
+    ? `Good news! Your request for <strong style="color:#f9fafb;">${assetType}</strong> has been approved.`
+    : `Your request for <strong style="color:#f9fafb;">${assetType}</strong> was not approved at this time.`
+
+  return baseTemplate(accentColor, `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">${emoji}</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">${title}</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${subtitle}</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Decision Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Requested by", requestedBy)}
+        ${detailRow("Asset", assetType)}
+        ${detailRow("Decision", approved ? "Approved" : "Rejected", accentColor)}
+        ${actionedBy ? detailRow("Actioned by", actionedBy) : ""}
+        ${adminResponse ? detailRow("Note", adminResponse) : ""}
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">
+      ${approved
+        ? "Please follow up with your IT admin regarding next steps."
+        : "Please contact your admin if you have questions about this decision."}
+    </p>
+  `)
+}
+
+export async function sendApprovalDecisionEmail({ status, requestedByEmail, requestedBy, assetType, adminResponse, actionedBy }) {
+  if (!requestedByEmail) return
+  const approved = status === "approved"
+  const subject = approved
+    ? `✅ Asset Request Approved: ${assetType}`
+    : `❌ Asset Request Not Approved: ${assetType}`
+  const html = approvalDecisionHtml({ status, requestedBy, assetType, adminResponse, actionedBy })
+  await sendEmail(requestedByEmail, subject, html)
+}
+
+// ---------------------------------------------------------------------------
+// Approval Reminder — called from Dashboard on every load
+// Sends reminder at 3 days, second reminder at 7 days
+// ---------------------------------------------------------------------------
+function approvalReminderHtml({ requestedBy, assetType, dateSubmitted, daysPending, isSecond }) {
+  const accentColor = isSecond ? "#ef4444" : "#f59e0b"
+  const emoji = isSecond ? "🚨" : "⏰"
+  const urgency = isSecond ? "URGENT: Second Reminder" : "Reminder"
+
+  return baseTemplate(accentColor, `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">${emoji}</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">
+        ${urgency}: Asset Request Awaiting Approval
+      </div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">
+        This request has been pending for <strong style="color:#f9fafb;">${daysPending} days</strong> without a decision.
+      </p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Pending Request</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Requested by", requestedBy)}
+        ${detailRow("Asset needed", assetType)}
+        ${detailRow("Date submitted", dateSubmitted)}
+        ${detailRow("Days pending", String(daysPending), accentColor)}
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+  `)
+}
+
+export async function checkApprovalReminders() {
+  const officerEmail = await getApprovingOfficerEmail()
+  if (!officerEmail) return
+
+  const today = new Date()
+  const threeDaysAgo = new Date(today)
+  threeDaysAgo.setDate(today.getDate() - 3)
+  const sevenDaysAgo = new Date(today)
+  sevenDaysAgo.setDate(today.getDate() - 7)
+
+  const { data: pending } = await supabase
+    .from("asset_requests")
+    .select("id, requested_by, asset_type, created_at, approving_officer_email")
+    .eq("status", "pending")
+    .lte("created_at", threeDaysAgo.toISOString())
+
+  if (!pending?.length) return
+
+  const ids = pending.map(r => r.id)
+  const sent = await getSentTypes(ids)
+
+  for (const req of pending) {
+    const daysPending = Math.floor((today - new Date(req.created_at)) / 86400000)
+    const to = req.approving_officer_email || officerEmail
+    const dateSubmitted = fmtDate(req.created_at)
+
+    // 7-day second reminder (check first so we don't double-log)
+    if (daysPending >= 7) {
+      const key = `approval_reminder_7_${req.id}`
+      if (!sent.has(key)) {
+        await sendEmail(to, `🚨 URGENT: Asset request pending ${daysPending} days — ${req.asset_type}`,
+          approvalReminderHtml({ requestedBy: req.requested_by, assetType: req.asset_type, dateSubmitted, daysPending, isSecond: true }))
+        await logEmail(key, req.id)
+      }
+      continue
+    }
+
+    // 3-day first reminder
+    if (daysPending >= 3) {
+      const key = `approval_reminder_3_${req.id}`
+      if (!sent.has(key)) {
+        await sendEmail(to, `⏰ Reminder: Asset request pending ${daysPending} days — ${req.asset_type}`,
+          approvalReminderHtml({ requestedBy: req.requested_by, assetType: req.asset_type, dateSubmitted, daysPending, isSecond: false }))
+        await logEmail(key, req.id)
+      }
+    }
+  }
+}
+
+// ---------------------------------------------------------------------------
 // Welcome email — sent after bulk user import
 // ---------------------------------------------------------------------------
 export async function sendWelcomeEmail(toEmail, name, role, tempPassword) {
-  const roleLabel = role === "admin" ? "Admin" : role === "it" ? "IT Staff" : "Viewer"
+  const roleLabel = role === "admin" ? "Admin" : role === "standard_user" ? "Standard User" : "Guest"
   const loginUrl = `${window.location.origin}/login`
   const html = baseTemplate("#3b82f6", `
     <div style="text-align:center;margin-bottom:24px;">
