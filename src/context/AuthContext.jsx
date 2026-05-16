@@ -30,6 +30,11 @@ export function AuthProvider({ children, user }) {
         await supabase.from("user_profiles").update({ email: u.email }).eq("id", u.id)
         data.email = u.email
       }
+      console.log("[AuthContext] profile loaded:", {
+        role: data.role,
+        marketing_access: data.marketing_access,
+        isMarketing: !!data.marketing_access,
+      })
       setUserProfile(data)
     } else {
       // Auto-create guest profile on first login
@@ -44,6 +49,7 @@ export function AuthProvider({ children, user }) {
   }
 
   const role = userProfile?.role || "guest"
+  const isMarketing = !!userProfile?.marketing_access
 
   return (
     <AuthContext.Provider value={{
@@ -53,7 +59,7 @@ export function AuthProvider({ children, user }) {
       isAdmin: role === "admin",
       isStandardUser: role === "standard_user",
       isGuest: role === "guest",
-      isMarketing: !!userProfile?.marketing_access && role !== "admin",
+      isMarketing,
       canEdit: role === "admin",
       canDelete: role === "admin",
       canManageUsers: role === "admin",

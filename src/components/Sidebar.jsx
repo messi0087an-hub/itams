@@ -269,7 +269,7 @@ export default function Sidebar() {
             </NavLink>
           ))}
 
-          {/* Marketing module — only for marketing_access users (not admins) */}
+          {/* Marketing module — shown for any user with marketing_access = true */}
           {isMarketing && (
             <>
               <div className="pt-3 pb-1">
