@@ -25,6 +25,11 @@ export function AuthProvider({ children, user }) {
       .single()
 
     if (data) {
+      // Sync email from auth if it has changed (e.g. admin updated it in Supabase)
+      if (data.email !== u.email) {
+        await supabase.from("user_profiles").update({ email: u.email }).eq("id", u.id)
+        data.email = u.email
+      }
       setUserProfile(data)
     } else {
       // Auto-create guest profile on first login
@@ -48,7 +53,7 @@ export function AuthProvider({ children, user }) {
       isAdmin: role === "admin",
       isStandardUser: role === "standard_user",
       isGuest: role === "guest",
-      isMarketing: userProfile?.marketing_access === true && role !== "admin",
+      isMarketing: !!userProfile?.marketing_access && role !== "admin",
       canEdit: role === "admin",
       canDelete: role === "admin",
       canManageUsers: role === "admin",

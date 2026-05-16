@@ -39,11 +39,17 @@ export default function ManageUsers() {
   }, [])
 
   const fetchUsers = async () => {
-    const { data } = await supabase
-      .from("user_profiles")
-      .select("*")
-      .order("created_at", { ascending: true })
-    setUsers(data || [])
+    const [{ data: profileData }, { data: authData }] = await Promise.all([
+      supabase.from("user_profiles").select("*").order("created_at", { ascending: true }),
+      supabase.rpc("get_auth_users"),
+    ])
+    const emailMap = {}
+    authData?.forEach(u => { emailMap[u.id] = u.email })
+    const merged = (profileData || []).map(u => ({
+      ...u,
+      email: emailMap[u.id] || u.email,
+    }))
+    setUsers(merged)
     setLoading(false)
   }
 
@@ -110,7 +116,12 @@ export default function ManageUsers() {
 
   const handleToggleMarketing = async (u) => {
     const newVal = !u.marketing_access
-    await supabase.from("user_profiles").update({ marketing_access: newVal }).eq("id", u.id)
+    const { error } = await supabase.from("user_profiles").update({ marketing_access: newVal }).eq("id", u.id)
+    if (error) {
+      setSuccess(`❌ Failed to update marketing access: ${error.message}. Please run migration 006_marketing.sql in Supabase first.`)
+      setTimeout(() => setSuccess(""), 6000)
+      return
+    }
     setUsers(users.map(x => x.id === u.id ? { ...x, marketing_access: newVal } : x))
     setSuccess(`Marketing access ${newVal ? "granted to" : "removed from"} ${u.name || u.email}`)
     setTimeout(() => setSuccess(""), 3000)
