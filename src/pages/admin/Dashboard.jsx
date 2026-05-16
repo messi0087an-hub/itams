@@ -18,18 +18,14 @@ const CHART_TOOLTIP = {
 }
 
 const DONUT_COLORS = ["#3b82f6","#8b5cf6","#06b6d4","#ec4899","#f59e0b","#22c55e","#ef4444","#f97316"]
-const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
 
 export default function Dashboard() {
   const { t } = useTranslation()
-  const { userProfile, isSuperAdmin, userCountry, profileLoading } = useAuth()
+  const { userProfile, userCountry, profileLoading } = useAuth()
 
-  // Country filter: super admin can switch, others are locked to their country
-  const [selectedCountry, setSelectedCountry] = useState("all")
-  // Effective filter passed to all queries: null means no filter (all countries)
-  const countryFilter = isSuperAdmin
-    ? (selectedCountry === "all" ? null : selectedCountry)
-    : (userCountry || null)
+  // Every user (including admin) is locked to their own country
+  const countryFilter = userCountry || null
 
   const [stats, setStats] = useState({ totalAssets: 0, available: 0, assigned: 0, issues: 0 })
   const [categoryData, setCategoryData] = useState([])
@@ -264,29 +260,11 @@ export default function Dashboard() {
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
             className="text-gray-400 mt-1 text-sm">
             {t("welcomeMessage")}
-            {!isSuperAdmin && userCountry && (
+            {userCountry && (
               <span className="ml-2 text-blue-400 font-medium">🌏 {userCountry}</span>
             )}
           </motion.p>
         </div>
-
-        {/* Country filter — only visible to super admin */}
-        {isSuperAdmin && (
-          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
-            className="flex items-center gap-2">
-            <span className="text-gray-500 text-sm shrink-0">🌏 Country:</span>
-            <select
-              value={selectedCountry}
-              onChange={e => setSelectedCountry(e.target.value)}
-              className="bg-gray-800 text-white text-sm rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none"
-            >
-              <option value="all">All Countries</option>
-              {COUNTRIES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
-          </motion.div>
-        )}
       </div>
 
       {/* Stat Cards */}

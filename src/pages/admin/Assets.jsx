@@ -58,7 +58,7 @@ function exportToPDF(selectedAssets) {
 }
 
 export default function Assets() {
-  const { canEdit, canDelete } = useAuth()
+  const { canEdit, canDelete, userCountry, profileLoading } = useAuth()
   const [assets, setAssets] = useState([])
   const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
@@ -74,11 +74,13 @@ export default function Assets() {
   const [bulkWorking, setBulkWorking] = useState(false)
   const [showLabelModal, setShowLabelModal] = useState(false)
 
-  useEffect(() => { fetchAssets() }, [])
+  useEffect(() => { if (!profileLoading) fetchAssets() }, [profileLoading, userCountry])
 
   const fetchAssets = async () => {
+    let assetQuery = supabase.from("assets").select("*").order("created_at", { ascending: false })
+    if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
     const [{ data: a }, { data: m }] = await Promise.all([
-      supabase.from("assets").select("*").order("created_at", { ascending: false }),
+      assetQuery,
       supabase.from("maintenance_schedules").select("asset_id, status, scheduled_date"),
     ])
     setAssets(a || [])

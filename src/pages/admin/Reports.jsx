@@ -9,6 +9,7 @@ import {
   XAxis, YAxis, Tooltip, ResponsiveContainer, Legend
 } from "recharts"
 import { calcDepreciation } from "../../lib/depreciation"
+import { useAuth } from "../../context/AuthContext"
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
@@ -103,6 +104,7 @@ function pdfFooter(doc) {
 
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Reports() {
+  const { userCountry, profileLoading } = useAuth()
   const [reportType, setReportType] = useState("inventory")
   const [assets, setAssets] = useState([])
   const [borrows, setBorrows] = useState([])
@@ -113,12 +115,14 @@ export default function Reports() {
   const [warrantyDays, setWarrantyDays] = useState(90)
   const [sidebarOpen, setSidebarOpen] = useState(true)
 
-  useEffect(() => { fetchAll() }, [])
+  useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, userCountry])
 
   const fetchAll = async () => {
     setLoading(true)
+    let assetQuery = supabase.from("assets").select("*").order("name")
+    if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
     const [{ data: a }, { data: b }, { data: m }] = await Promise.all([
-      supabase.from("assets").select("*").order("name"),
+      assetQuery,
       supabase.from("borrow_requests").select("*, assets(name,serial_number)").order("created_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
     ])

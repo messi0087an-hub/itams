@@ -7,7 +7,7 @@ import { useTranslation } from "react-i18next"
 import { sendWelcomeEmail } from "../../lib/emailService"
 
 const ROLES = ["admin", "standard_user", "guest"]
-const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
 
 const roleColors = {
   admin: "bg-blue-500/20 text-blue-400 border-blue-500/30",

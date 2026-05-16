@@ -6,7 +6,7 @@ import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 
-const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Other"]
+const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
 
 export default function AddAsset() {
   const { t } = useTranslation()

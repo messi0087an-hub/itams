@@ -34,7 +34,7 @@ function daysUntil(dateStr) {
 }
 
 export default function Maintenance() {
-  const { userProfile, canEdit } = useAuth()
+  const { userProfile, canEdit, userCountry, profileLoading } = useAuth()
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -56,13 +56,15 @@ export default function Maintenance() {
   })
 
   useEffect(() => {
-    fetchAll()
-  }, [])
+    if (!profileLoading) fetchAll()
+  }, [profileLoading, userCountry])
 
   const fetchAll = async () => {
+    let assetQuery = supabase.from("assets").select("id, name, category").order("name")
+    if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
     const [{ data: s }, { data: a }] = await Promise.all([
       supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true }),
-      supabase.from("assets").select("id, name, category").order("name"),
+      assetQuery,
     ])
     setSchedules(s || [])
     setAssets(a || [])

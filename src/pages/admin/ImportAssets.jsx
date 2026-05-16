@@ -1,8 +1,10 @@
 import { useState } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
+import { useAuth } from "../../context/AuthContext"
 
 export default function ImportAssets() {
+  const { userCountry } = useAuth()
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState([])
   const [imported, setImported] = useState(false)
@@ -55,8 +57,8 @@ export default function ImportAssets() {
           remarks: remarks || null,
           category,
           status: "available",
-          country: "Singapore",
-          location: "Singapore"
+          country: userCountry || "Singapore",
+          location: userCountry || "Singapore"
         })
       }
 
@@ -90,7 +92,7 @@ export default function ImportAssets() {
   return (
     <div className="p-8 max-w-4xl">
       <h1 className="text-3xl font-bold text-white mb-2">Import Assets</h1>
-      <p className="text-gray-400 mb-8">Upload the Singapore Excel file to import all assets</p>
+      <p className="text-gray-400 mb-8">Upload your asset list{userCountry ? ` — assets will be imported to ${userCountry}` : ""}</p>
 
       {imported && (
         <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">

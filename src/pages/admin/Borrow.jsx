@@ -43,7 +43,7 @@ function DueBadge({ dueDate }) {
 }
 
 export default function Borrow() {
-  const { userProfile, canBorrow } = useAuth()
+  const { userProfile, canBorrow, userCountry } = useAuth()
   const [borrows, setBorrows] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -91,11 +91,9 @@ export default function Borrow() {
   }
 
   const fetchAssets = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("id, name, serial_number, status")
-      .eq("status", "available")
-      .order("name")
+    let q = supabase.from("assets").select("id, name, serial_number, status").eq("status", "available").order("name")
+    if (userCountry) q = q.eq("country", userCountry)
+    const { data } = await q
     setAssets(data || [])
   }
 
