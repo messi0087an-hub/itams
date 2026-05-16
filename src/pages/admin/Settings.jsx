@@ -6,9 +6,11 @@ import { motion, AnimatePresence } from "framer-motion"
 export default function Settings() {
   const { isAdmin } = useAuth()
   const [approvingEmail, setApprovingEmail] = useState("")
+  const [marketingEmail, setMarketingEmail] = useState("")
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [savingMarketing, setSavingMarketing] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
 
@@ -25,6 +27,7 @@ export default function Settings() {
         const map = {}
         data.forEach(s => { map[s.key] = s.value })
         if (map.approving_officer_email) setApprovingEmail(map.approving_officer_email)
+        if (map.marketing_approving_officer_email !== undefined) setMarketingEmail(map.marketing_approving_officer_email)
       }
     } catch { /* table may not exist yet — use defaults */ }
     setLoading(false)
@@ -60,6 +63,25 @@ export default function Settings() {
     setSaving(false)
   }
 
+  const handleSaveMarketing = async (e) => {
+    e.preventDefault()
+    setSavingMarketing(true)
+    setError("")
+    try {
+      const { error: upsertError } = await supabase.from("app_settings").upsert({
+        key: "marketing_approving_officer_email",
+        value: marketingEmail.trim(),
+        updated_at: new Date().toISOString(),
+      })
+      if (upsertError) throw upsertError
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err) {
+      setError(err.message || "Failed to save settings.")
+    }
+    setSavingMarketing(false)
+  }
+
   if (!isAdmin) {
     return (
       <div className="p-8 flex flex-col items-center justify-center min-h-64">
@@ -70,8 +92,8 @@ export default function Settings() {
     )
   }
 
-  // Selected user object for the preview
   const selectedUser = users.find(u => u.email === approvingEmail)
+  const selectedMarketingUser = users.find(u => u.email === marketingEmail)
 
   return (
     <div className="p-4 md:p-8 max-w-2xl">
@@ -148,6 +170,59 @@ export default function Settings() {
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
             >
               {saving ? "Saving…" : "Save Settings"}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Marketing Distribution Approvals */}
+      <div className="bg-gray-900/80 rounded-xl border border-gray-800 p-5 mb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">🎯</span>
+          <h2 className="text-white font-semibold">Marketing Distribution Approvals</h2>
+        </div>
+        <p className="text-gray-500 text-sm mb-4 ml-8">
+          When a marketing team member submits a distribution request, an email notification is sent to the officer below for approval.
+        </p>
+
+        {loading ? (
+          <div className="animate-pulse h-12 bg-gray-800 rounded-lg" />
+        ) : (
+          <form onSubmit={handleSaveMarketing}>
+            <label className="text-gray-400 text-sm mb-2 block">Marketing Approving Officer</label>
+
+            <select
+              value={marketingEmail}
+              onChange={e => setMarketingEmail(e.target.value)}
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-purple-500 focus:outline-none text-sm mb-3"
+            >
+              <option value="">Select a user…</option>
+              {users.map(u => (
+                <option key={u.id} value={u.email}>
+                  {u.name || u.email} — {u.email}
+                </option>
+              ))}
+            </select>
+
+            {selectedMarketingUser && (
+              <div className="flex items-center gap-2 mb-4 px-3 py-2 bg-purple-500/10 border border-purple-500/20 rounded-lg">
+                <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
+                  {(selectedMarketingUser.name || selectedMarketingUser.email)[0].toUpperCase()}
+                </div>
+                <div className="min-w-0">
+                  <p className="text-white text-sm font-medium truncate">{selectedMarketingUser.name || selectedMarketingUser.email}</p>
+                  <p className="text-gray-400 text-xs truncate">{selectedMarketingUser.email}</p>
+                </div>
+                <span className="ml-auto text-purple-400 text-xs font-medium shrink-0">Marketing Officer</span>
+              </div>
+            )}
+
+            <button
+              type="submit"
+              disabled={savingMarketing}
+              className="bg-purple-600 hover:bg-purple-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
+            >
+              {savingMarketing ? "Saving…" : "Save Marketing Settings"}
             </button>
           </form>
         )}

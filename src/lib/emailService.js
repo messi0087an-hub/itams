@@ -575,3 +575,122 @@ export async function checkBorrowReminders() {
     }
   }
 }
+
+// ---------------------------------------------------------------------------
+// Marketing Distribution Notification — sent to officer when request submitted
+// ---------------------------------------------------------------------------
+export async function sendMarketingDistributionNotification({
+  officerEmail, itemName, requestedBy, quantity, unit, distributedTo, purpose, createdAt,
+}) {
+  if (!officerEmail) return
+  const html = baseTemplate("#8b5cf6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">📦</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Marketing Distribution Request</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">A team member has submitted a distribution request requiring your approval.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Request Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Item", itemName)}
+        ${detailRow("Requested by", requestedBy)}
+        ${detailRow("Quantity", `${quantity} ${unit}`)}
+        ${detailRow("Distributed to", distributedTo)}
+        ${purpose ? detailRow("Purpose", purpose) : ""}
+        ${detailRow("Submitted", fmtDate(createdAt || new Date().toISOString()))}
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this distribution request.</p>
+  `)
+  await sendEmail(officerEmail, `📦 Marketing Distribution Request: ${quantity} ${unit} of ${itemName}`, html)
+}
+
+// ---------------------------------------------------------------------------
+// Marketing Decision email — sent to requester after officer approves/rejects
+// ---------------------------------------------------------------------------
+export async function sendMarketingDecisionEmail({
+  requesterEmail, itemName, quantity, unit, decision, distributedTo, actionedBy, reason,
+}) {
+  if (!requesterEmail) return
+  const isApproved = decision === "approved"
+  const accentColor = isApproved ? "#22c55e" : "#ef4444"
+  const emoji = isApproved ? "✅" : "❌"
+
+  const html = baseTemplate(accentColor, `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">${emoji}</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Distribution ${isApproved ? "Approved" : "Rejected"}</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your distribution request has been reviewed.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Item", itemName)}
+        ${detailRow("Quantity", `${quantity} ${unit}`)}
+        ${detailRow("Distributed to", distributedTo)}
+        ${detailRow("Decision", isApproved ? "Approved" : "Rejected", accentColor)}
+        ${detailRow("Reviewed by", actionedBy)}
+        ${reason ? detailRow("Reason", reason) : ""}
+      </table>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">${isApproved ? "Your distribution has been approved and recorded." : "Please contact the marketing manager if you have questions."}</p>
+  `)
+  await sendEmail(requesterEmail, `${emoji} Distribution ${isApproved ? "Approved" : "Rejected"}: ${quantity} ${unit} of ${itemName}`, html)
+}
+
+// ---------------------------------------------------------------------------
+// Marketing Reminders — called from Dashboard on load
+// ---------------------------------------------------------------------------
+export async function checkMarketingReminders() {
+  try {
+    const { data: setting } = await supabase
+      .from("app_settings")
+      .select("value")
+      .eq("key", "marketing_approving_officer_email")
+      .single()
+    const officerEmail = setting?.value
+    if (!officerEmail) return
+
+    const { data: dists } = await supabase
+      .from("marketing_distributions")
+      .select("id, item_id, quantity, distributed_to, created_at, marketing_items(name, unit_of_measurement)")
+      .eq("status", "pending")
+
+    if (!dists?.length) return
+
+    const ids = dists.map((d) => d.id)
+    const sent = await getSentTypes(ids)
+    const today = new Date()
+
+    for (const dist of dists) {
+      const days = Math.floor((today - new Date(dist.created_at)) / 86400000)
+      const itemName = dist.marketing_items?.name || "Marketing Item"
+      const unit = dist.marketing_items?.unit_of_measurement || "pcs"
+
+      const checks = []
+      if (days >= 7) checks.push({ key: `mktg_reminder_7_${dist.id}`, label: "7 days" })
+      else if (days >= 3) checks.push({ key: `mktg_reminder_3_${dist.id}`, label: "3 days" })
+
+      for (const { key, label } of checks) {
+        if (sent.has(key)) continue
+        const html = baseTemplate("#8b5cf6", `
+          <div style="text-align:center;margin-bottom:24px;">
+            <div style="font-size:44px;margin-bottom:10px;">${days >= 7 ? "🚨" : "⏰"}</div>
+            <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Pending Distribution — ${label} old</div>
+            <p style="color:#9ca3af;font-size:14px;margin:0;">A marketing distribution request has been awaiting approval for ${label}.</p>
+          </div>
+          <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+            <table style="width:100%;border-collapse:collapse;">
+              ${detailRow("Item", itemName)}
+              ${detailRow("Quantity", `${dist.quantity} ${unit}`)}
+              ${detailRow("Distributed to", dist.distributed_to)}
+              ${detailRow("Submitted", fmtDate(dist.created_at))}
+            </table>
+          </div>
+          <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+        `)
+        await sendEmail(officerEmail, `${days >= 7 ? "🚨" : "⏰"} Distribution Reminder (${label}): ${dist.quantity} ${unit} of ${itemName}`, html)
+        await logEmail(key, dist.id)
+      }
+    }
+  } catch { /* silently skip if marketing tables not yet created */ }
+}

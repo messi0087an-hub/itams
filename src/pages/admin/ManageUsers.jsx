@@ -108,6 +108,14 @@ export default function ManageUsers() {
     setTimeout(() => setSuccess(""), 3000)
   }
 
+  const handleToggleMarketing = async (u) => {
+    const newVal = !u.marketing_access
+    await supabase.from("user_profiles").update({ marketing_access: newVal }).eq("id", u.id)
+    setUsers(users.map(x => x.id === u.id ? { ...x, marketing_access: newVal } : x))
+    setSuccess(`Marketing access ${newVal ? "granted to" : "removed from"} ${u.name || u.email}`)
+    setTimeout(() => setSuccess(""), 3000)
+  }
+
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0]
     if (!file) return
@@ -509,6 +517,20 @@ export default function ManageUsers() {
                 >
                   <span>{u.two_factor_enabled ? "🔐" : "🔓"}</span>
                   <span className="hidden md:inline ml-1">2FA</span>
+                </button>
+
+                {/* Marketing access toggle */}
+                <button
+                  onClick={() => handleToggleMarketing(u)}
+                  title={u.marketing_access ? "Marketing access — click to revoke" : "No marketing access — click to grant"}
+                  className={`text-xs px-1.5 md:px-2 py-0.5 md:py-1 rounded border transition-all font-medium ${
+                    u.marketing_access
+                      ? "bg-purple-500/20 border-purple-500/40 text-purple-400 hover:bg-red-500/10 hover:border-red-500/30 hover:text-red-400"
+                      : "bg-gray-800 border-gray-700 text-gray-500 hover:border-purple-500/40 hover:text-purple-400"
+                  }`}
+                >
+                  <span>🎯</span>
+                  <span className="hidden md:inline ml-1">Mktg</span>
                 </button>
 
                 {/* Delete */}

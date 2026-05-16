@@ -129,7 +129,7 @@ function NotificationBell({ userId }) {
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { t, i18n } = useTranslation()
-  const { userProfile, role, isAdmin, isStandardUser } = useAuth()
+  const { userProfile, role, isAdmin, isStandardUser, isMarketing } = useAuth()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -268,6 +268,28 @@ export default function Sidebar() {
               <span className="text-sm font-medium">{item.label}</span>
             </NavLink>
           ))}
+
+          {/* Marketing module — only for marketing_access users (not admins) */}
+          {isMarketing && (
+            <>
+              <div className="pt-3 pb-1">
+                <p className="text-gray-600 text-xs px-4 font-medium uppercase tracking-wider">Marketing</p>
+              </div>
+              <NavLink
+                to="/admin/marketing"
+                onClick={() => setOpen(false)}
+                className={({ isActive }) =>
+                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
+                    isActive
+                      ? "bg-purple-600 text-white"
+                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
+                  }`
+                }
+              >
+                <span className="text-sm font-medium">🎯 Marketing Items</span>
+              </NavLink>
+            </>
+          )}
         </nav>
 
         <div className="p-4 border-t border-gray-800 space-y-2">

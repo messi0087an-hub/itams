@@ -48,6 +48,7 @@ export function AuthProvider({ children, user }) {
       isAdmin: role === "admin",
       isStandardUser: role === "standard_user",
       isGuest: role === "guest",
+      isMarketing: userProfile?.marketing_access === true && role !== "admin",
       canEdit: role === "admin",
       canDelete: role === "admin",
       canManageUsers: role === "admin",

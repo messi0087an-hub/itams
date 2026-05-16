@@ -6,7 +6,7 @@ import {
 } from "recharts"
 import { motion } from "framer-motion"
 import { useTranslation } from "react-i18next"
-import { checkWarrantyAlerts, checkLicenseAlerts, checkApprovalReminders } from "../../lib/emailService"
+import { checkWarrantyAlerts, checkLicenseAlerts, checkApprovalReminders, checkMarketingReminders } from "../../lib/emailService"
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 import { useAuth } from "../../context/AuthContext"
@@ -51,6 +51,7 @@ export default function Dashboard() {
       checkWarrantyAlerts()
       checkLicenseAlerts()
       checkApprovalReminders()
+      checkMarketingReminders()
       fetchPendingRequests()
     }
   }, [profileLoading])
