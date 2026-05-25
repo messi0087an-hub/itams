@@ -193,10 +193,10 @@ function LoginPage({ onVerified }) {
       // Sign out temporarily — user must complete OTP first
       await supabase.auth.signOut()
       setOtpSending(true)
-      // Use Supabase Auth built-in OTP — works with ALL email addresses
+      // Use Supabase Auth built-in OTP — sends 6-digit code, NOT a magic link
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: false },
+        options: { shouldCreateUser: false, emailRedirectTo: undefined },
       })
       setOtpSending(false)
       if (otpErr) {
@@ -267,7 +267,7 @@ function LoginPage({ onVerified }) {
     setOtpSending(true)
     await supabase.auth.signInWithOtp({
       email,
-      options: { shouldCreateUser: false },
+      options: { shouldCreateUser: false, emailRedirectTo: undefined },
     })
     setOtpDigits(["", "", "", "", "", ""])
     setOtpError("")
@@ -281,11 +281,18 @@ function LoginPage({ onVerified }) {
     setForgotLoading(true)
     setForgotError("")
     const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
-      forgotEmail || email,
+      (forgotEmail || email).trim(),
       { redirectTo: "https://itams-seven.vercel.app/reset-password" }
     )
     if (resetErr) {
-      setForgotError("Failed to send reset email. Please check the address.")
+      const msg = resetErr.message?.toLowerCase() ?? ""
+      if (msg.includes("not found") || msg.includes("no user") || msg.includes("invalid email") || msg.includes("user not found")) {
+        setForgotError("No account found with this email.")
+      } else if (msg.includes("rate") || msg.includes("limit") || msg.includes("too many")) {
+        setForgotError("Too many requests. Please try again later.")
+      } else {
+        setForgotError("Please try again later.")
+      }
       setForgotLoading(false)
       return
     }
