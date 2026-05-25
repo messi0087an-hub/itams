@@ -32,6 +32,8 @@ export default function ManageUsers() {
   const [form, setForm] = useState({ name: "", email: "", password: "", role: "standard_user", country: "Singapore" })
   const [importing, setImporting] = useState(false)
   const [importResult, setImportResult] = useState(null) // { ok, failed[] }
+  const [deleteTarget, setDeleteTarget] = useState(null) // user object pending delete
+  const [deleting, setDeleting] = useState(false)
   const fileInputRef = useRef()
 
   useEffect(() => {
@@ -237,14 +239,21 @@ export default function ManageUsers() {
     }
   }
 
-  const handleDeleteUser = async (u) => {
+  const handleDeleteUser = (u) => {
     if (u.id === userProfile?.id) {
       alert("You cannot delete your own account.")
       return
     }
-    if (!confirm(`Delete account for ${u.name || u.email}? This cannot be undone.`)) return
-    await supabase.from("user_profiles").delete().eq("id", u.id)
-    setUsers(users.filter(x => x.id !== u.id))
+    setDeleteTarget(u)
+  }
+
+  const handleConfirmDelete = async () => {
+    if (!deleteTarget) return
+    setDeleting(true)
+    await supabase.from("user_profiles").delete().eq("id", deleteTarget.id)
+    setUsers(users.filter(x => x.id !== deleteTarget.id))
+    setDeleting(false)
+    setDeleteTarget(null)
   }
 
   if (!isAdmin) {
@@ -271,6 +280,117 @@ export default function ManageUsers() {
           >
             <span>✅</span>
             <p className="text-green-400 text-sm font-medium">{success}</p>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* ── Delete confirmation modal ─────────────────────────────────────── */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <motion.div
+            key="delete-overlay"
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            transition={{ duration: 0.2 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.72)", backdropFilter: "blur(4px)" }}
+            onClick={() => !deleting && setDeleteTarget(null)}
+          >
+            <motion.div
+              key="delete-card"
+              initial={{ scale: 0.82, opacity: 0, y: 16 }}
+              animate={{ scale: 1, opacity: 1, y: 0 }}
+              exit={{ scale: 0.82, opacity: 0, y: 16 }}
+              transition={{ type: "spring", stiffness: 280, damping: 22 }}
+              onClick={e => e.stopPropagation()}
+              style={{
+                background: "rgba(9, 13, 28, 0.96)",
+                backdropFilter: "blur(18px)",
+                border: "0.5px solid rgba(239,68,68,0.65)",
+                boxShadow: "0 0 28px rgba(239,68,68,0.22), 0 0 80px rgba(239,68,68,0.08), 0 20px 60px rgba(0,0,0,0.5)",
+                borderRadius: "20px",
+                padding: "32px 28px",
+                maxWidth: "380px",
+                width: "100%",
+              }}
+            >
+              {/* Pulsing warning icon */}
+              <div className="flex justify-center mb-5">
+                <motion.div
+                  animate={{ scale: [1, 1.13, 1] }}
+                  transition={{ duration: 1.8, repeat: Infinity, ease: "easeInOut" }}
+                  style={{
+                    display: "inline-flex",
+                    alignItems: "center",
+                    justifyContent: "center",
+                    width: 64,
+                    height: 64,
+                    background: "rgba(239,68,68,0.12)",
+                    border: "1.5px solid rgba(239,68,68,0.45)",
+                    borderRadius: "50%",
+                  }}
+                >
+                  <span style={{ fontSize: 28 }}>⚠️</span>
+                </motion.div>
+              </div>
+
+              {/* Title */}
+              <h2 className="text-white text-xl font-bold text-center mb-2">
+                Delete Account?
+              </h2>
+
+              {/* Subtitle with red name */}
+              <p className="text-gray-400 text-sm text-center leading-relaxed mb-7">
+                You are about to delete{" "}
+                <span className="text-red-400 font-bold">
+                  {deleteTarget.name || deleteTarget.email}
+                </span>
+                's account.{" "}
+                <span className="text-gray-300">This action cannot be undone!</span>
+              </p>
+
+              {/* Action buttons */}
+              <div className="flex gap-3">
+                {/* Cancel */}
+                <motion.button
+                  whileHover={{
+                    boxShadow: "0 0 14px rgba(59,130,246,0.35)",
+                    borderColor: "rgba(59,130,246,0.55)",
+                  }}
+                  onClick={() => !deleting && setDeleteTarget(null)}
+                  disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl border border-gray-600 text-gray-300 hover:text-white transition-all font-medium text-sm disabled:opacity-40"
+                >
+                  Cancel
+                </motion.button>
+
+                {/* Delete — shakes on hover */}
+                <motion.button
+                  whileHover={!deleting ? {
+                    scale: 1.03,
+                    x: [0, -4, 4, -3, 3, -2, 2, 0],
+                    transition: { x: { duration: 0.4 }, scale: { duration: 0.15 } },
+                  } : {}}
+                  onClick={handleConfirmDelete}
+                  disabled={deleting}
+                  className="flex-1 py-2.5 rounded-xl font-semibold text-sm text-white transition-all disabled:opacity-50 flex items-center justify-center gap-2"
+                  style={{
+                    background: deleting
+                      ? "rgba(239,68,68,0.5)"
+                      : "linear-gradient(135deg, #dc2626, #ef4444)",
+                    boxShadow: "0 0 16px rgba(239,68,68,0.25)",
+                  }}
+                >
+                  {deleting ? (
+                    <>
+                      <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                      Deleting…
+                    </>
+                  ) : "Delete"}
+                </motion.button>
+              </div>
+            </motion.div>
           </motion.div>
         )}
       </AnimatePresence>
