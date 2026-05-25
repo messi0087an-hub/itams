@@ -27,8 +27,9 @@ const ManageUsers  = lazy(() => import("./pages/admin/ManageUsers"))
 const AssetRequests= lazy(() => import("./pages/admin/AssetRequests"))
 const Maintenance  = lazy(() => import("./pages/admin/Maintenance"))
 const Settings     = lazy(() => import("./pages/admin/Settings"))
-const Marketing    = lazy(() => import("./pages/marketing/Marketing"))
-const MarketingItem= lazy(() => import("./pages/marketing/MarketingItem"))
+const Marketing       = lazy(() => import("./pages/marketing/Marketing"))
+const MarketingItem   = lazy(() => import("./pages/marketing/MarketingItem"))
+const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"))
 
 // OTP is now handled entirely by Supabase Auth — no custom email sending needed
 
@@ -131,6 +132,14 @@ function LoginPage({ onVerified }) {
   const [otpError, setOtpError] = useState("")
   const [resendCooldown, setResendCooldown] = useState(0)
   const otpInputs = useRef([])
+  // Forgot password
+  const [failedAttempts, setFailedAttempts] = useState(0)
+  const [showFailedPopup, setShowFailedPopup] = useState(false)
+  const [showForgotForm, setShowForgotForm] = useState(false)
+  const [forgotEmail, setForgotEmail] = useState("")
+  const [forgotLoading, setForgotLoading] = useState(false)
+  const [forgotSent, setForgotSent] = useState(false)
+  const [forgotError, setForgotError] = useState("")
 
   useEffect(() => {
     if (window.innerWidth >= 768) {
@@ -147,6 +156,13 @@ function LoginPage({ onVerified }) {
     return () => clearTimeout(t)
   }, [resendCooldown])
 
+  // Auto-dismiss the "3 failed attempts" popup after 5 s
+  useEffect(() => {
+    if (!showFailedPopup) return
+    const t = setTimeout(() => setShowFailedPopup(false), 5000)
+    return () => clearTimeout(t)
+  }, [showFailedPopup])
+
   const handleLogin = async (e) => {
     e.preventDefault()
     setLoading(true)
@@ -154,10 +170,17 @@ function LoginPage({ onVerified }) {
 
     const { data, error: authError } = await supabase.auth.signInWithPassword({ email, password })
     if (authError) {
+      const newFailed = failedAttempts + 1
+      setFailedAttempts(newFailed)
+      if (newFailed >= 3) setShowFailedPopup(true)
       setError(authError.message)
       setLoading(false)
       return
     }
+
+    // Successful — reset failure counter
+    setFailedAttempts(0)
+    setShowFailedPopup(false)
 
     // Check if 2FA is enabled for this user
     const { data: profile } = await supabase
@@ -251,6 +274,23 @@ function LoginPage({ onVerified }) {
     setOtpSending(false)
     setResendCooldown(60)
     otpInputs.current[0]?.focus()
+  }
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault()
+    setForgotLoading(true)
+    setForgotError("")
+    const { error: resetErr } = await supabase.auth.resetPasswordForEmail(
+      forgotEmail || email,
+      { redirectTo: "https://itams-seven.vercel.app/reset-password" }
+    )
+    if (resetErr) {
+      setForgotError("Failed to send reset email. Please check the address.")
+      setForgotLoading(false)
+      return
+    }
+    setForgotSent(true)
+    setForgotLoading(false)
   }
 
   const Brand = () => (
@@ -364,6 +404,50 @@ function LoginPage({ onVerified }) {
   return (
     <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
       <ParticlesBackground particlesReady={particlesReady} />
+
+      {/* ── Failed-attempts popup (slides in from top, shakes) ── */}
+      <AnimatePresence>
+        {showFailedPopup && (
+          <motion.div
+            key="failed-popup"
+            initial={{ opacity: 0, y: -80 }}
+            animate={{
+              opacity: 1, y: 0,
+              x: [0, -9, 9, -7, 7, -4, 4, 0],
+            }}
+            exit={{ opacity: 0, y: -80, transition: { duration: 0.3 } }}
+            transition={{ duration: 0.45, x: { duration: 0.55, delay: 0.25 } }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4"
+          >
+            <div style={{
+              background: "rgba(10, 14, 30, 0.92)",
+              backdropFilter: "blur(14px)",
+              border: "0.5px solid rgba(59,130,246,0.85)",
+              boxShadow: "0 0 18px rgba(59,130,246,0.35), 0 0 50px rgba(59,130,246,0.12)",
+              borderRadius: "16px",
+              padding: "14px 18px",
+            }}>
+              <div className="flex items-start gap-3">
+                <span className="text-2xl mt-0.5 shrink-0">🔑</span>
+                <div className="flex-1">
+                  <p className="text-white text-sm font-medium leading-relaxed">
+                    Having trouble signing in?<br />
+                    Click{" "}
+                    <span className="text-cyan-400 font-semibold">Forgot Password</span>
+                    {" "}below<br />
+                    to reset your password! 😊
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowFailedPopup(false)}
+                  className="text-gray-500 hover:text-gray-300 transition-colors text-base leading-none shrink-0 ml-1"
+                >✕</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <motion.div
         initial={{ opacity: 0, y: 20 }}
         animate={{ opacity: 1, y: 0 }}
@@ -371,6 +455,8 @@ function LoginPage({ onVerified }) {
         className="w-full max-w-md relative z-10"
       >
         <Brand />
+
+        {/* ── Main login card ── */}
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
           <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
           {error && (
@@ -400,6 +486,25 @@ function LoginPage({ onVerified }) {
                 placeholder="••••••••"
                 required
               />
+              {/* Forgot Password link — glows when popup is visible */}
+              <div className="flex justify-end mt-2">
+                <button
+                  type="button"
+                  onClick={() => {
+                    setShowForgotForm(f => !f)
+                    setForgotSent(false)
+                    setForgotError("")
+                    setForgotEmail(email)
+                  }}
+                  className={`text-xs transition-all duration-200 ${
+                    showFailedPopup
+                      ? "text-cyan-300 underline drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]"
+                      : "text-cyan-500 hover:text-cyan-300 hover:underline hover:drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                  }`}
+                >
+                  Forgot Password?
+                </button>
+              </div>
             </div>
             <button
               type="submit"
@@ -410,6 +515,80 @@ function LoginPage({ onVerified }) {
             </button>
           </form>
         </div>
+
+        {/* ── Forgot-password inline form (slides down) ── */}
+        <AnimatePresence>
+          {showForgotForm && (
+            <motion.div
+              key="forgot-form"
+              initial={{ opacity: 0, height: 0, marginTop: 0 }}
+              animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+              exit={{ opacity: 0, height: 0, marginTop: 0 }}
+              transition={{ duration: 0.35, ease: "easeInOut" }}
+              style={{ overflow: "hidden" }}
+            >
+              <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 shadow-2xl">
+                {forgotSent ? (
+                  <motion.div
+                    initial={{ opacity: 0, scale: 0.95 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    className="text-center py-2"
+                  >
+                    <div className="text-4xl mb-3">📧</div>
+                    <h3 className="text-white font-semibold mb-1">Email Sent!</h3>
+                    <p className="text-gray-400 text-sm mt-1">
+                      Reset link sent! Check your email inbox! 📧
+                    </p>
+                  </motion.div>
+                ) : (
+                  <>
+                    <h3 className="text-white font-semibold mb-1">Reset Your Password</h3>
+                    <p className="text-gray-500 text-sm mb-4">
+                      Enter your email and we'll send you a reset link!
+                    </p>
+                    {forgotError && (
+                      <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-3 py-2 mb-3 text-sm">
+                        {forgotError}
+                      </div>
+                    )}
+                    <form onSubmit={handleForgotPassword} className="space-y-3">
+                      <input
+                        type="email"
+                        value={forgotEmail}
+                        onChange={e => setForgotEmail(e.target.value)}
+                        className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                        placeholder="you@trainocate.com"
+                        required
+                      />
+                      <div className="flex gap-2">
+                        <button
+                          type="submit"
+                          disabled={forgotLoading}
+                          className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                        >
+                          {forgotLoading ? (
+                            <>
+                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                              Sending...
+                            </>
+                          ) : "Send Reset Link"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setShowForgotForm(false)}
+                          className="px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all text-sm"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </form>
+                  </>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
         <p className="text-center text-gray-600 text-xs mt-6">
           © 2026 Trainocate Singapore · ITAMS v1.0
         </p>
@@ -732,6 +911,12 @@ export default function App() {
         <Routes>
           <Route path="/login" element={
             showAdmin ? <Navigate to="/admin" /> : <LoginPage onVerified={() => setMfaVerified(true)} />
+          } />
+          {/* Reset-password is public — accessible via email link without a session */}
+          <Route path="/reset-password" element={
+            <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
+              <ResetPasswordPage />
+            </Suspense>
           } />
           <Route path="/*" element={
             showAdmin ? <AdminLayout user={user} /> : <Navigate to="/login" />

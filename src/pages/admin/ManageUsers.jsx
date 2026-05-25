@@ -4,7 +4,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
-import { sendWelcomeEmail } from "../../lib/emailService"
+// sendWelcomeEmail (Resend) replaced with Supabase native email for welcome flow
 
 const ROLES = ["admin", "standard_user", "guest"]
 const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
@@ -93,6 +93,11 @@ export default function ManageUsers() {
           refresh_token: adminSession.refresh_token,
         })
       }
+
+      // Send welcome email via Supabase native email (works for ALL addresses incl. corporate)
+      await supabase.auth.resetPasswordForEmail(form.email, {
+        redirectTo: "https://itams-seven.vercel.app/reset-password",
+      })
 
       setForm({ name: "", email: "", password: "", role: "standard_user", country: "Singapore" })
       setShowForm(false)
@@ -209,7 +214,10 @@ export default function ManageUsers() {
             })
           }
 
-          await sendWelcomeEmail(email, name, role, tempPassword)
+          // Welcome email via Supabase native — works for ALL email addresses
+          await supabase.auth.resetPasswordForEmail(email, {
+            redirectTo: "https://itams-seven.vercel.app/reset-password",
+          })
           ok++
         } catch (err) {
           failed.push({ row: i + 2, email, reason: err.message || "Unknown error" })
