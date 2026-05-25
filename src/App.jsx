@@ -30,35 +30,7 @@ const Settings     = lazy(() => import("./pages/admin/Settings"))
 const Marketing    = lazy(() => import("./pages/marketing/Marketing"))
 const MarketingItem= lazy(() => import("./pages/marketing/MarketingItem"))
 
-function generateOTP() {
-  return Math.floor(100000 + Math.random() * 900000).toString()
-}
-
-async function sendOtpEmail(toEmail, otp) {
-  const html = `
-    <div style="background:#0a0a1a;color:#fff;padding:32px;font-family:-apple-system,sans-serif;border-radius:12px;max-width:480px;margin:0 auto;">
-      <div style="text-align:center;margin-bottom:24px;">
-        <div style="display:inline-flex;align-items:center;justify-content:center;width:56px;height:56px;background:#2563eb;border-radius:14px;margin-bottom:12px;">
-          <span style="color:#fff;font-size:22px;font-weight:bold;">IT</span>
-        </div>
-        <h1 style="font-size:22px;font-weight:700;margin:0;">ITAMS — 2FA Verification</h1>
-        <p style="color:#9ca3af;font-size:13px;margin-top:4px;">Trainocate Singapore</p>
-      </div>
-      <p style="color:#d1d5db;font-size:14px;margin-bottom:20px;">Your one-time verification code is:</p>
-      <div style="background:#1f2937;border:1px solid #374151;border-radius:12px;padding:24px;text-align:center;margin-bottom:20px;">
-        <span style="font-size:40px;font-weight:800;letter-spacing:8px;color:#60a5fa;">${otp}</span>
-      </div>
-      <p style="color:#6b7280;font-size:12px;">This code expires in <strong style="color:#9ca3af;">5 minutes</strong>. Do not share it with anyone.</p>
-    </div>`
-  try {
-    const { error } = await supabase.functions.invoke("send-email", {
-      body: { to: [toEmail], subject: "ITAMS — Your 2FA Verification Code", html },
-    })
-    return !error
-  } catch {
-    return false
-  }
-}
+// OTP is now handled entirely by Supabase Auth — no custom email sending needed
 
 // ---------------------------------------------------------------------------
 // Background animation components — defined at module level so their identity
@@ -155,8 +127,6 @@ function LoginPage({ onVerified }) {
   // OTP step
   const [step, setStep] = useState("credentials") // "credentials" | "otp"
   const [otpDigits, setOtpDigits] = useState(["", "", "", "", "", ""])
-  const [otpCode, setOtpCode] = useState("")
-  const [otpExpiry, setOtpExpiry] = useState(null)
   const [otpSending, setOtpSending] = useState(false)
   const [otpError, setOtpError] = useState("")
   const [resendCooldown, setResendCooldown] = useState(0)
@@ -200,17 +170,17 @@ function LoginPage({ onVerified }) {
       // Sign out temporarily — user must complete OTP first
       await supabase.auth.signOut()
       setOtpSending(true)
-      const otp = generateOTP()
-      const expiry = new Date(Date.now() + 5 * 60 * 1000)
-      const sent = await sendOtpEmail(email, otp)
+      // Use Supabase Auth built-in OTP — works with ALL email addresses
+      const { error: otpErr } = await supabase.auth.signInWithOtp({
+        email,
+        options: { shouldCreateUser: false },
+      })
       setOtpSending(false)
-      if (!sent) {
+      if (otpErr) {
         setError("Failed to send verification email. Please try again.")
         setLoading(false)
         return
       }
-      setOtpCode(otp)
-      setOtpExpiry(expiry)
       setStep("otp")
       setResendCooldown(60)
       setLoading(false)
@@ -249,25 +219,22 @@ function LoginPage({ onVerified }) {
   const handleVerifyOtp = async (code) => {
     const entered = code || otpDigits.join("")
     if (entered.length !== 6) return
-    if (new Date() > otpExpiry) {
-      setOtpError("Code expired. Please request a new one.")
-      return
-    }
-    if (entered !== otpCode) {
-      setOtpError("Incorrect code. Please try again.")
-      setOtpDigits(["", "", "", "", "", ""])
-      setTimeout(() => otpInputs.current[0]?.focus(), 50)
-      return
-    }
-    // OTP correct — sign in for real
     setLoading(true)
     setOtpError("")
-    const { error: signInError } = await supabase.auth.signInWithPassword({ email, password })
-    if (signInError) {
-      setOtpError("Sign-in failed. Please go back and try again.")
+    // Verify the code with Supabase Auth — handles expiry and correctness server-side
+    const { error: verifyErr } = await supabase.auth.verifyOtp({
+      email,
+      token: entered,
+      type: "email",
+    })
+    if (verifyErr) {
+      setOtpError("Incorrect or expired code. Please try again.")
+      setOtpDigits(["", "", "", "", "", ""])
+      setTimeout(() => otpInputs.current[0]?.focus(), 50)
       setLoading(false)
       return
     }
+    // Supabase has now signed the user in — notify parent
     onVerified()
     setLoading(false)
   }
@@ -275,11 +242,10 @@ function LoginPage({ onVerified }) {
   const handleResend = async () => {
     if (resendCooldown > 0) return
     setOtpSending(true)
-    const otp = generateOTP()
-    const expiry = new Date(Date.now() + 5 * 60 * 1000)
-    await sendOtpEmail(email, otp)
-    setOtpCode(otp)
-    setOtpExpiry(expiry)
+    await supabase.auth.signInWithOtp({
+      email,
+      options: { shouldCreateUser: false },
+    })
     setOtpDigits(["", "", "", "", "", ""])
     setOtpError("")
     setOtpSending(false)
@@ -385,7 +351,7 @@ function LoginPage({ onVerified }) {
               </button>
             </div>
 
-            <p className="text-gray-600 text-xs text-center mt-4">Code expires in 5 minutes</p>
+            <p className="text-gray-600 text-xs text-center mt-4">Check your inbox — code sent via Supabase</p>
           </div>
           <p className="text-center text-gray-600 text-xs mt-6">
             © 2026 Trainocate Singapore · ITAMS v1.0
