@@ -250,10 +250,32 @@ export default function ManageUsers() {
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
     setDeleting(true)
-    await supabase.from("user_profiles").delete().eq("id", deleteTarget.id)
-    setUsers(users.filter(x => x.id !== deleteTarget.id))
-    setDeleting(false)
-    setDeleteTarget(null)
+    try {
+      // Get current admin session token to pass to the edge function
+      const { data: { session } } = await supabase.auth.getSession()
+
+      // Call the edge function — deletes from BOTH Supabase Auth AND user_profiles
+      const { data, error } = await supabase.functions.invoke("delete-user", {
+        body: { userId: deleteTarget.id },
+        headers: session?.access_token
+          ? { Authorization: `Bearer ${session.access_token}` }
+          : {},
+      })
+
+      if (error || data?.error) {
+        throw new Error(data?.error || error?.message || "Failed to delete user")
+      }
+
+      // Remove from local state
+      setUsers(users.filter(x => x.id !== deleteTarget.id))
+      setSuccess(`${deleteTarget.name || deleteTarget.email} has been permanently deleted.`)
+      setTimeout(() => setSuccess(""), 4000)
+    } catch (err) {
+      alert(`Delete failed: ${err.message}`)
+    } finally {
+      setDeleting(false)
+      setDeleteTarget(null)
+    }
   }
 
   if (!isAdmin) {

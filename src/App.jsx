@@ -123,7 +123,15 @@ function LoginPage({ onVerified }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
   const [loading, setLoading] = useState(false)
-  const [error, setError] = useState("")
+  const [error, setError] = useState(() => {
+    // Show error from AuthContext if a deleted/missing-profile user was just signed out
+    const stored = sessionStorage.getItem("itams_auth_error")
+    if (stored) {
+      sessionStorage.removeItem("itams_auth_error")
+      return stored
+    }
+    return ""
+  })
   const [particlesReady, setParticlesReady] = useState(false)
   // OTP step
   const [step, setStep] = useState("credentials") // "credentials" | "otp"

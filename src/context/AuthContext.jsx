@@ -37,13 +37,17 @@ export function AuthProvider({ children, user }) {
       })
       setUserProfile(data)
     } else {
-      // Auto-create guest profile on first login
-      const { data: created } = await supabase
-        .from("user_profiles")
-        .insert({ id: u.id, email: u.email, name: u.email.split("@")[0], role: "guest" })
-        .select()
-        .single()
-      setUserProfile(created)
+      // No profile found — this account was deleted or never provisioned by an admin.
+      // Do NOT auto-create a guest profile. Sign out immediately and show an error.
+      console.warn("[AuthContext] No profile found for user:", u.id, "— signing out.")
+      // Store the error message in sessionStorage so the login page can display it
+      sessionStorage.setItem(
+        "itams_auth_error",
+        "Account not found. Please contact your administrator!"
+      )
+      // Sign out — this triggers onAuthStateChange → user becomes null → redirect to /login
+      await supabase.auth.signOut()
+      setUserProfile(null)
     }
     setProfileLoading(false)
   }
