@@ -181,7 +181,12 @@ function LoginPage({ onVerified }) {
       const newFailed = failedAttempts + 1
       setFailedAttempts(newFailed)
       if (newFailed >= 3) setShowFailedPopup(true)
-      setError(authError.message)
+      const msg = authError.message?.toLowerCase() ?? ""
+      setError(
+        msg.includes("invalid login credentials") || msg.includes("invalid credentials")
+          ? "Account not found or has been deactivated. Please contact your administrator!"
+          : authError.message
+      )
       setLoading(false)
       return
     }
