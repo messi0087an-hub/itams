@@ -115,15 +115,14 @@ serve(async (req) => {
       name: name?.trim() || null,
       role: role || "standard_user",
       country: country || null,
-      is_active: true,
     })
 
     if (upsertError) {
-      console.error("[create-user] Step 6 — Profile upsert error:", upsertError.message)
-      // Non-fatal: auth account was created; profile can be fixed manually
-    } else {
-      console.log("[create-user] Step 6 — Profile record created for:", userId)
+      console.error("[create-user] Step 6 — Profile upsert FAILED:", upsertError.message)
+      // Auth account was created but profile failed — return error so admin knows
+      return fail(`User auth account created but profile save failed: ${upsertError.message}. Check the user_profiles table schema.`)
     }
+    console.log("[create-user] Step 6 — Profile record created for:", userId)
 
     // ── 6. Send welcome email directly via Resend ──────────────────────────
     try {
