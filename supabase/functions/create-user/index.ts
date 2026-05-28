@@ -11,84 +11,135 @@ serve(async (req) => {
     return new Response("ok", { headers: cors })
   }
 
-  try {
-    const authHeader = req.headers.get("Authorization")
-    if (!authHeader) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...cors, "Content-Type": "application/json" },
-      })
-    }
-
-    const supabaseUrl = Deno.env.get("SUPABASE_URL")!
-    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!
-    const anonKey = Deno.env.get("SUPABASE_ANON_KEY")!
-
-    // Verify caller is an admin
-    const callerClient = createClient(supabaseUrl, anonKey, {
-      global: { headers: { Authorization: authHeader } },
+  // ── Always return 200 with { error } in body so the frontend can read
+  // ── the real error message (FunctionsHttpError hides non-2xx bodies).
+  const ok = (payload: object) =>
+    new Response(JSON.stringify(payload), {
+      status: 200,
+      headers: { ...cors, "Content-Type": "application/json" },
     })
 
-    const { data: { user: callerUser }, error: callerError } = await callerClient.auth.getUser()
-    if (callerError || !callerUser) {
-      return new Response(JSON.stringify({ error: "Unauthorized" }), {
-        status: 401,
-        headers: { ...cors, "Content-Type": "application/json" },
-      })
+  const fail = (msg: string, code = 200) => {
+    console.error("[create-user] Error:", msg)
+    return new Response(JSON.stringify({ error: msg }), {
+      status: code,
+      headers: { ...cors, "Content-Type": "application/json" },
+    })
+  }
+
+  try {
+    // ── 0. Check required env vars ─────────────────────────────────────────
+    const supabaseUrl = Deno.env.get("SUPABASE_URL")
+    const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")
+
+    if (!supabaseUrl || !serviceRoleKey) {
+      console.error("[create-user] Missing env: SUPABASE_URL or SUPABASE_SERVICE_ROLE_KEY")
+      return fail("Server configuration error — contact administrator")
     }
 
-    const { data: callerProfile } = await callerClient
+    // ── Single admin client (service role) — bypasses RLS for all operations
+    const adminClient = createClient(supabaseUrl, serviceRoleKey, {
+      auth: { persistSession: false },
+    })
+
+    // ── 1. Extract and validate the caller's JWT ───────────────────────────
+    const authHeader = req.headers.get("Authorization") ?? ""
+    const token = authHeader.replace(/^Bearer\s+/i, "").trim()
+
+    console.log("[create-user] Step 1 — auth header present:", !!token)
+
+    if (!token) {
+      return fail("Missing auth token — please log in again", 401)
+    }
+
+    // Pass the token directly to getUser() — correct server-side JWT check
+    const { data: { user: callerUser }, error: jwtError } = await adminClient.auth.getUser(token)
+
+    console.log("[create-user] Step 2 — JWT user:", callerUser?.id ?? "null", "error:", jwtError?.message ?? "none")
+
+    if (jwtError || !callerUser) {
+      return fail("Invalid or expired session — please log in again", 401)
+    }
+
+    // ── 2. Verify caller is admin (service role bypasses RLS) ──────────────
+    const { data: callerProfile, error: profileErr } = await adminClient
       .from("user_profiles")
       .select("role")
       .eq("id", callerUser.id)
       .single()
 
-    if (callerProfile?.role !== "admin") {
-      return new Response(JSON.stringify({ error: "Forbidden: Admin only" }), {
-        status: 403,
-        headers: { ...cors, "Content-Type": "application/json" },
-      })
+    console.log("[create-user] Step 3 — caller role:", callerProfile?.role ?? "null", "error:", profileErr?.message ?? "none")
+
+    if (profileErr || callerProfile?.role !== "admin") {
+      return fail("Admin access required", 403)
     }
 
-    const { email, password, name, role, country, department } = await req.json()
-    if (!email || !password) {
-      return new Response(JSON.stringify({ error: "Email and password are required" }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      })
+    // ── 3. Parse and validate request body ────────────────────────────────
+    const body = await req.json()
+    const { email, password, name, role, country } = body
+
+    console.log("[create-user] Step 4 — creating user:", email, "role:", role)
+
+    if (!email || typeof email !== "string" || !email.includes("@")) {
+      return fail("A valid email address is required")
+    }
+    if (!password || typeof password !== "string" || password.length < 6) {
+      return fail("Password must be at least 6 characters")
     }
 
-    const adminClient = createClient(supabaseUrl, serviceRoleKey)
-
-    // Create user in Supabase Auth (admin API — does NOT affect caller's session)
-    const { data: newUser, error: createError } = await adminClient.auth.admin.createUser({
-      email,
+    // ── 4. Create Supabase Auth account ───────────────────────────────────
+    const { data: newUserData, error: createError } = await adminClient.auth.admin.createUser({
+      email: email.toLowerCase().trim(),
       password,
       email_confirm: true,
     })
 
     if (createError) {
-      return new Response(JSON.stringify({ error: createError.message }), {
-        status: 400,
-        headers: { ...cors, "Content-Type": "application/json" },
-      })
+      console.error("[create-user] Step 5 — Auth createUser failed:", createError.message, "status:", createError.status)
+
+      // Translate common Supabase auth errors into friendly messages
+      const msg = createError.message ?? ""
+      if (msg.toLowerCase().includes("already registered") || msg.toLowerCase().includes("already exists") || createError.status === 422) {
+        return fail(`An account with "${email}" already exists. Use a different email or delete the existing account first.`)
+      }
+      return fail(msg || "Failed to create auth account")
     }
 
-    // Create user profile record
-    await adminClient.from("user_profiles").upsert({
-      id: newUser.user.id,
-      email,
-      name: name || null,
+    const userId = newUserData.user.id
+    console.log("[create-user] Step 5 — Auth account created:", userId)
+
+    // ── 5. Create user_profiles record ────────────────────────────────────
+    const { error: upsertError } = await adminClient.from("user_profiles").upsert({
+      id: userId,
+      email: email.toLowerCase().trim(),
+      name: name?.trim() || null,
       role: role || "standard_user",
       country: country || null,
-      department: department || null,
       is_active: true,
     })
 
-    // Send welcome email (non-fatal if it fails)
+    if (upsertError) {
+      console.error("[create-user] Step 6 — Profile upsert error:", upsertError.message)
+      // Non-fatal: auth account was created; profile can be fixed manually
+    } else {
+      console.log("[create-user] Step 6 — Profile record created for:", userId)
+    }
+
+    // ── 6. Send welcome email directly via Resend ──────────────────────────
     try {
-      const roleLabel = role === "admin" ? "Admin" : role === "standard_user" ? "Standard User" : "Guest"
-      const welcomeHtml = `<!DOCTYPE html>
+      const resendKey = Deno.env.get("RESEND_API_KEY")
+      const fromEmail = Deno.env.get("FROM_EMAIL") ?? "ITAMS <onboarding@resend.dev>"
+
+      if (!resendKey) {
+        console.error("[create-user] Step 7 — RESEND_API_KEY not set, skipping email")
+      } else {
+        const roleLabel =
+          role === "admin" ? "Admin" :
+          role === "standard_user" ? "Standard User" : "Guest"
+
+        console.log("[create-user] Step 7 — Sending welcome email to:", email)
+
+        const welcomeHtml = `<!DOCTYPE html>
 <html lang="en">
 <head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"></head>
 <body style="margin:0;padding:0;background-color:#0a0f1e;font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',Roboto,sans-serif;">
@@ -142,23 +193,39 @@ serve(async (req) => {
 </body>
 </html>`
 
-      await adminClient.functions.invoke("send-email", {
-        body: {
-          to: [email],
-          subject: "Welcome to Trainocate ITAMS!",
-          html: welcomeHtml,
-        },
-      })
+        const emailRes = await fetch("https://api.resend.com/emails", {
+          method: "POST",
+          headers: {
+            "Authorization": `Bearer ${resendKey}`,
+            "Content-Type": "application/json",
+          },
+          body: JSON.stringify({
+            from: fromEmail,
+            to: [email],
+            subject: "Welcome to Trainocate ITAMS — Your Login Details",
+            html: welcomeHtml,
+          }),
+        })
+
+        const emailResult = await emailRes.json()
+        if (!emailRes.ok) {
+          console.error("[create-user] Step 7 — Resend error:", JSON.stringify(emailResult))
+        } else {
+          console.log("[create-user] Step 7 — Welcome email sent, id:", emailResult.id)
+        }
+      }
     } catch (emailErr) {
-      console.error("Welcome email failed (non-fatal):", emailErr)
+      // Email failure is non-fatal — user account is already created
+      console.error("[create-user] Step 7 — Email exception (non-fatal):", emailErr)
     }
 
-    return new Response(JSON.stringify({ success: true, userId: newUser.user.id }), {
-      status: 200,
-      headers: { ...cors, "Content-Type": "application/json" },
-    })
+    // ── 7. Return success ──────────────────────────────────────────────────
+    console.log("[create-user] Done — user created successfully:", userId)
+    return ok({ success: true, userId })
+
   } catch (e) {
-    return new Response(JSON.stringify({ error: e.message }), {
+    console.error("[create-user] Unexpected exception:", e.message, e.stack)
+    return new Response(JSON.stringify({ error: e.message || "Unexpected server error" }), {
       status: 500,
       headers: { ...cors, "Content-Type": "application/json" },
     })

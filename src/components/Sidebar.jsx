@@ -37,7 +37,7 @@ function timeAgo(ts) {
   return `${Math.floor(secs / 86400)}d ago`
 }
 
-function NotificationBell({ userId }) {
+function NotificationBell({ userId, alignRight = true }) {
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
   const panelRef = useRef(null)
@@ -94,7 +94,12 @@ function NotificationBell({ userId }) {
       {open && (
         <div
           className="absolute top-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
-          style={{ right: 0, left: "auto", width: "320px", maxWidth: "calc(100vw - 16px)" }}
+          style={{
+            right: alignRight ? 0 : "auto",
+            left: alignRight ? "auto" : 0,
+            width: "320px",
+            maxWidth: "calc(100vw - 16px)",
+          }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <p className="text-white font-semibold text-sm">Notifications</p>
@@ -228,9 +233,9 @@ export default function Sidebar() {
                   {roleLabels[role] || "👁 Guest"}
                 </span>
               </div>
-              {/* Bell — desktop sidebar */}
+              {/* Bell — desktop sidebar (opens rightward, not off-screen left) */}
               <div className="hidden md:block shrink-0">
-                <NotificationBell userId={userProfile.id} />
+                <NotificationBell userId={userProfile.id} alignRight={false} />
               </div>
             </div>
           </div>

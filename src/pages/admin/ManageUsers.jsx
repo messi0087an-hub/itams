@@ -37,7 +37,7 @@ export default function ManageUsers() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", department: "", marketing_access: false })
+  const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", marketing_access: false })
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef()
 
@@ -94,7 +94,13 @@ export default function ManageUsers() {
     setError("")
 
     try {
-      const { data: { session } } = await supabase.auth.getSession()
+      // Always get a fresh session token before calling the edge function
+      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
+      const session = sessionData?.session
+
+      if (sessionErr || !session?.access_token) {
+        throw new Error("Session expired — please log out and log in again")
+      }
 
       const { data, error: fnError } = await supabase.functions.invoke("create-user", {
         body: {
@@ -103,20 +109,31 @@ export default function ManageUsers() {
           name: form.name,
           role: form.role,
           country: adminCountry,
-          department: form.department || null,
         },
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : {},
+        headers: { Authorization: `Bearer ${session.access_token}` },
       })
 
-      if (fnError || data?.error) {
-        throw new Error(data?.error || fnError?.message || "Failed to create user")
+      // fnError means non-2xx (network error or relay error).
+      // The edge function itself always returns 200 with { error } in the body
+      // for user-facing errors, so fnError here is truly unexpected.
+      if (fnError) {
+        // Try to read the actual error body from the response context
+        let errorMsg = "Edge function unreachable — please try again"
+        try {
+          const errBody = await fnError.context?.json?.()
+          if (errBody?.error) errorMsg = errBody.error
+        } catch {}
+        throw new Error(errorMsg)
+      }
+
+      // Our edge function returns { error: "..." } in body (status 200) for user errors
+      if (data?.error) {
+        throw new Error(data.error)
       }
 
       setForm({ name: "", email: "", password: "", role: "standard_user", country: adminCountry, department: "" })
       setShowForm(false)
-      showSuccess(`Account created for ${form.name || form.email}. Welcome email sent!`)
+      showSuccess(`✅ Account created for ${form.name || form.email}! Welcome email sent.`)
       fetchUsers()
     } catch (err) {
       showError(err.message)
@@ -148,7 +165,6 @@ export default function ManageUsers() {
       name: u.name || "",
       role: u.role || "standard_user",
       country: u.country || "Singapore",
-      department: u.department || "",
       marketing_access: !!u.marketing_access,
     })
     setEditTarget(u)
@@ -162,7 +178,6 @@ export default function ManageUsers() {
         name: editForm.name,
         role: editForm.role,
         country: editForm.country,
-        department: editForm.department || null,
         marketing_access: editForm.marketing_access,
       }).eq("id", editTarget.id)
 
@@ -173,12 +188,12 @@ export default function ManageUsers() {
         name: editForm.name,
         role: editForm.role,
         country: editForm.country,
-        department: editForm.department || null,
         marketing_access: editForm.marketing_access,
       } : u))
 
       showSuccess(`${editForm.name || editTarget.email}'s profile updated.`)
       setEditTarget(null)
+      fetchUsers()
     } catch (err) {
       showError(`Failed to save: ${err.message}`)
     } finally {
@@ -213,7 +228,12 @@ export default function ManageUsers() {
         return ""
       }
 
-      const { data: { session } } = await supabase.auth.getSession()
+      const { data: sessionData } = await supabase.auth.getSession()
+      const session = sessionData?.session
+
+      if (!session?.access_token) {
+        throw new Error("Session expired — please log out and log in again")
+      }
 
       let ok = 0
       const failed = []
@@ -222,7 +242,6 @@ export default function ManageUsers() {
         const row = rows[i]
         const name  = col(row, "full name", "name", "fullname")
         const email = col(row, "email", "e-mail", "email address")
-        const dept  = col(row, "department", "dept")
         const rawRole = col(row, "role").toLowerCase()
         const role  = rawRole === "admin" ? "admin"
                     : rawRole === "standard_user" || rawRole === "standard" || rawRole === "it" ? "standard_user"
@@ -240,14 +259,13 @@ export default function ManageUsers() {
 
         try {
           const { data: fnData, error: fnError } = await supabase.functions.invoke("create-user", {
-            body: { email, password: tempPassword, name, role, country, department: dept || null },
-            headers: session?.access_token
-              ? { Authorization: `Bearer ${session.access_token}` }
-              : {},
+            body: { email, password: tempPassword, name, role, country },
+            headers: { Authorization: `Bearer ${session.access_token}` },
           })
 
-          if (fnError || fnData?.error) {
-            const errMsg = fnData?.error || fnError?.message || "Unknown error"
+          // Edge fn always returns 200; errors are in fnData.error
+          const errMsg = fnData?.error || (fnError ? "Edge function unreachable" : null)
+          if (errMsg) {
             if (errMsg.toLowerCase().includes("already") || errMsg.toLowerCase().includes("exists")) {
               failed.push({ row: i + 2, email, reason: "Account already exists (skipped)" })
             } else {
@@ -520,18 +538,6 @@ export default function ManageUsers() {
                   >
                     {COUNTRIES.map(c => <option key={c} value={c}>{c}</option>)}
                   </select>
-                </div>
-
-                {/* Department */}
-                <div>
-                  <label className="text-gray-400 text-xs mb-1 block">Department</label>
-                  <input
-                    type="text"
-                    value={editForm.department}
-                    onChange={e => setEditForm(f => ({ ...f, department: e.target.value }))}
-                    placeholder="e.g. IT, Finance, Operations"
-                    className="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                  />
                 </div>
 
                 {/* Marketing Access toggle */}

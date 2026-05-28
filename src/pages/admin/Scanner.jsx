@@ -181,8 +181,8 @@ export default function Scanner() {
       const matches = await searchByIdentification(data)
 
       if (matches.length === 1) {
-        // Single match → auto-navigate
-        navigate(`/admin/assets/${matches[0].id}`)
+        // Single match → navigate via full page load to avoid blank page
+        window.location.href = `/admin/assets/${matches[0].id}`
         return
       } else if (matches.length > 1) {
         setPhotoMatches(matches)
@@ -291,7 +291,7 @@ export default function Scanner() {
       </div>
       <div className="flex gap-3">
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
-          onClick={() => navigate(`/admin/assets/${a.id}`)}
+          onClick={() => { window.location.href = `/admin/assets/${a.id}` }}
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm">
           View Full Details
         </motion.button>
@@ -549,7 +549,7 @@ export default function Scanner() {
                 <div className="space-y-2">
                   {photoMatches.map(a => (
                     <motion.button key={a.id} whileHover={{ scale: 1.01 }} whileTap={{ scale: 0.99 }}
-                      onClick={() => navigate(`/admin/assets/${a.id}`)}
+                      onClick={() => { window.location.href = `/admin/assets/${a.id}` }}
                       className="w-full text-left bg-gray-800 hover:bg-gray-700 rounded-xl p-3 border border-gray-700 hover:border-purple-500/40 transition-all">
                       <div className="flex items-center justify-between">
                         <div className="min-w-0">
