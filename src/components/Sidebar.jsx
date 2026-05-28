@@ -92,7 +92,10 @@ function NotificationBell({ userId }) {
       </button>
 
       {open && (
-        <div className="absolute left-0 top-full mt-2 w-80 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden">
+        <div
+          className="absolute top-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+          style={{ right: 0, left: "auto", width: "320px", maxWidth: "calc(100vw - 16px)" }}
+        >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <p className="text-white font-semibold text-sm">Notifications</p>
             {unread > 0 && (
@@ -135,21 +138,18 @@ export default function Sidebar() {
     await supabase.auth.signOut()
   }
 
-  // Items visible to all roles (Guest, Standard User, Admin)
-  const guestItems = [
-    { label: t("dashboard"), path: "/admin" },
-    { label: t("allAssets"), path: "/admin/assets" },
-    { label: t("reports"), path: "/admin/reports" },
-    { label: t("history"), path: "/admin/history" },
-    { label: "📖 " + t("guide"), path: "/admin/guide" },
-  ]
+  const dashItem    = { label: t("dashboard"), path: "/admin" }
+  const assetsItem  = { label: t("allAssets"), path: "/admin/assets" }
+  const reportsItem = { label: t("reports"), path: "/admin/reports" }
+  const historyItem = { label: t("history"), path: "/admin/history" }
+  const guideItem   = { label: "📖 " + t("guide"), path: "/admin/guide" }
 
-  // Standard User additional items
+  // Standard User items (added to base)
   const standardItems = [
     { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
+    { label: t("borrowReturn"), path: "/admin/borrow" },
     { label: t("issues"), path: "/admin/issues" },
     { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
-    { label: t("borrowReturn"), path: "/admin/borrow" },
   ]
 
   // Admin-only items
@@ -161,16 +161,21 @@ export default function Sidebar() {
     { label: "⚙️ Settings", path: "/admin/settings" },
   ]
 
-  let navItems = [...guestItems]
+  // Guest: Dashboard, All Assets, Reports only
+  let navItems = [dashItem, assetsItem, reportsItem]
+
+  // Standard User: adds requests, borrow, issues, maintenance, history, guide
   if (isStandardUser) {
-    navItems = [guestItems[0], guestItems[1], ...standardItems, guestItems[2], guestItems[3], guestItems[4]]
+    navItems = [dashItem, assetsItem, ...standardItems, reportsItem, historyItem, guideItem]
   }
+
+  // Admin: full access
   if (isAdmin) {
     navItems = [
-      guestItems[0], guestItems[1],
+      dashItem, assetsItem,
       adminOnlyItems[0], adminOnlyItems[1], adminOnlyItems[2],
       ...standardItems,
-      guestItems[2], guestItems[3], guestItems[4],
+      reportsItem, historyItem, guideItem,
       adminOnlyItems[3], adminOnlyItems[4],
     ]
   }

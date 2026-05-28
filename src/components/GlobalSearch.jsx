@@ -165,6 +165,7 @@ export default function GlobalSearch() {
             transition={{ duration: 0.15 }}
             className="absolute top-full left-0 right-0 mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden z-[100]"
             style={{ boxShadow: "0 0 40px rgba(0,0,0,0.6)" }}
+            onMouseDown={(e) => e.stopPropagation()}
           >
             {!hasResults && !loading && (
               <p className="text-gray-500 text-sm text-center py-6">No results for "{query}"</p>
@@ -180,10 +181,14 @@ export default function GlobalSearch() {
                     { key: "employees", label: `Employees${filterCounts.employees ? ` (${filterCounts.employees})` : ""}` },
                     { key: "locations", label: `Locations${filterCounts.locations ? ` (${filterCounts.locations})` : ""}` },
                   ].map(f => (
-                    <button key={f.key} onClick={() => setFilter(f.key)}
+                    <button
+                      key={f.key}
+                      onMouseDown={(e) => { e.preventDefault(); e.stopPropagation() }}
+                      onClick={() => { setFilter(f.key); setOpen(true) }}
                       className={`px-3 py-1 rounded-lg text-xs font-medium transition-all ${
                         filter === f.key ? "bg-blue-600 text-white" : "text-gray-400 hover:text-white hover:bg-gray-800"
-                      }`}>
+                      }`}
+                    >
                       {f.label}
                     </button>
                   ))}
@@ -191,70 +196,82 @@ export default function GlobalSearch() {
 
                 <div className="max-h-80 overflow-y-auto">
                   {/* Assets */}
-                  {showAssets && results.assets.length > 0 && (
-                    <div>
-                      <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Assets</p>
-                      {results.assets.map(asset => (
-                        <button key={asset.id} onClick={() => handleSelect(`/admin/assets/${asset.id}`)}
-                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
-                          <div className="min-w-0">
-                            <p className="text-white text-sm font-medium truncate">
-                              <Highlight text={asset.name} query={query} />
-                            </p>
-                            <p className="text-gray-500 text-xs truncate">
-                              <Highlight text={asset.category} query={query} />
-                              {asset.serial_number && <> · <Highlight text={asset.serial_number} query={query} /></>}
-                              {asset.asset_tag && <> · <Highlight text={asset.asset_tag} query={query} /></>}
-                            </p>
-                          </div>
-                          <span className={`ml-3 shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                            {asset.status}
-                          </span>
-                        </button>
-                      ))}
-                    </div>
+                  {showAssets && (
+                    results.assets.length > 0 ? (
+                      <div>
+                        <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Assets</p>
+                        {results.assets.map(asset => (
+                          <button key={asset.id} onClick={() => handleSelect(`/admin/assets/${asset.id}`)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
+                            <div className="min-w-0">
+                              <p className="text-white text-sm font-medium truncate">
+                                <Highlight text={asset.name} query={query} />
+                              </p>
+                              <p className="text-gray-500 text-xs truncate">
+                                <Highlight text={asset.category} query={query} />
+                                {asset.serial_number && <> · <Highlight text={asset.serial_number} query={query} /></>}
+                                {asset.asset_tag && <> · <Highlight text={asset.asset_tag} query={query} /></>}
+                              </p>
+                            </div>
+                            <span className={`ml-3 shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+                              {asset.status}
+                            </span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : filter === "assets" ? (
+                      <p className="text-gray-600 text-xs text-center py-4">No matching assets</p>
+                    ) : null
                   )}
 
                   {/* Employees */}
-                  {showEmployees && results.employees.length > 0 && (
-                    <div>
-                      <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Employees</p>
-                      {results.employees.map(emp => (
-                        <button key={emp.name}
-                          onClick={() => handleSelect(`/admin/assets?q=${encodeURIComponent(emp.name)}`)}
-                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
-                          <div className="flex items-center gap-2">
-                            <div className="w-7 h-7 rounded-full bg-purple-600/30 flex items-center justify-center text-purple-300 text-xs font-bold shrink-0">
-                              {emp.name[0].toUpperCase()}
+                  {showEmployees && (
+                    results.employees.length > 0 ? (
+                      <div>
+                        <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Employees</p>
+                        {results.employees.map(emp => (
+                          <button key={emp.name}
+                            onClick={() => handleSelect(`/admin/assets?q=${encodeURIComponent(emp.name)}`)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
+                            <div className="flex items-center gap-2">
+                              <div className="w-7 h-7 rounded-full bg-purple-600/30 flex items-center justify-center text-purple-300 text-xs font-bold shrink-0">
+                                {emp.name[0].toUpperCase()}
+                              </div>
+                              <p className="text-white text-sm">
+                                <Highlight text={emp.name} query={query} />
+                              </p>
                             </div>
-                            <p className="text-white text-sm">
-                              <Highlight text={emp.name} query={query} />
-                            </p>
-                          </div>
-                          <span className="text-gray-500 text-xs ml-3 shrink-0">{emp.count} asset{emp.count !== 1 ? "s" : ""}</span>
-                        </button>
-                      ))}
-                    </div>
+                            <span className="text-gray-500 text-xs ml-3 shrink-0">{emp.count} asset{emp.count !== 1 ? "s" : ""}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : filter === "employees" ? (
+                      <p className="text-gray-600 text-xs text-center py-4">No matching employees</p>
+                    ) : null
                   )}
 
                   {/* Locations */}
-                  {showLocations && results.locations.length > 0 && (
-                    <div className="pb-2">
-                      <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Locations</p>
-                      {results.locations.map(loc => (
-                        <button key={loc.name}
-                          onClick={() => handleSelect(`/admin/assets?q=${encodeURIComponent(loc.name)}`)}
-                          className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
-                          <div className="flex items-center gap-2">
-                            <span className="text-gray-400 text-base shrink-0">📍</span>
-                            <p className="text-white text-sm">
-                              <Highlight text={loc.name} query={query} />
-                            </p>
-                          </div>
-                          <span className="text-gray-500 text-xs ml-3 shrink-0">{loc.count} asset{loc.count !== 1 ? "s" : ""}</span>
-                        </button>
-                      ))}
-                    </div>
+                  {showLocations && (
+                    results.locations.length > 0 ? (
+                      <div className="pb-2">
+                        <p className="text-gray-600 text-xs font-semibold uppercase tracking-wider px-4 pt-3 pb-1">Locations</p>
+                        {results.locations.map(loc => (
+                          <button key={loc.name}
+                            onClick={() => handleSelect(`/admin/assets?q=${encodeURIComponent(loc.name)}`)}
+                            className="w-full flex items-center justify-between px-4 py-2.5 hover:bg-gray-800 transition-all text-left">
+                            <div className="flex items-center gap-2">
+                              <span className="text-gray-400 text-base shrink-0">📍</span>
+                              <p className="text-white text-sm">
+                                <Highlight text={loc.name} query={query} />
+                              </p>
+                            </div>
+                            <span className="text-gray-500 text-xs ml-3 shrink-0">{loc.count} asset{loc.count !== 1 ? "s" : ""}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ) : filter === "locations" ? (
+                      <p className="text-gray-600 text-xs text-center py-4">No matching locations</p>
+                    ) : null
                   )}
                 </div>
               </>

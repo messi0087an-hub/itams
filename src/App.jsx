@@ -8,6 +8,8 @@ import GlobalSearch from "./components/GlobalSearch"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
+// Eagerly imported so Scanner navigation never hits a Suspense suspension that blanks the page
+import AssetDetail from "./pages/admin/AssetDetail"
 
 // Lazy-loaded pages — each loads as a separate chunk on first visit
 const Dashboard    = lazy(() => import("./pages/admin/Dashboard"))
@@ -15,7 +17,6 @@ const Assets       = lazy(() => import("./pages/admin/Assets"))
 const AddAsset     = lazy(() => import("./pages/admin/AddAsset"))
 const EditAsset    = lazy(() => import("./pages/admin/EditAsset"))
 const ImportAssets = lazy(() => import("./pages/admin/ImportAssets"))
-const AssetDetail  = lazy(() => import("./pages/admin/AssetDetail"))
 const Issues       = lazy(() => import("./pages/admin/Issues"))
 const Reports      = lazy(() => import("./pages/admin/Reports"))
 const Borrow       = lazy(() => import("./pages/admin/Borrow"))
