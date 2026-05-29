@@ -96,7 +96,7 @@ export default function Settings() {
   const selectedMarketingUser = users.find(u => u.email === marketingEmail)
 
   return (
-    <div className="p-4 md:p-8 max-w-2xl">
+    <div className="p-4 md:p-8 w-full max-w-2xl overflow-x-hidden">
       <div className="mb-6">
         <h1 className="text-2xl md:text-3xl font-bold text-white">Settings</h1>
         <p className="text-gray-400 mt-1 text-sm">System configuration for ITAMS</p>
@@ -140,7 +140,7 @@ export default function Settings() {
               value={approvingEmail}
               onChange={e => setApprovingEmail(e.target.value)}
               required
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-3"
+              className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-3 truncate"
             >
               <option value="">Select a user…</option>
               {users.map(u => (
@@ -194,7 +194,7 @@ export default function Settings() {
             <select
               value={marketingEmail}
               onChange={e => setMarketingEmail(e.target.value)}
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-purple-500 focus:outline-none text-sm mb-3"
+              className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-3 border border-gray-700 focus:border-purple-500 focus:outline-none text-sm mb-3 truncate"
             >
               <option value="">Select a user…</option>
               {users.map(u => (
@@ -229,10 +229,10 @@ export default function Settings() {
       </div>
 
       <div className="bg-gray-900/40 rounded-xl border border-gray-800/50 p-4">
-        <p className="text-gray-600 text-xs">
+        <p className="text-gray-600 text-xs break-words">
           <span className="text-gray-500 font-medium">Note:</span> Run{" "}
-          <code className="text-gray-400">supabase/migrations/001_add_country_and_settings.sql</code> and{" "}
-          <code className="text-gray-400">004_notifications.sql</code> in your Supabase SQL Editor if you haven't already.
+          <code className="text-gray-400 break-all">supabase/migrations/001_add_country_and_settings.sql</code> and{" "}
+          <code className="text-gray-400 break-all">004_notifications.sql</code> in your Supabase SQL Editor if you haven't already.
         </p>
       </div>
     </div>

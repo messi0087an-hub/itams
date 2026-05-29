@@ -209,16 +209,11 @@ export default function AddAsset() {
 
           <div>
             <label className="text-gray-400 text-sm mb-2 block">Country</label>
-            <select
-              name="country"
-              value={form.country}
-              onChange={handleChange}
-              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-            >
-              {COUNTRIES.map(c => (
-                <option key={c} value={c}>{c}</option>
-              ))}
-            </select>
+            <div className="w-full bg-gray-800/50 text-gray-300 rounded-lg px-4 py-3 border border-gray-700/50 text-sm flex items-center gap-2">
+              <span>🌏</span>
+              <span>{form.country}</span>
+              <span className="ml-auto text-gray-600 text-xs">Auto-assigned</span>
+            </div>
           </div>
 
           <div className="md:col-span-2">
