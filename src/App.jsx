@@ -818,7 +818,7 @@ function PageLoader() {
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
+    <div style={{ display: "flex", height: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
 
       <motion.div
         animate={{ x: [0, 60, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.8, 1] }}
@@ -861,9 +861,9 @@ function AdminLayout({ user }) {
         }}
       />
 
-      <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
+      <div style={{ display: "flex", flex: 1, height: "100vh", position: "relative", zIndex: 1 }}>
         <Sidebar />
-        <main className="flex-1 overflow-auto pt-14 md:pt-0">
+        <main className="flex-1 overflow-y-auto pt-14 md:pt-0">
           <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800/50 px-4 py-2 hidden md:flex items-center">
             <GlobalSearch />
           </div>
