@@ -72,9 +72,11 @@ function NotificationBell({ userId, alignRight = true }) {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
       const dropdownWidth = 320
-      // Place below the bell; align right edge to bell's right edge,
-      // but clamp so it never overflows the viewport on the left
-      let left = rect.right - dropdownWidth
+      // Align to LEFT edge of bell, shift left if it would overflow the right edge
+      let left = rect.left
+      if (left + dropdownWidth > window.innerWidth) {
+        left = window.innerWidth - dropdownWidth - 8
+      }
       if (left < 8) left = 8
       setDropdownPos({ top: rect.bottom + 8, left })
     }
