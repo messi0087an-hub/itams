@@ -54,7 +54,7 @@ export default function ManageUsers() {
 
   const fetchUsers = async () => {
     const [{ data: profileData }, { data: authData }] = await Promise.all([
-      supabase.from("user_profiles").select("*").order("created_at", { ascending: true }),
+      supabase.from("user_profiles").select("*").eq("country", adminCountry).order("created_at", { ascending: true }),
       supabase.rpc("get_auth_users"),
     ])
     const emailMap = {}
