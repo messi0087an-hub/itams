@@ -93,7 +93,8 @@ function NotificationBell({ userId, alignRight = true }) {
 
       {open && (
         <div
-          className="absolute top-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl z-50 overflow-hidden"
+          className="absolute top-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
+          style={{ zIndex: 9999 }}
           style={{
             right: alignRight ? 0 : "auto",
             left: alignRight ? "auto" : 0,
