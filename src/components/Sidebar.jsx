@@ -209,8 +209,8 @@ export default function Sidebar() {
       )}
 
       <div className={`
-        fixed inset-y-0 left-0 z-40 md:relative md:inset-auto
-        w-64 h-screen md:h-full bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 flex flex-col shrink-0
+        fixed inset-y-0 left-0 z-40
+        w-64 min-h-screen bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 flex flex-col
         transform transition-transform duration-200
         ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
       `}>
@@ -260,7 +260,7 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="flex-1 p-4 space-y-1 overflow-y-auto min-h-0">
+        <nav className="p-4 space-y-1">
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -300,17 +300,18 @@ export default function Sidebar() {
               </NavLink>
             </>
           )}
-        </nav>
 
-        <div className="shrink-0 p-4 border-t border-gray-800">
-          <button
-            onClick={handleLogout}
-            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
-          >
-            <span>🚪</span>
-            <span className="text-sm font-medium">{t("signOut")}</span>
-          </button>
-        </div>
+          {/* Sign Out — placed directly after nav items so it's always visible without scrolling far */}
+          <div className="pt-3 mt-2 border-t border-gray-800">
+            <button
+              onClick={handleLogout}
+              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
+            >
+              <span>🚪</span>
+              <span className="text-sm font-medium">{t("signOut")}</span>
+            </button>
+          </div>
+        </nav>
       </div>
     </>
   )
