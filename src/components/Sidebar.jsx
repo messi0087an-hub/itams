@@ -208,21 +208,23 @@ export default function Sidebar() {
         />
       )}
 
-      <div className={`
-        fixed inset-y-0 left-0 z-40
-        w-64 min-h-screen bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 flex flex-col
-        transform transition-transform duration-200
-        ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}
-      `}>
-        <div className="p-6 border-b border-gray-800 hidden md:block">
-          <h1 className="text-2xl font-bold text-white">ITAMS</h1>
-          <p className="text-gray-500 text-xs mt-1">Trainocate Singapore</p>
+      {/* Sidebar — fixed, exactly 100vh tall, flex column, overflow hidden at container level */}
+      <div
+        className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 transform transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
+        style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+      >
+        {/* ── TOP: Logo (desktop) / spacer (mobile) — never scrolls ── */}
+        <div className="shrink-0">
+          <div className="p-6 border-b border-gray-800 hidden md:block">
+            <h1 className="text-2xl font-bold text-white">ITAMS</h1>
+            <p className="text-gray-500 text-xs mt-1">Trainocate Singapore</p>
+          </div>
+          <div className="h-14 md:hidden" />
         </div>
-        <div className="h-14 md:hidden" />
 
-        {/* Logged-in user info + notification bell */}
+        {/* ── USER INFO — never scrolls ── */}
         {userProfile && (
-          <div className="px-4 pt-4 pb-2 border-b border-gray-800/50">
+          <div className="shrink-0 px-4 pt-4 pb-2 border-b border-gray-800/50">
             <div className="flex items-center gap-2">
               <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
                 {(userProfile.name || userProfile.email)[0].toUpperCase()}
@@ -233,7 +235,6 @@ export default function Sidebar() {
                   {roleLabels[role] || "👁 Guest"}
                 </span>
               </div>
-              {/* Bell — desktop sidebar (opens rightward, not off-screen left) */}
               <div className="hidden md:block shrink-0">
                 <NotificationBell userId={userProfile.id} alignRight={false} />
               </div>
@@ -241,7 +242,8 @@ export default function Sidebar() {
           </div>
         )}
 
-        <div className="px-4 pt-4">
+        {/* ── LANGUAGE SWITCHER — never scrolls ── */}
+        <div className="shrink-0 px-4 pt-4 pb-2">
           <p className="text-gray-500 text-xs mb-2">Language</p>
           <div className="grid grid-cols-3 gap-1">
             {languages.map((lang) => (
@@ -260,7 +262,8 @@ export default function Sidebar() {
           </div>
         </div>
 
-        <nav className="p-4 space-y-1">
+        {/* ── NAV + SIGN OUT — scrollable, takes remaining height ── */}
+        <nav className="p-4 space-y-1" style={{ flex: 1, overflowY: "auto" }}>
           {navItems.map((item) => (
             <NavLink
               key={item.path}
@@ -279,7 +282,7 @@ export default function Sidebar() {
             </NavLink>
           ))}
 
-          {/* Marketing module — shown for any user with marketing_access = true */}
+          {/* Marketing link */}
           {isMarketing && (
             <>
               <div className="pt-3 pb-1">
@@ -301,8 +304,8 @@ export default function Sidebar() {
             </>
           )}
 
-          {/* Sign Out — placed directly after nav items so it's always visible without scrolling far */}
-          <div className="pt-3 mt-2 border-t border-gray-800">
+          {/* Sign Out — last item in scrollable nav, always reachable */}
+          <div className="pt-3 mt-1 border-t border-gray-800">
             <button
               onClick={handleLogout}
               className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
