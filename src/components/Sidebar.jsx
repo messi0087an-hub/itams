@@ -40,6 +40,8 @@ function timeAgo(ts) {
 function NotificationBell({ userId, alignRight = true }) {
   const [notifications, setNotifications] = useState([])
   const [open, setOpen] = useState(false)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
+  const buttonRef = useRef(null)
   const panelRef = useRef(null)
 
   const load = () => fetchNotifications(userId).then(setNotifications)
@@ -55,13 +57,29 @@ function NotificationBell({ userId, alignRight = true }) {
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
-      if (panelRef.current && !panelRef.current.contains(e.target)) setOpen(false)
+      if (
+        panelRef.current && !panelRef.current.contains(e.target) &&
+        buttonRef.current && !buttonRef.current.contains(e.target)
+      ) setOpen(false)
     }
     document.addEventListener("mousedown", handler)
     return () => document.removeEventListener("mousedown", handler)
   }, [open])
 
   const unread = notifications.filter(n => !n.is_read).length
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      const dropdownWidth = 320
+      // Place below the bell; align right edge to bell's right edge,
+      // but clamp so it never overflows the viewport on the left
+      let left = rect.right - dropdownWidth
+      if (left < 8) left = 8
+      setDropdownPos({ top: rect.bottom + 8, left })
+    }
+    setOpen(o => !o)
+  }
 
   const handleClick = async (n) => {
     if (!n.is_read) {
@@ -77,9 +95,10 @@ function NotificationBell({ userId, alignRight = true }) {
   }
 
   return (
-    <div className="relative" ref={panelRef}>
+    <div className="relative">
       <button
-        onClick={() => setOpen(o => !o)}
+        ref={buttonRef}
+        onClick={handleToggle}
         className="relative p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
         title="Notifications"
       >
@@ -93,13 +112,15 @@ function NotificationBell({ userId, alignRight = true }) {
 
       {open && (
         <div
-          className="absolute top-full mt-2 bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
-          style={{ zIndex: 9999 }}
+          ref={panelRef}
+          className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
           style={{
-            right: alignRight ? 0 : "auto",
-            left: alignRight ? "auto" : 0,
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
             width: "320px",
             maxWidth: "calc(100vw - 16px)",
+            zIndex: 9999,
           }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
