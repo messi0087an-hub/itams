@@ -499,12 +499,13 @@ export default function Borrow() {
               {/* Return date */}
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">
-                  Return Date <span className="text-gray-600">(optional)</span>
+                  Return Date <span className="text-red-400">*</span>
                 </label>
                 <input
                   type="date"
                   value={form.due_date}
                   min={todayStr}
+                  required
                   onChange={(e) => setForm({ ...form, due_date: e.target.value })}
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm [color-scheme:dark]"
                 />
