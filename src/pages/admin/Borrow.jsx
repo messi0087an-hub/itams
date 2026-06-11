@@ -43,7 +43,7 @@ function DueBadge({ dueDate }) {
 }
 
 export default function Borrow() {
-  const { userProfile, canBorrow, userCountry } = useAuth()
+  const { userProfile, canBorrow, userCountry, isAdmin, isStandardUser } = useAuth()
   const [borrows, setBorrows] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -631,8 +631,8 @@ export default function Borrow() {
                     </AnimatePresence>
                   </div>
 
-                  {/* Action buttons */}
-                  {canBorrow && (
+                  {/* Action buttons: Standard user sees Return/Extend only on own borrows; Admin sees none */}
+                  {isStandardUser && borrow.signed_off_email === userProfile?.email && (
                     <div className="flex flex-col gap-2 shrink-0">
                       <motion.button
                         whileHover={{ scale: 1.05 }}

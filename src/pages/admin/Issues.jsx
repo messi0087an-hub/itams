@@ -3,9 +3,11 @@ import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
+import { useAuth } from "../../context/AuthContext"
 
 export default function Issues() {
   const { t } = useTranslation()
+  const { isAdmin } = useAuth()
   const [issues, setIssues] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -268,7 +270,7 @@ export default function Issues() {
               </div>
               <p className="text-gray-400 text-sm capitalize mb-1">{issue.issue_type}</p>
               <p className="text-gray-400 text-sm mb-3">{issue.description}</p>
-              {issue.status === "open" && (
+              {isAdmin && issue.status === "open" && (
                 <motion.button
                   whileHover={{ scale: 1.05 }}
                   whileTap={{ scale: 0.95 }}
@@ -315,7 +317,7 @@ export default function Issues() {
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {issue.status === "open" && (
+                    {isAdmin && issue.status === "open" && (
                       <motion.button
                         whileHover={{ scale: 1.05 }}
                         whileTap={{ scale: 0.95 }}

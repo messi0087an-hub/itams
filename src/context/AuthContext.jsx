@@ -69,6 +69,7 @@ export function AuthProvider({ children, user }) {
       canManageUsers: role === "admin",
       canBorrow: role === "admin" || role === "standard_user",
       canSubmitRequests: role === "admin" || role === "standard_user",
+      canSubmitMaintenance: role === "admin" || role === "standard_user",
       userCountry: userProfile?.country || null,
       refetchProfile: () => user && fetchProfile(user),
     }}>

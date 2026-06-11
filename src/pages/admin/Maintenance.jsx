@@ -34,7 +34,7 @@ function daysUntil(dateStr) {
 }
 
 export default function Maintenance() {
-  const { userProfile, canEdit, userCountry, profileLoading } = useAuth()
+  const { userProfile, canEdit, canSubmitMaintenance, userCountry, profileLoading } = useAuth()
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -240,7 +240,7 @@ export default function Maintenance() {
               : "No upcoming maintenance this week"}
           </p>
         </div>
-        {canEdit && (
+        {canSubmitMaintenance && (
           <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
             onClick={() => setShowForm(!showForm)}
             className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">

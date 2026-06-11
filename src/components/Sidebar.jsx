@@ -45,7 +45,9 @@ export default function Sidebar() {
   const historyItem = { label: t("history"), path: "/admin/history" }
   const guideItem   = { label: "📖 " + t("guide"), path: "/admin/guide" }
 
-  // Standard User items (added to base)
+  const scannerItem = { label: "🔍 " + t("scanner"), path: "/admin/scanner" }
+
+  // Standard User items
   const standardItems = [
     { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
     { label: t("borrowReturn"), path: "/admin/borrow" },
@@ -56,28 +58,27 @@ export default function Sidebar() {
   // Admin-only items
   const adminOnlyItems = [
     { label: t("addAsset"), path: "/admin/add-asset" },
-    { label: "🔍 " + t("scanner"), path: "/admin/scanner" },
     { label: t("importAssets"), path: "/admin/import" },
     { label: "👥 " + t("manageUsersTitle"), path: "/admin/users" },
     { label: "⚙️ Settings", path: "/admin/settings" },
   ]
 
-  // Guest: Dashboard, All Assets, Reports only
-  let navItems = [dashItem, assetsItem, reportsItem]
+  // Guest: Dashboard, All Assets, Reports, User Guide only
+  let navItems = [dashItem, assetsItem, reportsItem, guideItem]
 
-  // Standard User: adds requests, borrow, issues, maintenance, history, guide
+  // Standard User: Dashboard, All Assets, Scanner, requests, borrow, issues, maintenance, history, guide
   if (isStandardUser) {
-    navItems = [dashItem, assetsItem, ...standardItems, reportsItem, historyItem, guideItem]
+    navItems = [dashItem, assetsItem, scannerItem, ...standardItems, historyItem, guideItem]
   }
 
   // Admin: full access
   if (isAdmin) {
     navItems = [
       dashItem, assetsItem,
-      adminOnlyItems[0], adminOnlyItems[1], adminOnlyItems[2],
+      adminOnlyItems[0], scannerItem, adminOnlyItems[1],
       ...standardItems,
       reportsItem, historyItem, guideItem,
-      adminOnlyItems[3], adminOnlyItems[4],
+      adminOnlyItems[2], adminOnlyItems[3],
     ]
   }
 
