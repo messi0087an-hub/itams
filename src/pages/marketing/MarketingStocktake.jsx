@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 const C = {
   accent: "#06b6d4", teal: "#14b8a6",
@@ -20,6 +20,13 @@ export default function MarketingStocktake() {
   const [saving, setSaving] = useState(false)
   const [filterLocation, setFilterLocation] = useState("All")
   const [saved, setSaved] = useState({})
+  const [rowErrors, setRowErrors] = useState({})
+  const [successMsg, setSuccessMsg] = useState(null)
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -46,18 +53,14 @@ export default function MarketingStocktake() {
 
   const setActual = (itemId, locationId, val) => {
     const key = `${itemId}_${locationId}`
-    setStocktake(prev => ({
-      ...prev,
-      [key]: { actual: val, notes: prev[key]?.notes || "" },
-    }))
+    setStocktake(prev => ({ ...prev, [key]: { actual: val, notes: prev[key]?.notes || "" } }))
+    setRowErrors(prev => ({ ...prev, [key]: null }))
+    setSaved(prev => ({ ...prev, [key]: false }))
   }
 
   const setNotes = (itemId, locationId, val) => {
     const key = `${itemId}_${locationId}`
-    setStocktake(prev => ({
-      ...prev,
-      [key]: { actual: prev[key]?.actual ?? "", notes: val },
-    }))
+    setStocktake(prev => ({ ...prev, [key]: { actual: prev[key]?.actual ?? "", notes: val } }))
   }
 
   const handleSaveRow = async (item, location) => {
@@ -66,11 +69,14 @@ export default function MarketingStocktake() {
     if (entry?.actual === "" || entry?.actual === undefined) return
 
     setSaving(true)
+    setRowErrors(prev => ({ ...prev, [key]: null }))
+
     const sysQty = getSystemQty(item.id, location.id)
     const actualQty = parseInt(entry.actual) || 0
     const discrepancy = actualQty - sysQty
 
-    await supabase.from("marketing_stocktake").insert({
+    // Record stocktake entry
+    const { error: takeErr } = await supabase.from("marketing_stocktake").insert({
       item_id: item.id,
       location_id: location.id,
       system_quantity: sysQty,
@@ -78,20 +84,41 @@ export default function MarketingStocktake() {
       discrepancy,
       notes: entry.notes || null,
       performed_by: userProfile?.id,
-      performed_by_name: userProfile?.full_name,
+      performed_by_name: userProfile?.name || userProfile?.email,
       stocktake_date: new Date().toISOString().split("T")[0],
     })
+    if (takeErr) {
+      setSaving(false)
+      setRowErrors(prev => ({ ...prev, [key]: `Save failed: ${takeErr.message}` }))
+      return
+    }
 
-    // Override stock quantity
+    // Update or insert stock quantity
     const existing = stock.find(s => s.item_id === item.id && s.location_id === location.id)
     if (existing) {
-      await supabase.from("marketing_stock").update({ quantity: actualQty, updated_at: new Date().toISOString() }).eq("id", existing.id)
+      const { error: stockErr } = await supabase
+        .from("marketing_stock")
+        .update({ quantity: actualQty, updated_at: new Date().toISOString() })
+        .eq("id", existing.id)
+      if (stockErr) {
+        setSaving(false)
+        setRowErrors(prev => ({ ...prev, [key]: `Stock update failed: ${stockErr.message}` }))
+        return
+      }
     } else {
-      await supabase.from("marketing_stock").insert({ item_id: item.id, location_id: location.id, quantity: actualQty })
+      const { error: stockErr } = await supabase
+        .from("marketing_stock")
+        .insert({ item_id: item.id, location_id: location.id, quantity: actualQty })
+      if (stockErr) {
+        setSaving(false)
+        setRowErrors(prev => ({ ...prev, [key]: `Stock insert failed: ${stockErr.message}` }))
+        return
+      }
     }
 
     setSaved(prev => ({ ...prev, [key]: true }))
     setSaving(false)
+    showSuccess(`✅ ${item.name} @ ${location.name} saved — quantity set to ${actualQty}`)
     fetchAll()
   }
 
@@ -116,23 +143,28 @@ export default function MarketingStocktake() {
 
   const filteredLocations = filterLocation === "All" ? locations : locations.filter(l => l.id === filterLocation)
 
-  // Only show items that have stock in at least one location (or all)
-  const relevantItems = items.filter(item =>
-    filteredLocations.some(loc => getSystemQty(item.id, loc.id) > 0 || stocktake[`${item.id}_${loc.id}`]?.actual !== undefined)
-  )
-
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#10b981", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 20px rgba(16,185,129,0.4)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>🔢 Stocktake</h1>
           <p style={{ color: C.sub, fontSize: "13px" }}>Monthly physical count — verify and override quantities</p>
         </div>
-        <div style={{ display: "flex", gap: "10px" }}>
-          <button onClick={exportCSV} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "9px 16px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>
-            Export CSV
-          </button>
-        </div>
+        <button onClick={exportCSV} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "9px 16px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>
+          Export CSV
+        </button>
       </div>
 
       {/* Location filter */}
@@ -144,12 +176,11 @@ export default function MarketingStocktake() {
         </select>
       </div>
 
-      {/* Info box */}
       <div style={{ background: "rgba(6,182,212,0.06)", border: `1px solid ${C.border}`, borderRadius: "12px", padding: "12px 16px", marginBottom: "20px" }}>
         <p style={{ color: C.accent, fontSize: "12px", fontWeight: "600" }}>How to use:</p>
         <p style={{ color: C.sub, fontSize: "12px", marginTop: "2px" }}>
           Enter the actual physical count in the "Actual Qty" field. The system shows the current database quantity.
-          Discrepancy = Actual - System. Click "Save" to update the database and record the stocktake.
+          Discrepancy = Actual − System. Click "Save" to update the database and record the stocktake.
         </p>
       </div>
 
@@ -157,6 +188,9 @@ export default function MarketingStocktake() {
         <p style={{ color: C.sub }}>Loading...</p>
       ) : (
         <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+          {filteredLocations.length === 0 && (
+            <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>No locations configured. Add locations in Settings first.</p>
+          )}
           {filteredLocations.map(location => {
             const locationItems = items.filter(item => getSystemQty(item.id, location.id) > 0)
             if (locationItems.length === 0 && filterLocation !== location.id) return null
@@ -183,20 +217,22 @@ export default function MarketingStocktake() {
                         const actualNum = actual !== "" ? parseInt(actual) || 0 : sysQty
                         const discrepancy = actual !== "" ? actualNum - sysQty : 0
                         const isSaved = saved[key]
+                        const rowErr = rowErrors[key]
 
                         return (
                           <tr key={item.id} style={{ borderBottom: `1px solid rgba(6,182,212,0.08)` }}>
-                            <td style={{ color: C.text, padding: "8px 10px", fontWeight: "500" }}>{item.name}</td>
+                            <td style={{ color: C.text, padding: "8px 10px", fontWeight: "500" }}>
+                              {item.name}
+                              {rowErr && <div style={{ color: C.error, fontSize: "10px", marginTop: "2px" }}>{rowErr}</div>}
+                            </td>
                             <td style={{ color: C.sub, padding: "8px 10px" }}>{item.unit}</td>
                             <td style={{ color: C.text, padding: "8px 10px", fontWeight: "600" }}>{sysQty}</td>
                             <td style={{ padding: "6px 10px" }}>
                               <input
-                                type="number"
-                                min={0}
-                                value={actual}
+                                type="number" min={0} value={actual}
                                 onChange={e => setActual(item.id, location.id, e.target.value)}
                                 placeholder={String(sysQty)}
-                                style={{ width: "70px", background: "rgba(6,182,212,0.08)", color: C.text, border: `1px solid ${C.border}`, borderRadius: "6px", padding: "5px 8px", fontSize: "13px", outline: "none" }}
+                                style={{ width: "70px", background: "rgba(6,182,212,0.08)", color: C.text, border: `1px solid ${rowErr ? C.error : C.border}`, borderRadius: "6px", padding: "5px 8px", fontSize: "13px", outline: "none" }}
                               />
                             </td>
                             <td style={{ padding: "8px 10px" }}>
@@ -222,9 +258,9 @@ export default function MarketingStocktake() {
                                 <button
                                   onClick={() => handleSaveRow(item, location)}
                                   disabled={saving || actual === ""}
-                                  style={{ background: actual !== "" ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(148,163,184,0.1)", color: actual !== "" ? "#fff" : C.sub, border: "none", borderRadius: "6px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", cursor: actual !== "" ? "pointer" : "not-allowed" }}
+                                  style={{ background: actual !== "" ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(148,163,184,0.1)", color: actual !== "" ? "#fff" : C.sub, border: "none", borderRadius: "6px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", cursor: actual !== "" ? "pointer" : "not-allowed", opacity: saving ? 0.6 : 1 }}
                                 >
-                                  Save
+                                  {saving ? "..." : "Save"}
                                 </button>
                               )}
                             </td>

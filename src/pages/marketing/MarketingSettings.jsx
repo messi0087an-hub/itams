@@ -31,30 +31,49 @@ export default function MarketingSettings() {
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [newLocation, setNewLocation] = useState("")
+  const [locationError, setLocationError] = useState(null)
   const [approvalThreshold, setApprovalThreshold] = useState(30)
   const [tab, setTab] = useState("locations")
+  const [successMsg, setSuccessMsg] = useState(null)
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
 
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
     setLoading(true)
-    const { data } = await supabase.from("marketing_locations").select("*").order("name")
-    setLocations(data || [])
+    const { data, error } = await supabase.from("marketing_locations").select("*").order("name")
+    if (!error) setLocations(data || [])
     setLoading(false)
   }
 
   const handleAddLocation = async () => {
     if (!newLocation.trim()) return
     setSaving(true)
-    await supabase.from("marketing_locations").insert({ name: newLocation.trim() })
-    setNewLocation("")
+    setLocationError(null)
+    const { error } = await supabase.from("marketing_locations").insert({ name: newLocation.trim() })
+    if (error) {
+      setSaving(false)
+      setLocationError(`Could not add location: ${error.message}`)
+      return
+    }
     setSaving(false)
+    setNewLocation("")
+    showSuccess(`✅ Location "${newLocation.trim()}" added!`)
     fetchAll()
   }
 
-  const handleDeleteLocation = async (id) => {
-    if (!window.confirm("Delete this location? This may affect stock records.")) return
-    await supabase.from("marketing_locations").delete().eq("id", id)
+  const handleDeleteLocation = async (id, name) => {
+    if (!window.confirm(`Delete "${name}"? This may affect stock records.`)) return
+    const { error } = await supabase.from("marketing_locations").delete().eq("id", id)
+    if (error) {
+      showSuccess(`❌ Could not delete: ${error.message}`)
+      return
+    }
+    showSuccess(`Deleted "${name}"`)
     fetchAll()
   }
 
@@ -72,6 +91,18 @@ export default function MarketingSettings() {
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: successMsg.startsWith("❌") ? "#ef4444" : "#10b981", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 20px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>⚙️ Marketing Settings</h1>
         <p style={{ color: C.sub, fontSize: "13px" }}>Configure approval thresholds, locations, and more</p>
@@ -93,13 +124,25 @@ export default function MarketingSettings() {
         <div style={{ maxWidth: "600px" }}>
           <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "20px", marginBottom: "16px" }}>
             <p style={{ color: C.text, fontWeight: "600", fontSize: "15px", marginBottom: "16px" }}>Add New Location</p>
+            {locationError && (
+              <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px", marginBottom: "12px" }}>
+                {locationError}
+              </div>
+            )}
             <div style={{ display: "flex", gap: "10px" }}>
-              <input value={newLocation} onChange={e => setNewLocation(e.target.value)} placeholder="Location name..."
+              <input
+                value={newLocation}
+                onChange={e => { setNewLocation(e.target.value); setLocationError(null) }}
+                placeholder="Location name..."
                 onKeyDown={e => e.key === "Enter" && handleAddLocation()}
-                style={{ ...inputStyle, flex: 1 }} />
-              <button onClick={handleAddLocation} disabled={saving || !newLocation.trim()}
-                style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "8px", padding: "9px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap" }}>
-                Add Location
+                style={{ ...inputStyle, flex: 1 }}
+              />
+              <button
+                onClick={handleAddLocation}
+                disabled={saving || !newLocation.trim()}
+                style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "8px", padding: "9px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer", whiteSpace: "nowrap", opacity: saving ? 0.6 : 1 }}
+              >
+                {saving ? "Adding..." : "Add Location"}
               </button>
             </div>
           </div>
@@ -117,13 +160,13 @@ export default function MarketingSettings() {
                         {loc.description && <p style={{ color: C.sub, fontSize: "11px" }}>{loc.description}</p>}
                       </div>
                     </div>
-                    <button onClick={() => handleDeleteLocation(loc.id)}
+                    <button onClick={() => handleDeleteLocation(loc.id, loc.name)}
                       style={{ background: "rgba(239,68,68,0.1)", color: C.error, border: "1px solid rgba(239,68,68,0.2)", borderRadius: "6px", padding: "4px 10px", fontSize: "11px", cursor: "pointer" }}>
                       Delete
                     </button>
                   </div>
                 ))}
-                {locations.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "20px" }}>No locations yet</p>}
+                {locations.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "20px" }}>No locations yet. Add one above.</p>}
               </div>
             )}
           </div>
@@ -155,9 +198,7 @@ export default function MarketingSettings() {
               </div>
             </div>
 
-            <div style={{ marginTop: "20px" }}>
-              <p style={{ color: C.sub, fontSize: "12px", marginBottom: "8px" }}>Auto-reminder: Pending requests older than 3 days trigger a reminder notification to the approver.</p>
-            </div>
+            <p style={{ color: C.sub, fontSize: "12px", marginTop: "20px" }}>Auto-reminder: Pending requests older than 3 days trigger a reminder notification to the approver.</p>
           </div>
         </div>
       )}
@@ -184,12 +225,13 @@ export default function MarketingSettings() {
                 <button
                   onClick={async () => {
                     const { data } = await supabase.from(table).select("*")
-                    if (!data?.length) return
+                    if (!data?.length) { showSuccess("❌ No data to export"); return }
                     const headers = Object.keys(data[0])
                     const csv = [headers.join(","), ...data.map(r => headers.map(h => `"${r[h] ?? ""}"`).join(","))].join("\n")
                     const blob = new Blob([csv], { type: "text/csv" })
                     const url = URL.createObjectURL(blob)
                     const a = document.createElement("a"); a.href = url; a.download = `${table}_export.csv`; a.click()
+                    showSuccess(`✅ ${label} exported!`)
                   }}
                   style={{ background: "rgba(6,182,212,0.12)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "6px 14px", fontSize: "12px", cursor: "pointer" }}>
                   Export CSV
