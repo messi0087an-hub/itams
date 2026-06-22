@@ -52,30 +52,32 @@ export default function MarketingStock() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [
-      { data: i, error: iErr },
-      { data: v },
-      { data: l },
-      { data: m, error: mErr },
-      { data: c },
-      { data: e },
-    ] = await Promise.all([
+
+    // Fetch items, locations, variants in parallel (needed for name resolution)
+    const [{ data: i }, { data: v }, { data: l }, { data: c }, { data: e }] = await Promise.all([
       supabase.from("marketing_items").select("id, name, unit").order("name"),
       supabase.from("marketing_item_variants").select("*"),
       supabase.from("marketing_locations").select("*").order("name"),
-      // No FK hint for locations — resolve location names from state instead to avoid ambiguous FK errors
-      supabase.from("marketing_stock_movements").select("*, marketing_items(name, unit)").order("created_at", { ascending: false }).limit(200),
       supabase.from("marketing_classes").select("id, class_name, class_date").order("class_date", { ascending: false }).limit(50),
       supabase.from("marketing_events").select("id, event_name, event_date").order("event_date", { ascending: false }).limit(50),
     ])
-    if (iErr) console.error("Items fetch error:", iErr.message)
-    if (mErr) console.error("Movements fetch error:", mErr.message)
     setItems(i || [])
     setVariants(v || [])
     setLocations(l || [])
-    setMovements(m || [])
     setClasses(c || [])
     setEvents(e || [])
+
+    // Fetch movements separately with no joins — resolve names locally to avoid FK ambiguity errors
+    const { data: m, error: mErr } = await supabase
+      .from("marketing_stock_movements")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(200)
+
+    console.log("[MarketingStock] movements fetch →", { count: m?.length ?? 0, error: mErr?.message ?? null, sample: m?.[0] ?? null })
+    if (mErr) console.error("[MarketingStock] movements error:", mErr)
+    setMovements(m || [])
+
     setLoading(false)
   }
 
@@ -103,7 +105,7 @@ export default function MarketingStock() {
     const itemName = items.find(i => i.id === formIn.item_id)?.name || "item"
 
     // 1. Insert movement record
-    const { error: movErr } = await supabase.from("marketing_stock_movements").insert({
+    const movPayload = {
       item_id: formIn.item_id,
       variant_id: formIn.variant_id || null,
       location_id: formIn.location_id,
@@ -113,7 +115,13 @@ export default function MarketingStock() {
       notes: [formIn.notes, formIn.brought_by ? `Brought by: ${formIn.brought_by}` : "", formIn.intended_for ? `For: ${formIn.intended_for}` : ""].filter(Boolean).join(" | ") || null,
       performed_by: userProfile?.id,
       performed_by_name: userProfile?.name || userProfile?.email,
-    })
+    }
+    console.log("[StockIn] inserting movement:", movPayload)
+    const { data: movData, error: movErr } = await supabase
+      .from("marketing_stock_movements")
+      .insert(movPayload)
+      .select()
+    console.log("[StockIn] movement insert result →", { data: movData, error: movErr?.message ?? null })
     if (movErr) {
       setSaving(false)
       setSaveError(`Failed to record movement: ${movErr.message}`)
@@ -406,9 +414,11 @@ export default function MarketingStock() {
               )}
               {filteredMovements.map(mv => {
                 const isIn = mv.movement_type === "stock_in"
-                // Resolve location name from local state — avoids FK-hint join issues
+                // Resolve names from local state — no join needed
                 const locName = locations.find(l => l.id === mv.location_id)?.name || null
-                const itemName = mv.marketing_items?.name || items.find(i => i.id === mv.item_id)?.name || "Unknown item"
+                const itemObj = items.find(i => i.id === mv.item_id)
+                const itemName = itemObj?.name || "Unknown item"
+                const itemUnit = itemObj?.unit || "units"
                 return (
                   <div key={mv.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 16px" }}>
                     <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
@@ -422,7 +432,7 @@ export default function MarketingStock() {
                           <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
                             <p style={{ color: C.text, fontSize: "13px", fontWeight: "700" }}>{itemName}</p>
                             <span style={{ background: isIn ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: isIn ? C.success : C.error, border: `1px solid ${isIn ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`, borderRadius: "6px", padding: "1px 8px", fontSize: "12px", fontWeight: "700" }}>
-                              {isIn ? "+" : "-"}{mv.quantity} {mv.marketing_items?.unit || "units"}
+                              {isIn ? "+" : "-"}{mv.quantity} {itemUnit}
                             </span>
                             <span style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid rgba(6,182,212,0.2)`, borderRadius: "6px", padding: "1px 8px", fontSize: "11px", fontWeight: "600" }}>
                               {isIn ? "Stock In" : "Stock Out"}
