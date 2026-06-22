@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 
 const C = {
   accent: "#06b6d4", teal: "#14b8a6",
@@ -41,6 +41,8 @@ export default function MarketingStock() {
   const [events, setEvents] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [filterType, setFilterType] = useState("All")
 
   const [formIn, setFormIn] = useState({ item_id: "", variant_id: "", location_id: "", quantity: "", brought_by: "", intended_for: "", date: new Date().toISOString().split("T")[0], notes: "" })
@@ -69,42 +71,79 @@ export default function MarketingStock() {
 
   const getVariantsForItem = (itemId) => variants.filter(v => v.item_id === itemId)
 
+  const showSuccess = (msg) => {
+    setSaveError(null)
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
+
+  // Build the stock lookup query, handling null variant_id correctly.
+  // PostgREST requires .is("col", null) for null checks — .eq("col", null) fails.
+  const stockLookup = (itemId, locationId, variantId) => {
+    let q = supabase.from("marketing_stock").select("id, quantity").eq("item_id", itemId).eq("location_id", locationId)
+    return variantId ? q.eq("variant_id", variantId) : q.is("variant_id", null)
+  }
+
   const handleStockIn = async (e) => {
     e.preventDefault()
     if (!formIn.item_id || !formIn.quantity || !formIn.location_id) return
     setSaving(true)
+    setSaveError(null)
     const qty = parseInt(formIn.quantity)
+    const itemName = items.find(i => i.id === formIn.item_id)?.name || "item"
 
-    // Insert movement
-    await supabase.from("marketing_stock_movements").insert({
+    // 1. Insert movement record
+    const { error: movErr } = await supabase.from("marketing_stock_movements").insert({
       item_id: formIn.item_id,
       variant_id: formIn.variant_id || null,
       location_id: formIn.location_id,
+      to_location_id: formIn.location_id,
       movement_type: "stock_in",
       quantity: qty,
-      to_location_id: formIn.location_id,
-      notes: [formIn.notes, formIn.brought_by ? `Brought by: ${formIn.brought_by}` : "", formIn.intended_for ? `For: ${formIn.intended_for}` : ""].filter(Boolean).join(" | "),
+      notes: [formIn.notes, formIn.brought_by ? `Brought by: ${formIn.brought_by}` : "", formIn.intended_for ? `For: ${formIn.intended_for}` : ""].filter(Boolean).join(" | ") || null,
       performed_by: userProfile?.id,
-      performed_by_name: userProfile?.full_name,
+      performed_by_name: userProfile?.name || userProfile?.email,
     })
+    if (movErr) {
+      setSaving(false)
+      setSaveError(`Failed to record movement: ${movErr.message}`)
+      return
+    }
 
-    // Upsert stock
-    const { data: existing } = await supabase
-      .from("marketing_stock")
-      .select("id, quantity")
-      .eq("item_id", formIn.item_id)
-      .eq("location_id", formIn.location_id)
-      .eq("variant_id", formIn.variant_id || null)
-      .maybeSingle()
+    // 2. Update or create stock record
+    const { data: existing, error: lookupErr } = await stockLookup(formIn.item_id, formIn.location_id, formIn.variant_id || null).maybeSingle()
+    if (lookupErr) {
+      setSaving(false)
+      setSaveError(`Failed to read current stock: ${lookupErr.message}`)
+      return
+    }
 
     if (existing) {
-      await supabase.from("marketing_stock").update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() }).eq("id", existing.id)
+      const { error: updErr } = await supabase.from("marketing_stock")
+        .update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() })
+        .eq("id", existing.id)
+      if (updErr) {
+        setSaving(false)
+        setSaveError(`Failed to update stock quantity: ${updErr.message}`)
+        return
+      }
     } else {
-      await supabase.from("marketing_stock").insert({ item_id: formIn.item_id, variant_id: formIn.variant_id || null, location_id: formIn.location_id, quantity: qty })
+      const { error: insErr } = await supabase.from("marketing_stock").insert({
+        item_id: formIn.item_id,
+        variant_id: formIn.variant_id || null,
+        location_id: formIn.location_id,
+        quantity: qty,
+      })
+      if (insErr) {
+        setSaving(false)
+        setSaveError(`Failed to create stock record: ${insErr.message}`)
+        return
+      }
     }
 
     setSaving(false)
     setFormIn({ item_id: "", variant_id: "", location_id: "", quantity: "", brought_by: "", intended_for: "", date: new Date().toISOString().split("T")[0], notes: "" })
+    showSuccess(`✅ Stock In recorded: +${qty} units of ${itemName}`)
     fetchAll()
   }
 
@@ -112,37 +151,53 @@ export default function MarketingStock() {
     e.preventDefault()
     if (!formOut.item_id || !formOut.quantity || !formOut.from_location_id) return
     setSaving(true)
+    setSaveError(null)
     const qty = parseInt(formOut.quantity)
+    const itemName = items.find(i => i.id === formOut.item_id)?.name || "item"
 
-    await supabase.from("marketing_stock_movements").insert({
+    // 1. Insert movement record
+    const { error: movErr } = await supabase.from("marketing_stock_movements").insert({
       item_id: formOut.item_id,
       variant_id: formOut.variant_id || null,
       location_id: formOut.from_location_id,
       from_location_id: formOut.from_location_id,
       movement_type: "stock_out",
       quantity: qty,
-      reason: formOut.purpose,
-      notes: formOut.notes,
+      reason: formOut.purpose || null,
+      notes: formOut.notes || null,
       class_id: formOut.class_id || null,
       event_id: formOut.event_id || null,
       performed_by: userProfile?.id,
-      performed_by_name: formOut.taken_by || userProfile?.full_name,
+      performed_by_name: formOut.taken_by || userProfile?.name || userProfile?.email,
     })
+    if (movErr) {
+      setSaving(false)
+      setSaveError(`Failed to record movement: ${movErr.message}`)
+      return
+    }
 
-    // Decrease stock
-    const { data: existing } = await supabase
-      .from("marketing_stock")
-      .select("id, quantity")
-      .eq("item_id", formOut.item_id)
-      .eq("location_id", formOut.from_location_id)
-      .maybeSingle()
+    // 2. Decrease stock quantity
+    const { data: existing, error: lookupErr } = await stockLookup(formOut.item_id, formOut.from_location_id, formOut.variant_id || null).maybeSingle()
+    if (lookupErr) {
+      setSaving(false)
+      setSaveError(`Failed to read current stock: ${lookupErr.message}`)
+      return
+    }
 
     if (existing) {
-      await supabase.from("marketing_stock").update({ quantity: Math.max(0, existing.quantity - qty), updated_at: new Date().toISOString() }).eq("id", existing.id)
+      const { error: updErr } = await supabase.from("marketing_stock")
+        .update({ quantity: Math.max(0, existing.quantity - qty), updated_at: new Date().toISOString() })
+        .eq("id", existing.id)
+      if (updErr) {
+        setSaving(false)
+        setSaveError(`Failed to update stock quantity: ${updErr.message}`)
+        return
+      }
     }
 
     setSaving(false)
     setFormOut({ item_id: "", variant_id: "", from_location_id: "", quantity: "", taken_by: "", purpose: "", class_id: "", event_id: "", date: new Date().toISOString().split("T")[0], notes: "" })
+    showSuccess(`✅ Stock Out recorded: -${qty} units of ${itemName}`)
     fetchAll()
   }
 
@@ -150,6 +205,20 @@ export default function MarketingStock() {
 
   return (
     <div style={{ padding: "24px", maxWidth: "900px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(16,185,129,0.95)", color: "#fff", borderRadius: "12px", padding: "12px 24px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>📊 Stock In / Out</h1>
         <p style={{ color: C.sub, fontSize: "13px" }}>Record stock receipts and disbursements</p>
@@ -171,6 +240,11 @@ export default function MarketingStock() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
           <h2 style={{ color: C.text, fontSize: "16px", fontWeight: "700", marginBottom: "20px" }}>📥 Record Stock In</h2>
+          {saveError && tab === "in" && (
+            <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "4px", color: C.error, fontSize: "13px" }}>
+              ⚠️ {saveError}
+            </div>
+          )}
           <form onSubmit={handleStockIn} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <Field label="Item *">
@@ -225,6 +299,11 @@ export default function MarketingStock() {
         <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
           style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
           <h2 style={{ color: C.text, fontSize: "16px", fontWeight: "700", marginBottom: "20px" }}>📤 Record Stock Out</h2>
+          {saveError && tab === "out" && (
+            <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "4px", color: C.error, fontSize: "13px" }}>
+              ⚠️ {saveError}
+            </div>
+          )}
           <form onSubmit={handleStockOut} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
             <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
               <Field label="Item *">
