@@ -1,5 +1,5 @@
 import { useState } from "react"
-import { NavLink } from "react-router-dom"
+import { NavLink, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "react-i18next"
@@ -34,6 +34,7 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const { t, i18n } = useTranslation()
   const { userProfile, role, isAdmin, isStandardUser, isMarketing } = useAuth()
+  const navigate = useNavigate()
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
@@ -136,6 +137,40 @@ export default function Sidebar() {
           </div>
         )}
 
+        {/* ── MODULE TOGGLE (admin with marketing_access) — never scrolls ── */}
+        {isAdmin && isMarketing && (
+          <div className="shrink-0 px-4 pt-3 pb-2 border-b border-gray-800/50">
+            <p className="text-gray-500 text-xs mb-2 uppercase tracking-wider">Switch Module</p>
+            <div className="flex gap-1.5">
+              <button
+                style={{
+                  flex: 1, padding: "7px 6px", borderRadius: "8px",
+                  background: "rgba(59,130,246,0.2)",
+                  border: "1px solid rgba(59,130,246,0.5)",
+                  color: "#60a5fa", fontSize: "11px", fontWeight: "700",
+                  cursor: "default",
+                }}
+              >
+                🖥️ IT ITAMS
+              </button>
+              <button
+                onClick={() => { setOpen(false); navigate("/marketing/dashboard") }}
+                style={{
+                  flex: 1, padding: "7px 6px", borderRadius: "8px",
+                  background: "rgba(6,182,212,0.08)",
+                  border: "1px solid rgba(6,182,212,0.25)",
+                  color: "#06b6d4", fontSize: "11px", fontWeight: "600",
+                  cursor: "pointer", transition: "all 0.15s",
+                }}
+                onMouseEnter={e => { e.currentTarget.style.background = "rgba(6,182,212,0.18)"; e.currentTarget.style.borderColor = "rgba(6,182,212,0.5)" }}
+                onMouseLeave={e => { e.currentTarget.style.background = "rgba(6,182,212,0.08)"; e.currentTarget.style.borderColor = "rgba(6,182,212,0.25)" }}
+              >
+                🎯 Marketing
+              </button>
+            </div>
+          </div>
+        )}
+
         {/* ── LANGUAGE SWITCHER — never scrolls ── */}
         <div className="shrink-0 px-4 pt-4 pb-2">
           <p className="text-gray-500 text-xs mb-2">Language</p>
@@ -175,28 +210,6 @@ export default function Sidebar() {
               <span className="text-sm font-medium">{item.label}</span>
             </NavLink>
           ))}
-
-          {/* Marketing link */}
-          {isMarketing && (
-            <>
-              <div className="pt-3 pb-1">
-                <p className="text-gray-600 text-xs px-4 font-medium uppercase tracking-wider">Marketing</p>
-              </div>
-              <NavLink
-                to="/admin/marketing"
-                onClick={() => setOpen(false)}
-                className={({ isActive }) =>
-                  `flex items-center gap-3 px-4 py-3 rounded-lg transition-all duration-200 ${
-                    isActive
-                      ? "bg-purple-600 text-white"
-                      : "text-gray-400 hover:bg-gray-800 hover:text-white"
-                  }`
-                }
-              >
-                <span className="text-sm font-medium">🎯 Marketing Items</span>
-              </NavLink>
-            </>
-          )}
 
           {/* Sign Out — last item in scrollable nav, always reachable */}
           <div className="pt-3 mt-1 border-t border-gray-800">
