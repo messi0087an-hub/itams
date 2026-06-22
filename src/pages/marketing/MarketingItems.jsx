@@ -51,6 +51,8 @@ export default function MarketingItems() {
   const [filterStatus, setFilterStatus] = useState("All")
   const [showModal, setShowModal] = useState(false)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [form, setForm] = useState({ name: "", category: "", description: "", item_code: "", unit: "pcs", cost_per_unit: "", delivery_charge: "", tax_amount: "", total_cost: "", is_free_from_vendor: false, supplier_name: "", minimum_stock_level: 0, expiry_date: "" })
   const [formVariants, setFormVariants] = useState([{ variant_name: "", color: "", size: "" }])
 
@@ -101,30 +103,66 @@ export default function MarketingItems() {
     setForm(updated)
   }
 
-  const handleSave = async () => {
-    if (!form.name) return
-    setSaving(true)
-    const { data: item, error } = await supabase.from("marketing_items").insert({
-      name: form.name, category: form.category, description: form.description, item_code: form.item_code,
-      unit: form.unit, cost_per_unit: parseFloat(form.cost_per_unit) || null,
-      delivery_charge: parseFloat(form.delivery_charge) || null, tax_amount: parseFloat(form.tax_amount) || null,
-      total_cost: parseFloat(form.total_cost) || null, is_free_from_vendor: form.is_free_from_vendor,
-      supplier_name: form.supplier_name, minimum_stock_level: parseInt(form.minimum_stock_level) || 0,
-      expiry_date: form.expiry_date || null,
-    }).select().single()
-
-    if (!error && item) {
-      const validVariants = formVariants.filter(v => v.variant_name)
-      if (validVariants.length) {
-        await supabase.from("marketing_item_variants").insert(
-          validVariants.map(v => ({ item_id: item.id, ...v }))
-        )
-      }
-    }
-    setSaving(false)
-    setShowModal(false)
+  const resetForm = () => {
     setForm({ name: "", category: "", description: "", item_code: "", unit: "pcs", cost_per_unit: "", delivery_charge: "", tax_amount: "", total_cost: "", is_free_from_vendor: false, supplier_name: "", minimum_stock_level: 0, expiry_date: "" })
     setFormVariants([{ variant_name: "", color: "", size: "" }])
+    setSaveError(null)
+  }
+
+  const handleSave = async () => {
+    if (!form.name.trim()) return
+    setSaving(true)
+    setSaveError(null)
+
+    // 1. Insert the item
+    const { data: item, error: itemError } = await supabase
+      .from("marketing_items")
+      .insert({
+        name: form.name.trim(),
+        category: form.category || null,
+        description: form.description || null,
+        item_code: form.item_code || null,
+        unit: form.unit,
+        cost_per_unit: parseFloat(form.cost_per_unit) || null,
+        delivery_charge: parseFloat(form.delivery_charge) || null,
+        tax_amount: parseFloat(form.tax_amount) || null,
+        total_cost: parseFloat(form.total_cost) || null,
+        is_free_from_vendor: form.is_free_from_vendor,
+        supplier_name: form.supplier_name || null,
+        minimum_stock_level: parseInt(form.minimum_stock_level) || 0,
+        expiry_date: form.expiry_date || null,
+      })
+      .select()
+      .single()
+
+    if (itemError) {
+      setSaving(false)
+      setSaveError(`Could not save item: ${itemError.message}`)
+      return
+    }
+
+    // 2. Save variants (skip blank ones)
+    const validVariants = formVariants.filter(v => v.variant_name.trim())
+    if (validVariants.length > 0) {
+      const { error: varErr } = await supabase
+        .from("marketing_item_variants")
+        .insert(validVariants.map(v => ({ item_id: item.id, variant_name: v.variant_name.trim(), color: v.color || null, size: v.size || null })))
+      if (varErr) console.error("Variants save error:", varErr.message)
+    }
+
+    // 3. Initialize stock at 0 for every location so the item appears in stock views
+    if (locations.length > 0) {
+      const { error: stockErr } = await supabase
+        .from("marketing_stock")
+        .insert(locations.map(loc => ({ item_id: item.id, location_id: loc.id, quantity: 0 })))
+      if (stockErr) console.error("Stock init error:", stockErr.message)
+    }
+
+    setSaving(false)
+    setShowModal(false)
+    resetForm()
+    setSuccessMsg(`✅ "${item.name}" added successfully!`)
+    setTimeout(() => setSuccessMsg(null), 4000)
     fetchAll()
   }
 
@@ -140,6 +178,20 @@ export default function MarketingItems() {
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -12 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "rgba(16,185,129,0.95)", color: "#fff", borderRadius: "12px", padding: "12px 24px", fontSize: "14px", fontWeight: "600", boxShadow: "0 8px 30px rgba(0,0,0,0.3)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
@@ -306,7 +358,7 @@ export default function MarketingItems() {
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
             style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
-            onClick={e => e.target === e.currentTarget && setShowModal(false)}
+            onClick={e => { if (e.target === e.currentTarget) { setShowModal(false); resetForm() } }}
           >
             <motion.div
               initial={{ scale: 0.95, opacity: 0 }}
@@ -316,8 +368,15 @@ export default function MarketingItems() {
             >
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
                 <h2 style={{ color: C.text, fontSize: "18px", fontWeight: "700" }}>Add New Item</h2>
-                <button onClick={() => setShowModal(false)} style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
+                <button onClick={() => { setShowModal(false); resetForm() }} style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
               </div>
+
+              {/* Error banner */}
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "16px", color: C.error, fontSize: "13px" }}>
+                  ⚠️ {saveError}
+                </div>
+              )}
 
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
                 <Field label="Item Name *">
@@ -408,7 +467,7 @@ export default function MarketingItems() {
                 </div>
 
                 <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
-                  <button onClick={() => setShowModal(false)}
+                  <button onClick={() => { setShowModal(false); resetForm() }}
                     style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: `1px solid rgba(148,163,184,0.2)`, borderRadius: "10px", padding: "11px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
                     Cancel
                   </button>
