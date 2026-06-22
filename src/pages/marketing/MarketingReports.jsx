@@ -11,113 +11,397 @@ const C = {
 }
 
 const ALL_REPORTS = [
-  { id: "monthly_stock", label: "Monthly Stock Balance", icon: "📊", adminOnly: false },
-  { id: "class_distribution", label: "Items Distributed Per Class", icon: "🎁", adminOnly: false },
-  { id: "event_distribution", label: "Items Distributed Per Event", icon: "🎪", adminOnly: false },
-  { id: "budget_actual", label: "Budget vs Actual", icon: "💰", adminOnly: true },
-  { id: "low_stock", label: "Low Stock Alert Report", icon: "⚠️", adminOnly: false },
-  { id: "supplier_history", label: "Supplier Purchase History", icon: "🏭", adminOnly: true },
-  { id: "defective", label: "Defective Items Report", icon: "🔴", adminOnly: false },
-  { id: "movement_history", label: "Full Stock Movement History", icon: "📋", adminOnly: false },
-  { id: "per_person", label: "Items Per Person / Trainer", icon: "👤", adminOnly: false },
-  { id: "monthly_spending", label: "Monthly Spending Summary", icon: "💳", adminOnly: true },
+  { id: "monthly_stock",      label: "Monthly Stock Balance",        icon: "📊", adminOnly: false },
+  { id: "class_distribution", label: "Items Distributed Per Class",  icon: "🎁", adminOnly: false },
+  { id: "event_distribution", label: "Items Distributed Per Event",  icon: "🎪", adminOnly: false },
+  { id: "budget_actual",      label: "Budget vs Actual",             icon: "💰", adminOnly: true  },
+  { id: "low_stock",          label: "Low Stock Alert Report",       icon: "⚠️", adminOnly: false },
+  { id: "supplier_history",   label: "Supplier Purchase History",    icon: "🏭", adminOnly: true  },
+  { id: "defective",          label: "Defective Items Report",       icon: "🔴", adminOnly: false },
+  { id: "movement_history",   label: "Full Stock Movement History",  icon: "📋", adminOnly: false },
+  { id: "per_person",         label: "Items Per Person / Trainer",   icon: "👤", adminOnly: false },
+  { id: "monthly_spending",   label: "Monthly Spending Summary",     icon: "💳", adminOnly: true  },
 ]
+
+const th = (h) => (
+  <th style={{ color: "#94a3b8", textAlign: "left", padding: "8px 12px", borderBottom: "1px solid rgba(6,182,212,0.2)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+    {h}
+  </th>
+)
+
+function Td({ children, align = "left", color }) {
+  return (
+    <td style={{ color: color || "#e2e8f0", padding: "9px 12px", textAlign: align, fontSize: "13px" }}>
+      {children ?? "—"}
+    </td>
+  )
+}
+
+function Table({ headers, children }) {
+  return (
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+        <thead><tr>{headers.map(h => <th key={h} style={{ color: "#94a3b8", textAlign: "left", padding: "8px 12px", borderBottom: "1px solid rgba(6,182,212,0.2)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>)}</tr></thead>
+        <tbody>{children}</tbody>
+      </table>
+    </div>
+  )
+}
+
+function TR({ children }) {
+  return <tr style={{ borderBottom: "1px solid rgba(6,182,212,0.06)" }}>{children}</tr>
+}
+
+function Empty({ text = "No data for selected period" }) {
+  return <p style={{ color: "#64748b", textAlign: "center", padding: "32px" }}>{text}</p>
+}
 
 export default function MarketingReports() {
   const { canManageMarketing, marketingRole, role } = useAuth()
   const showAdminReports = ["marketing_admin", "marketing_manager"].includes(marketingRole) || role === "admin"
+
   const [selectedReport, setSelectedReport] = useState(null)
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
   const [reportData, setReportData] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [error, setError] = useState(null)
+
+  // Reference data — fetched once, used by all reports
+  const [items, setItems] = useState([])
+  const [locations, setLocations] = useState([])
+  const [classes, setClasses] = useState([])
+  const [events, setEvents] = useState([])
+  const [refLoading, setRefLoading] = useState(true)
+
+  useEffect(() => {
+    const loadRef = async () => {
+      const [{ data: i }, { data: l }, { data: c }, { data: e }] = await Promise.all([
+        supabase.from("marketing_items").select("*"),
+        supabase.from("marketing_locations").select("*"),
+        supabase.from("marketing_classes").select("id, class_name, class_date"),
+        supabase.from("marketing_events").select("id, event_name, event_date, budget, actual_cost, status"),
+      ])
+      setItems(i || [])
+      setLocations(l || [])
+      setClasses(c || [])
+      setEvents(e || [])
+      setRefLoading(false)
+    }
+    loadRef()
+  }, [])
+
+  // Helpers
+  const itemById   = (id) => items.find(it => it.id === id)
+  const itemName   = (id) => itemById(id)?.name || "Unknown"
+  const locName    = (id) => locations.find(l => l.id === id)?.name || "Unknown"
+  const className  = (id) => classes.find(c => c.id === id)?.class_name || "Unknown"
+  const classDate  = (id) => classes.find(c => c.id === id)?.class_date || ""
+  const eventName  = (id) => events.find(e => e.id === id)?.event_name || "Unknown"
+  const eventDate  = (id) => events.find(e => e.id === id)?.event_date || ""
+  const fmtDate    = (iso) => iso ? new Date(iso).toLocaleDateString() : "—"
+  const fmtDT      = (iso) => iso ? new Date(iso).toLocaleString() : "—"
 
   const visibleReports = ALL_REPORTS.filter(r => !r.adminOnly || showAdminReports)
+
+  const from = dateFrom || "2020-01-01"
+  const to   = dateTo   || new Date().toISOString().split("T")[0]
+  const toTS = to + "T23:59:59"
 
   const generateReport = async () => {
     if (!selectedReport) return
     setLoading(true)
     setReportData(null)
-
-    const from = dateFrom || "2020-01-01"
-    const to = dateTo || new Date().toISOString().split("T")[0]
+    setError(null)
 
     try {
-      let data = []
+      let rows = []
+
       switch (selectedReport) {
+
+        // ── 1. Monthly Stock Balance ──────────────────────────────────
         case "monthly_stock": {
-          const { data: stock } = await supabase
-            .from("marketing_stock")
-            .select("*, marketing_items(name, unit, minimum_stock_level), marketing_locations(name)")
-          data = stock || []
+          const { data, error: e } = await supabase.from("marketing_stock").select("*")
+          if (e) throw e
+          rows = (data || []).map(s => ({
+            item:     itemName(s.item_id),
+            location: locName(s.location_id),
+            quantity: s.quantity,
+            min_level: itemById(s.item_id)?.minimum_stock_level ?? 0,
+            unit:     itemById(s.item_id)?.unit || "pcs",
+            status:   s.quantity <= 0
+              ? "🔴 Out of Stock"
+              : s.quantity <= (itemById(s.item_id)?.minimum_stock_level || 0)
+              ? "🟡 Low Stock"
+              : "🟢 OK",
+          })).sort((a, b) => a.item.localeCompare(b.item))
           break
         }
+
+        // ── 2. Items Distributed Per Class ───────────────────────────
         case "class_distribution": {
-          const { data: gifts } = await supabase
+          const { data, error: e } = await supabase
             .from("marketing_class_gifts")
-            .select("*, marketing_classes(class_name, class_date), marketing_items(name)")
-            .gte("created_at", from).lte("created_at", to + "T23:59:59")
-          data = gifts || []
+            .select("*")
+            .gte("created_at", from)
+            .lte("created_at", toTS)
+          if (e) throw e
+          rows = (data || []).map(g => ({
+            class:      className(g.class_id),
+            class_date: classDate(g.class_id),
+            item:       itemName(g.item_id),
+            quantity:   g.quantity,
+            status:     g.is_distributed ? "✅ Distributed" : g.is_packed ? "📦 Packed" : "⏳ Pending",
+          })).sort((a, b) => a.class_date.localeCompare(b.class_date))
           break
         }
+
+        // ── 3. Items Distributed Per Event ───────────────────────────
         case "event_distribution": {
-          const { data: cols } = await supabase
+          const { data, error: e } = await supabase
             .from("marketing_event_collaterals")
-            .select("*, marketing_events(event_name, event_date), marketing_items(name)")
-            .gte("created_at", from).lte("created_at", to + "T23:59:59")
-          data = cols || []
+            .select("*")
+            .gte("created_at", from)
+            .lte("created_at", toTS)
+          if (e) throw e
+          rows = (data || []).map(c => ({
+            event:      eventName(c.event_id),
+            event_date: eventDate(c.event_id),
+            item:       itemName(c.item_id),
+            qty_needed: c.quantity_needed,
+            signed_out: c.signed_out_at ? fmtDate(c.signed_out_at) : "—",
+            returned:   c.signed_in_at  ? fmtDate(c.signed_in_at)  : "—",
+            damaged:    c.quantity_damaged || 0,
+            signed_out_by: c.signed_out_name || "—",
+          })).sort((a, b) => a.event_date.localeCompare(b.event_date))
           break
         }
+
+        // ── 4. Budget vs Actual ──────────────────────────────────────
         case "budget_actual": {
-          const { data: events } = await supabase
+          const { data, error: e } = await supabase
             .from("marketing_events")
-            .select("event_name, event_date, budget, actual_cost, status")
-            .gte("event_date", from).lte("event_date", to)
-          data = events || []
+            .select("*")
+            .gte("event_date", from)
+            .lte("event_date", to)
+            .order("event_date", { ascending: false })
+          if (e) throw e
+          rows = (data || []).map(ev => ({
+            event:      ev.event_name,
+            date:       ev.event_date,
+            status:     ev.status,
+            budget:     ev.budget != null ? `$${Number(ev.budget).toFixed(2)}` : "—",
+            actual:     ev.actual_cost != null ? `$${Number(ev.actual_cost).toFixed(2)}` : "—",
+            variance:   ev.budget != null && ev.actual_cost != null
+              ? `$${(ev.actual_cost - ev.budget).toFixed(2)}`
+              : "—",
+            over_budget: ev.budget != null && ev.actual_cost != null && ev.actual_cost > ev.budget ? "⚠️ Yes" : "OK",
+          }))
           break
         }
+
+        // ── 5. Low Stock Alert ───────────────────────────────────────
         case "low_stock": {
-          const { data: stock } = await supabase
-            .from("marketing_stock")
-            .select("*, marketing_items(name, unit, minimum_stock_level)")
-          data = (stock || []).filter(s => s.quantity <= (s.marketing_items?.minimum_stock_level || 0))
+          const { data: stockData, error: e } = await supabase.from("marketing_stock").select("*")
+          if (e) throw e
+
+          // Sum stock per item across all locations
+          const totals = {}
+          ;(stockData || []).forEach(s => {
+            totals[s.item_id] = (totals[s.item_id] || 0) + s.quantity
+          })
+
+          rows = items
+            .filter(it => {
+              const min = it.minimum_stock_level || 0
+              const qty = totals[it.id] ?? 0
+              return qty <= min  // include zero-stock items even without min set
+            })
+            .map(it => {
+              const qty = totals[it.id] ?? 0
+              const min = it.minimum_stock_level || 0
+              return {
+                item:      it.name,
+                unit:      it.unit || "pcs",
+                total_qty: qty,
+                min_level: min,
+                shortage:  Math.max(0, min - qty),
+                status:    qty <= 0 ? "🔴 Out of Stock" : "🟡 Low Stock",
+              }
+            })
+            .sort((a, b) => a.total_qty - b.total_qty)
           break
         }
-        case "movement_history": {
-          const { data: movements } = await supabase
+
+        // ── 6. Supplier Purchase History ─────────────────────────────
+        case "supplier_history": {
+          const { data, error: e } = await supabase
             .from("marketing_stock_movements")
-            .select("*, marketing_items(name)")
-            .gte("created_at", from).lte("created_at", to + "T23:59:59")
+            .select("*")
+            .eq("movement_type", "stock_in")
+            .gte("created_at", from)
+            .lte("created_at", toTS)
             .order("created_at", { ascending: false })
-          data = movements || []
+          if (e) throw e
+          rows = (data || []).map(m => {
+            const it = itemById(m.item_id)
+            return {
+              date:         fmtDate(m.created_at),
+              item:         itemName(m.item_id),
+              supplier:     it?.supplier_name || "—",
+              quantity:     m.quantity,
+              unit:         it?.unit || "pcs",
+              cost_per_unit: it?.cost_per_unit != null ? `$${it.cost_per_unit}` : "—",
+              total_cost:   it?.cost_per_unit != null ? `$${(it.cost_per_unit * m.quantity).toFixed(2)}` : "—",
+              received_by:  m.performed_by_name || "—",
+              notes:        m.notes || "—",
+            }
+          })
           break
         }
-        case "per_person": {
-          const { data: movements } = await supabase
+
+        // ── 7. Defective Items ───────────────────────────────────────
+        case "defective": {
+          const [{ data: colData, error: e1 }, { data: movData, error: e2 }] = await Promise.all([
+            supabase.from("marketing_event_collaterals").select("*").gt("quantity_damaged", 0),
+            supabase.from("marketing_stock_movements").select("*").eq("movement_type", "defective")
+              .gte("created_at", from).lte("created_at", toTS),
+          ])
+          if (e1) throw e1
+          if (e2) throw e2
+
+          const fromCollaterals = (colData || []).map(c => ({
+            date:     fmtDate(c.signed_in_at || c.created_at),
+            source:   `Event: ${eventName(c.event_id)}`,
+            item:     itemName(c.item_id),
+            qty_damaged: c.quantity_damaged,
+            reported_by: c.signed_in_name || "—",
+            notes:    "Damaged on return",
+          }))
+          const fromMovements = (movData || []).map(m => ({
+            date:     fmtDate(m.created_at),
+            source:   "Stock Movement",
+            item:     itemName(m.item_id),
+            qty_damaged: m.quantity,
+            reported_by: m.performed_by_name || "—",
+            notes:    m.notes || "—",
+          }))
+          rows = [...fromCollaterals, ...fromMovements]
+            .sort((a, b) => new Date(b.date) - new Date(a.date))
+          break
+        }
+
+        // ── 8. Full Stock Movement History ───────────────────────────
+        case "movement_history": {
+          const { data, error: e } = await supabase
             .from("marketing_stock_movements")
-            .select("performed_by_name, marketing_items(name), quantity, movement_type, created_at")
-            .eq("movement_type", "stock_out")
-            .gte("created_at", from).lte("created_at", to + "T23:59:59")
-          data = movements || []
+            .select("*")
+            .gte("created_at", from)
+            .lte("created_at", toTS)
+            .order("created_at", { ascending: false })
+            .limit(500)
+          if (e) throw e
+          rows = (data || []).map(m => ({
+            date:      fmtDT(m.created_at),
+            type:      m.movement_type === "stock_in" ? "📥 Stock In" : m.movement_type === "stock_out" ? "📤 Stock Out" : m.movement_type,
+            item:      itemName(m.item_id),
+            location:  locName(m.location_id),
+            quantity:  m.quantity,
+            performed_by: m.performed_by_name || "—",
+            reason:    m.reason || "—",
+            notes:     m.notes || "—",
+          }))
           break
         }
+
+        // ── 9. Items Per Person / Trainer ────────────────────────────
+        case "per_person": {
+          const { data, error: e } = await supabase
+            .from("marketing_stock_movements")
+            .select("*")
+            .eq("movement_type", "stock_out")
+            .gte("created_at", from)
+            .lte("created_at", toTS)
+          if (e) throw e
+
+          // Group by person
+          const grouped = {}
+          ;(data || []).forEach(m => {
+            const person = m.performed_by_name || "Unknown"
+            if (!grouped[person]) grouped[person] = {}
+            const key = m.item_id
+            grouped[person][key] = (grouped[person][key] || 0) + m.quantity
+          })
+
+          rows = []
+          Object.entries(grouped).forEach(([person, itemMap]) => {
+            Object.entries(itemMap).forEach(([itemId, qty]) => {
+              rows.push({ person, item: itemName(itemId), total_qty: qty, unit: itemById(itemId)?.unit || "pcs" })
+            })
+          })
+          rows.sort((a, b) => a.person.localeCompare(b.person))
+          break
+        }
+
+        // ── 10. Monthly Spending Summary ─────────────────────────────
+        case "monthly_spending": {
+          const [{ data: movData, error: e1 }, { data: evData, error: e2 }] = await Promise.all([
+            supabase.from("marketing_stock_movements").select("*").eq("movement_type", "stock_in")
+              .gte("created_at", from).lte("created_at", toTS),
+            supabase.from("marketing_events").select("*")
+              .gte("event_date", from).lte("event_date", to),
+          ])
+          if (e1) throw e1
+          if (e2) throw e2
+
+          const monthly = {}
+          const addMonth = (dateStr, purchaseCost, eventCost) => {
+            const month = dateStr?.slice(0, 7) || "Unknown"
+            if (!monthly[month]) monthly[month] = { month, purchase_cost: 0, event_cost: 0, total: 0 }
+            monthly[month].purchase_cost += purchaseCost
+            monthly[month].event_cost    += eventCost
+            monthly[month].total         += purchaseCost + eventCost
+          }
+
+          ;(movData || []).forEach(m => {
+            const it = itemById(m.item_id)
+            const cost = it?.cost_per_unit ? it.cost_per_unit * m.quantity : 0
+            addMonth(m.created_at?.slice(0, 10), cost, 0)
+          })
+          ;(evData || []).forEach(ev => {
+            addMonth(ev.event_date, 0, ev.actual_cost || 0)
+          })
+
+          rows = Object.values(monthly)
+            .sort((a, b) => b.month.localeCompare(a.month))
+            .map(r => ({
+              month:          r.month,
+              purchase_cost:  `$${r.purchase_cost.toFixed(2)}`,
+              event_cost:     `$${r.event_cost.toFixed(2)}`,
+              total_spending: `$${r.total.toFixed(2)}`,
+            }))
+          break
+        }
+
         default:
-          data = []
+          rows = []
       }
-      setReportData({ type: selectedReport, rows: data, generatedAt: new Date().toLocaleString() })
+
+      setReportData({ type: selectedReport, rows, generatedAt: new Date().toLocaleString() })
     } catch (err) {
-      console.error(err)
+      console.error("[Reports] error:", err)
+      setError(err.message || "Failed to generate report")
     }
+
     setLoading(false)
   }
 
   const exportCSV = () => {
     if (!reportData?.rows?.length) return
-    const rows = reportData.rows
-    const headers = Object.keys(rows[0]).filter(k => typeof rows[0][k] !== "object")
+    const headers = Object.keys(reportData.rows[0])
     const csv = [
       headers.join(","),
-      ...rows.map(r => headers.map(h => `"${r[h] ?? ""}"`).join(","))
+      ...reportData.rows.map(r => headers.map(h => `"${r[h] ?? ""}"`).join(","))
     ].join("\n")
     const blob = new Blob([csv], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
@@ -127,6 +411,8 @@ export default function MarketingReports() {
     a.click()
   }
 
+  const reportMeta = visibleReports.find(r => r.id === selectedReport)
+
   return (
     <div style={{ padding: "24px" }}>
       <div style={{ marginBottom: "24px" }}>
@@ -135,11 +421,12 @@ export default function MarketingReports() {
       </div>
 
       <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "20px", alignItems: "start" }}>
-        {/* Report selector */}
+
+        {/* ── Report selector ── */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "16px" }}>
           <p style={{ color: C.sub, fontSize: "11px", marginBottom: "12px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Select Report</p>
           {visibleReports.map(r => (
-            <button key={r.id} onClick={() => { setSelectedReport(r.id); setReportData(null) }}
+            <button key={r.id} onClick={() => { setSelectedReport(r.id); setReportData(null); setError(null) }}
               style={{
                 display: "flex", alignItems: "center", gap: "8px", width: "100%",
                 padding: "9px 12px", borderRadius: "9px", marginBottom: "4px",
@@ -150,22 +437,22 @@ export default function MarketingReports() {
                 textAlign: "left",
               }}>
               <span>{r.icon}</span>
-              <span>{r.label}</span>
-              {r.adminOnly && <span style={{ marginLeft: "auto", background: "rgba(167,139,250,0.15)", color: "#a78bfa", borderRadius: "4px", padding: "1px 5px", fontSize: "9px" }}>Admin</span>}
+              <span style={{ flex: 1 }}>{r.label}</span>
+              {r.adminOnly && <span style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa", borderRadius: "4px", padding: "1px 5px", fontSize: "9px" }}>Admin</span>}
             </button>
           ))}
         </div>
 
-        {/* Report config + output */}
+        {/* ── Report area ── */}
         <div>
           {selectedReport ? (
             <div>
+              {/* Config panel */}
               <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "20px", marginBottom: "16px" }}>
                 <p style={{ color: C.text, fontWeight: "600", fontSize: "15px", marginBottom: "16px" }}>
-                  {visibleReports.find(r => r.id === selectedReport)?.icon}{" "}
-                  {visibleReports.find(r => r.id === selectedReport)?.label}
+                  {reportMeta?.icon} {reportMeta?.label}
                 </p>
-                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "16px" }}>
+                <div style={{ display: "flex", gap: "10px", flexWrap: "wrap", marginBottom: "16px", alignItems: "flex-end" }}>
                   <div>
                     <p style={{ color: C.sub, fontSize: "11px", marginBottom: "4px" }}>From Date</p>
                     <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
@@ -176,32 +463,42 @@ export default function MarketingReports() {
                     <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
                       style={{ background: "rgba(6,182,212,0.06)", color: C.text, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "8px 12px", fontSize: "13px", outline: "none" }} />
                   </div>
+                  {!dateFrom && !dateTo && (
+                    <p style={{ color: C.sub, fontSize: "11px", alignSelf: "center" }}>No date selected → shows all data</p>
+                  )}
                 </div>
+
+                {error && (
+                  <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px", marginBottom: "12px" }}>
+                    ⚠️ {error}
+                  </div>
+                )}
+
                 <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={generateReport} disabled={loading}
-                    style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 20px", fontWeight: "600", fontSize: "13px", cursor: loading ? "not-allowed" : "pointer", opacity: loading ? 0.6 : 1 }}>
-                    {loading ? "Generating..." : "Generate Report"}
+                  <button onClick={generateReport} disabled={loading || refLoading}
+                    style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 20px", fontWeight: "600", fontSize: "13px", cursor: (loading || refLoading) ? "not-allowed" : "pointer", opacity: (loading || refLoading) ? 0.6 : 1 }}>
+                    {refLoading ? "Loading data..." : loading ? "Generating..." : "Generate Report"}
                   </button>
-                  {reportData && (
+                  {reportData?.rows?.length > 0 && (
                     <button onClick={exportCSV}
                       style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "10px 20px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
-                      Export CSV
+                      ⬇️ Export CSV
                     </button>
                   )}
                 </div>
               </div>
 
-              {/* Report output */}
+              {/* Output */}
               {reportData && (
                 <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
                   style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "20px" }}>
-                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "16px" }}>
-                    <p style={{ color: C.text, fontWeight: "600", fontSize: "14px" }}>{reportData.rows.length} records</p>
+                  <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "16px" }}>
+                    <p style={{ color: C.text, fontWeight: "600", fontSize: "14px" }}>
+                      {reportData.rows.length} record{reportData.rows.length !== 1 ? "s" : ""}
+                    </p>
                     <p style={{ color: C.sub, fontSize: "11px" }}>Generated: {reportData.generatedAt}</p>
                   </div>
-                  <div style={{ overflowX: "auto" }}>
-                    <ReportTable type={reportData.type} rows={reportData.rows} />
-                  </div>
+                  <ReportTable type={reportData.type} rows={reportData.rows} />
                 </motion.div>
               )}
             </div>
@@ -217,103 +514,85 @@ export default function MarketingReports() {
   )
 }
 
+// All rows are pre-resolved flat objects — just render them
 function ReportTable({ type, rows }) {
-  const C = { text: "#fff", sub: "#94a3b8", border: "rgba(6,182,212,0.18)", accent: "#06b6d4" }
-  if (!rows.length) return <p style={{ color: "#64748b", textAlign: "center", padding: "20px" }}>No data for selected period</p>
+  if (!rows.length) return <NoData />
 
-  const renderRow = (row, i) => {
-    if (type === "monthly_stock") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{row.marketing_items?.name}</Td>
-        <Td>{row.marketing_locations?.name}</Td>
-        <Td align="right">{row.quantity}</Td>
-        <Td align="right">{row.marketing_items?.minimum_stock_level}</Td>
-        <Td>{row.marketing_items?.unit}</Td>
-      </tr>
-    )
-    if (type === "class_distribution") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{row.marketing_classes?.class_name}</Td>
-        <Td>{row.marketing_classes?.class_date}</Td>
-        <Td>{row.marketing_items?.name}</Td>
-        <Td align="right">{row.quantity}</Td>
-        <Td>{row.is_distributed ? "✅" : row.is_packed ? "📦" : "—"}</Td>
-      </tr>
-    )
-    if (type === "movement_history") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{new Date(row.created_at).toLocaleDateString()}</Td>
-        <Td>{row.marketing_items?.name}</Td>
-        <Td>{row.movement_type === "stock_in" ? "📥 In" : "📤 Out"}</Td>
-        <Td align="right">{row.quantity}</Td>
-        <Td>{row.performed_by_name}</Td>
-        <Td>{row.reason}</Td>
-      </tr>
-    )
-    if (type === "low_stock") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{row.marketing_items?.name}</Td>
-        <Td align="right" style={{ color: "#ef4444" }}>{row.quantity}</Td>
-        <Td align="right">{row.marketing_items?.minimum_stock_level}</Td>
-        <Td align="right" style={{ color: "#ef4444" }}>{(row.marketing_items?.minimum_stock_level || 0) - row.quantity}</Td>
-      </tr>
-    )
-    if (type === "budget_actual") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{row.event_name}</Td>
-        <Td>{row.event_date}</Td>
-        <Td align="right">${row.budget || "—"}</Td>
-        <Td align="right" style={{ color: row.actual_cost > row.budget ? "#ef4444" : "#10b981" }}>${row.actual_cost || "—"}</Td>
-        <Td>{row.status}</Td>
-      </tr>
-    )
-    if (type === "per_person") return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        <Td>{row.performed_by_name}</Td>
-        <Td>{row.marketing_items?.name}</Td>
-        <Td align="right">{row.quantity}</Td>
-        <Td>{new Date(row.created_at).toLocaleDateString()}</Td>
-      </tr>
-    )
-    // Generic fallback
-    return (
-      <tr key={i} style={{ borderBottom: `1px solid ${C.border}` }}>
-        {Object.entries(row).filter(([k, v]) => typeof v !== "object").map(([k, v]) => (
-          <Td key={k}>{String(v ?? "")}</Td>
-        ))}
-      </tr>
-    )
+  const COLS = {
+    monthly_stock:      ["item", "location", "quantity", "min_level", "unit", "status"],
+    class_distribution: ["class", "class_date", "item", "quantity", "status"],
+    event_distribution: ["event", "event_date", "item", "qty_needed", "signed_out", "returned", "damaged", "signed_out_by"],
+    budget_actual:      ["event", "date", "status", "budget", "actual", "variance", "over_budget"],
+    low_stock:          ["item", "unit", "total_qty", "min_level", "shortage", "status"],
+    supplier_history:   ["date", "item", "supplier", "quantity", "unit", "cost_per_unit", "total_cost", "received_by", "notes"],
+    defective:          ["date", "source", "item", "qty_damaged", "reported_by", "notes"],
+    movement_history:   ["date", "type", "item", "location", "quantity", "performed_by", "reason", "notes"],
+    per_person:         ["person", "item", "total_qty", "unit"],
+    monthly_spending:   ["month", "purchase_cost", "event_cost", "total_spending"],
   }
 
-  const headers = {
-    monthly_stock: ["Item", "Location", "Qty", "Min Level", "Unit"],
+  const LABELS = {
+    monthly_stock:      ["Item", "Location", "Qty", "Min Level", "Unit", "Status"],
     class_distribution: ["Class", "Date", "Item", "Qty", "Status"],
-    movement_history: ["Date", "Item", "Type", "Qty", "By", "Reason"],
-    low_stock: ["Item", "Current Qty", "Min Level", "Shortage"],
-    budget_actual: ["Event", "Date", "Budget", "Actual", "Status"],
-    per_person: ["Person", "Item", "Qty", "Date"],
-  }[type] || Object.keys(rows[0]).filter(k => typeof rows[0][k] !== "object")
+    event_distribution: ["Event", "Date", "Item", "Qty Needed", "Signed Out", "Returned", "Damaged", "By"],
+    budget_actual:      ["Event", "Date", "Status", "Budget", "Actual", "Variance", "Over Budget?"],
+    low_stock:          ["Item", "Unit", "Total Qty", "Min Level", "Shortage", "Status"],
+    supplier_history:   ["Date", "Item", "Supplier", "Qty", "Unit", "Cost/Unit", "Total Cost", "Received By", "Notes"],
+    defective:          ["Date", "Source", "Item", "Qty Damaged", "Reported By", "Notes"],
+    movement_history:   ["Date", "Type", "Item", "Location", "Qty", "Performed By", "Reason", "Notes"],
+    per_person:         ["Person", "Item", "Total Qty", "Unit"],
+    monthly_spending:   ["Month", "Purchase Cost", "Event Cost", "Total Spending"],
+  }
+
+  const cols   = COLS[type]   || Object.keys(rows[0])
+  const labels = LABELS[type] || cols
+
+  // Color hints for specific columns
+  const colorFor = (type, col, val) => {
+    if (col === "status" && typeof val === "string") {
+      if (val.includes("🔴") || val.includes("Out"))  return C.error
+      if (val.includes("🟡") || val.includes("Low"))  return C.warning
+      if (val.includes("🟢") || val.includes("OK"))   return C.success
+      if (val === "approved") return C.success
+      if (val === "rejected") return C.error
+    }
+    if (col === "shortage" && Number(val) > 0) return C.error
+    if (col === "over_budget" && val === "⚠️ Yes") return C.warning
+    if (col === "type") {
+      if (String(val).includes("In"))  return C.success
+      if (String(val).includes("Out")) return C.error
+    }
+    return undefined
+  }
 
   return (
-    <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
-      <thead>
-        <tr>
-          {headers.map(h => (
-            <th key={h} style={{ color: "#94a3b8", textAlign: "left", padding: "8px 12px", borderBottom: `1px solid rgba(6,182,212,0.2)`, fontSize: "11px", fontWeight: "600", textTransform: "uppercase", whiteSpace: "nowrap" }}>{h}</th>
+    <div style={{ overflowX: "auto" }}>
+      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px" }}>
+        <thead>
+          <tr>
+            {labels.map(l => (
+              <th key={l} style={{ color: "#94a3b8", textAlign: "left", padding: "8px 12px", borderBottom: "1px solid rgba(6,182,212,0.2)", fontSize: "11px", fontWeight: "600", textTransform: "uppercase", whiteSpace: "nowrap" }}>
+                {l}
+              </th>
+            ))}
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row, i) => (
+            <tr key={i} style={{ borderBottom: "1px solid rgba(6,182,212,0.06)" }}>
+              {cols.map(col => (
+                <td key={col} style={{ color: colorFor(type, col, row[col]) || "#e2e8f0", padding: "9px 12px", fontSize: "13px" }}>
+                  {row[col] ?? "—"}
+                </td>
+              ))}
+            </tr>
           ))}
-        </tr>
-      </thead>
-      <tbody>
-        {rows.map((row, i) => renderRow(row, i))}
-      </tbody>
-    </table>
+        </tbody>
+      </table>
+    </div>
   )
 }
 
-function Td({ children, align = "left", style = {} }) {
-  return (
-    <td style={{ color: "#e2e8f0", padding: "9px 12px", textAlign: align, ...style }}>
-      {children}
-    </td>
-  )
+function NoData() {
+  return <p style={{ color: "#64748b", textAlign: "center", padding: "32px" }}>No data for selected period</p>
 }
