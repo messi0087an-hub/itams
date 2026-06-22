@@ -846,7 +846,9 @@ function MarketingLayout({ user }) {
         />
         <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
           <MarketingSidebar />
-          <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
+          <main className="flex-1 overflow-auto md:ml-64">
+            {/* Spacer for the 56px fixed top bar on mobile */}
+            <div className="h-14 md:hidden" />
             <Suspense fallback={<PageLoader />}>
               {/* Paths here are RELATIVE to the parent /marketing/* match */}
               <Routes>

@@ -128,7 +128,7 @@ export default function MarketingReports() {
   }
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div className="pt-20 md:pt-6" style={{ paddingLeft: "24px", paddingRight: "24px", paddingBottom: "24px" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>📋 Reports</h1>
         <p style={{ color: C.sub, fontSize: "13px" }}>Generate and export marketing reports</p>

@@ -139,7 +139,7 @@ export default function MarketingItems() {
   })
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div className="pt-20 md:pt-6" style={{ paddingLeft: "24px", paddingRight: "24px", paddingBottom: "24px" }}>
       {/* Header */}
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
