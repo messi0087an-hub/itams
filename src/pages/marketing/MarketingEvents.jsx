@@ -44,6 +44,12 @@ function StatusBadge({ status }) {
   )
 }
 
+const emptyForm = {
+  event_name: "", event_date: "", end_date: "", description: "", partner_category: "",
+  partners: "", project_lead: "", account_manager: "", event_modality: "", target_group: "",
+  sub_category: "", external_funding: false, trainer: "", budget: "", status: "upcoming", notes: "",
+}
+
 export default function MarketingEvents() {
   const { userProfile, canManageMarketing, role, marketingRole } = useAuth()
   const showBudget = ["marketing_admin", "marketing_manager"].includes(marketingRole) || role === "admin"
@@ -54,13 +60,16 @@ export default function MarketingEvents() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showCollateralModal, setShowCollateralModal] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [collaterals, setCollaterals] = useState([{ item_id: "", variant_id: "", quantity_needed: 1 }])
 
-  const [form, setForm] = useState({
-    event_name: "", event_date: "", end_date: "", description: "", partner_category: "",
-    partners: "", project_lead: "", account_manager: "", event_modality: "", target_group: "",
-    sub_category: "", external_funding: false, trainer: "", budget: "", status: "upcoming", notes: "",
-  })
+  const [form, setForm] = useState(emptyForm)
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -80,36 +89,56 @@ export default function MarketingEvents() {
   const handleSaveEvent = async () => {
     if (!form.event_name || !form.event_date) return
     setSaving(true)
-    await supabase.from("marketing_events").insert({
-      ...form,
-      budget: parseFloat(form.budget) || null,
-      external_funding: form.external_funding,
-    })
+    setSaveError(null)
+    const { data: ev, error } = await supabase
+      .from("marketing_events")
+      .insert({
+        ...form,
+        budget: parseFloat(form.budget) || null,
+        external_funding: form.external_funding,
+      })
+      .select()
+      .single()
+    if (error) {
+      setSaving(false)
+      setSaveError(`Could not save event: ${error.message}`)
+      return
+    }
     setSaving(false)
     setShowAddModal(false)
-    setForm({ event_name: "", event_date: "", end_date: "", description: "", partner_category: "", partners: "", project_lead: "", account_manager: "", event_modality: "", target_group: "", sub_category: "", external_funding: false, trainer: "", budget: "", status: "upcoming", notes: "" })
+    setSaveError(null)
+    setForm(emptyForm)
+    showSuccess(`✅ "${ev.event_name}" added successfully!`)
     fetchAll()
   }
 
   const handleAssignCollateral = async () => {
     if (!showCollateralModal) return
     setSaving(true)
+    setSaveError(null)
     const valid = collaterals.filter(c => c.item_id && c.quantity_needed > 0)
     if (valid.length) {
-      await supabase.from("marketing_event_collaterals").insert(
+      const { error } = await supabase.from("marketing_event_collaterals").insert(
         valid.map(c => ({ event_id: showCollateralModal.id, item_id: c.item_id, variant_id: c.variant_id || null, quantity_needed: parseInt(c.quantity_needed) }))
       )
+      if (error) {
+        setSaving(false)
+        setSaveError(`Could not assign collaterals: ${error.message}`)
+        return
+      }
     }
     setSaving(false)
     setShowCollateralModal(null)
+    setSaveError(null)
     setCollaterals([{ item_id: "", variant_id: "", quantity_needed: 1 }])
+    showSuccess("✅ Collaterals assigned successfully!")
     fetchAll()
   }
 
   const handleSignOut = async (collateralId) => {
     await supabase.from("marketing_event_collaterals").update({
       signed_out_by: userProfile.id,
-      signed_out_name: userProfile.full_name,
+      signed_out_name: userProfile?.name || userProfile?.email,
       signed_out_at: new Date().toISOString(),
     }).eq("id", collateralId)
     fetchAll()
@@ -118,7 +147,7 @@ export default function MarketingEvents() {
   const handleSignIn = async (collateralId, damaged = 0) => {
     await supabase.from("marketing_event_collaterals").update({
       signed_in_by: userProfile.id,
-      signed_in_name: userProfile.full_name,
+      signed_in_name: userProfile?.name || userProfile?.email,
       signed_in_at: new Date().toISOString(),
       quantity_damaged: damaged,
     }).eq("id", collateralId)
@@ -127,13 +156,25 @@ export default function MarketingEvents() {
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#10b981", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 20px rgba(16,185,129,0.4)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>🎪 Events</h1>
           <p style={{ color: C.sub, fontSize: "13px" }}>{events.length} events total</p>
         </div>
         {canManageMarketing && (
-          <button onClick={() => setShowAddModal(true)} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+          <button onClick={() => { setShowAddModal(true); setSaveError(null) }} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
             + Add Event
           </button>
         )}
@@ -141,6 +182,7 @@ export default function MarketingEvents() {
 
       {loading ? <p style={{ color: C.sub }}>Loading...</p> : (
         <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+          {events.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>No events yet. Add an event to get started.</p>}
           {events.map(ev => (
             <motion.div
               key={ev.id}
@@ -159,7 +201,7 @@ export default function MarketingEvents() {
                 </div>
                 <div style={{ display: "flex", gap: "6px" }}>
                   {canManageMarketing && (
-                    <button onClick={() => { setShowCollateralModal(ev); setCollaterals([{ item_id: "", variant_id: "", quantity_needed: 1 }]) }}
+                    <button onClick={() => { setShowCollateralModal(ev); setCollaterals([{ item_id: "", variant_id: "", quantity_needed: 1 }]); setSaveError(null) }}
                       style={{ background: "rgba(6,182,212,0.12)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>
                       📦 Collaterals
                     </button>
@@ -184,7 +226,6 @@ export default function MarketingEvents() {
                 </div>
               )}
 
-              {/* Collaterals */}
               {ev.marketing_event_collaterals?.length > 0 && (
                 <div>
                   <p style={{ color: C.sub, fontSize: "11px", marginBottom: "6px" }}>Collaterals:</p>
@@ -214,8 +255,13 @@ export default function MarketingEvents() {
       {/* Add Event Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <Modal title="Add New Event" onClose={() => setShowAddModal(false)}>
+          <Modal title="Add New Event" onClose={() => { setShowAddModal(false); setSaveError(null) }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
               <Field label="Event Name *"><input value={form.event_name} onChange={e => setForm({ ...form, event_name: e.target.value })} style={inputStyle} /></Field>
               <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
                 <Field label="Event Date *"><input type="date" value={form.event_date} onChange={e => setForm({ ...form, event_date: e.target.value })} style={inputStyle} /></Field>
@@ -265,7 +311,7 @@ export default function MarketingEvents() {
                 <label htmlFor="ext_fund" style={{ color: C.sub, fontSize: "13px", cursor: "pointer" }}>External funding</label>
               </div>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => setShowAddModal(false)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setShowAddModal(false); setSaveError(null); setForm(emptyForm) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleSaveEvent} disabled={saving || !form.event_name || !form.event_date} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Save Event"}</button>
               </div>
             </div>
@@ -276,8 +322,13 @@ export default function MarketingEvents() {
       {/* Collateral Modal */}
       <AnimatePresence>
         {showCollateralModal && (
-          <Modal title={`Collaterals — ${showCollateralModal.event_name}`} onClose={() => setShowCollateralModal(null)}>
+          <Modal title={`Collaterals — ${showCollateralModal.event_name}`} onClose={() => { setShowCollateralModal(null); setSaveError(null) }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
               {collaterals.map((c, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 70px 30px", gap: "6px", alignItems: "end" }}>
                   <Field label={i === 0 ? "Item" : ""}>
@@ -303,7 +354,7 @@ export default function MarketingEvents() {
                 + Add Item
               </button>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => setShowCollateralModal(null)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setShowCollateralModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleAssignCollateral} disabled={saving} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>{saving ? "Saving..." : "Assign Collaterals"}</button>
               </div>
             </div>

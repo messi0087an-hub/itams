@@ -36,6 +36,8 @@ function PackingBadge({ gifts }) {
   return <span style={{ background: "rgba(239,68,68,0.12)", color: C.error, border: "1px solid rgba(239,68,68,0.25)", borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "600" }}>🔴 Not Packed</span>
 }
 
+const emptyForm = { class_name: "", class_type: "", class_date: "", end_date: "", pax_count: 0, pax_confirmed: 0, account_manager: "", person_in_charge: "", classroom: "", trainer_name: "", notes: "" }
+
 export default function MarketingClasses() {
   const { userProfile, canManageMarketing } = useAuth()
   const [classes, setClasses] = useState([])
@@ -46,13 +48,17 @@ export default function MarketingClasses() {
   const [showAddModal, setShowAddModal] = useState(false)
   const [showGiftModal, setShowGiftModal] = useState(null)
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [activeClass, setActiveClass] = useState(null)
   const [giftList, setGiftList] = useState([{ item_id: "", variant_id: "", quantity: 1 }])
 
-  const [form, setForm] = useState({
-    class_name: "", class_type: "", class_date: "", end_date: "", pax_count: 0, pax_confirmed: 0,
-    account_manager: "", person_in_charge: "", classroom: "", trainer_name: "", notes: "",
-  })
+  const [form, setForm] = useState(emptyForm)
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -85,25 +91,45 @@ export default function MarketingClasses() {
   const handleSaveClass = async () => {
     if (!form.class_name || !form.class_date) return
     setSaving(true)
-    await supabase.from("marketing_classes").insert({ ...form, pax_count: parseInt(form.pax_count) || 0, pax_confirmed: parseInt(form.pax_confirmed) || 0 })
+    setSaveError(null)
+    const { data: cls, error } = await supabase
+      .from("marketing_classes")
+      .insert({ ...form, pax_count: parseInt(form.pax_count) || 0, pax_confirmed: parseInt(form.pax_confirmed) || 0 })
+      .select()
+      .single()
+    if (error) {
+      setSaving(false)
+      setSaveError(`Could not save class: ${error.message}`)
+      return
+    }
     setSaving(false)
     setShowAddModal(false)
-    setForm({ class_name: "", class_type: "", class_date: "", end_date: "", pax_count: 0, pax_confirmed: 0, account_manager: "", person_in_charge: "", classroom: "", trainer_name: "", notes: "" })
+    setSaveError(null)
+    setForm(emptyForm)
+    showSuccess(`✅ "${cls.class_name}" added successfully!`)
     fetchAll()
   }
 
   const handleAssignGifts = async () => {
     if (!showGiftModal) return
     setSaving(true)
+    setSaveError(null)
     const valid = giftList.filter(g => g.item_id && g.quantity > 0)
     if (valid.length) {
-      await supabase.from("marketing_class_gifts").insert(
+      const { error } = await supabase.from("marketing_class_gifts").insert(
         valid.map(g => ({ class_id: showGiftModal.id, item_id: g.item_id, variant_id: g.variant_id || null, quantity: parseInt(g.quantity) }))
       )
+      if (error) {
+        setSaving(false)
+        setSaveError(`Could not assign gifts: ${error.message}`)
+        return
+      }
     }
     setSaving(false)
     setShowGiftModal(null)
+    setSaveError(null)
     setGiftList([{ item_id: "", variant_id: "", quantity: 1 }])
+    showSuccess("✅ Gifts assigned successfully!")
     fetchAll()
   }
 
@@ -132,13 +158,25 @@ export default function MarketingClasses() {
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#10b981", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 20px rgba(16,185,129,0.4)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>🎁 Class Gifts</h1>
           <p style={{ color: C.sub, fontSize: "13px" }}>{classes.length} classes total</p>
         </div>
         {canManageMarketing && (
-          <button onClick={() => setShowAddModal(true)} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+          <button onClick={() => { setShowAddModal(true); setSaveError(null) }} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
             + Add Class
           </button>
         )}
@@ -149,7 +187,7 @@ export default function MarketingClasses() {
         <div style={{ marginBottom: "28px" }}>
           <h2 style={{ color: C.accent, fontSize: "15px", fontWeight: "700", marginBottom: "12px" }}>📅 This Week's Classes</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
+            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
           </div>
         </div>
       )}
@@ -159,7 +197,8 @@ export default function MarketingClasses() {
         <h2 style={{ color: "#e2e8f0", fontSize: "15px", fontWeight: "700", marginBottom: "12px" }}>All Classes</h2>
         {loading ? <p style={{ color: C.sub }}>Loading...</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
+            {classes.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>No classes yet. Add a class to get started.</p>}
+            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
           </div>
         )}
       </div>
@@ -167,8 +206,13 @@ export default function MarketingClasses() {
       {/* Add Class Modal */}
       <AnimatePresence>
         {showAddModal && (
-          <Modal title="Add New Class" onClose={() => setShowAddModal(false)}>
+          <Modal title="Add New Class" onClose={() => { setShowAddModal(false); setSaveError(null) }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
               <Field label="Class Name *"><input value={form.class_name} onChange={e => setForm({ ...form, class_name: e.target.value })} placeholder="e.g. AWS Cloud Practitioner" style={inputStyle} /></Field>
               <Field label="Course Type">
                 <select value={form.class_type} onChange={e => setForm({ ...form, class_type: e.target.value })} style={inputStyle}>
@@ -190,7 +234,7 @@ export default function MarketingClasses() {
               </div>
               <Field label="Notes"><textarea value={form.notes} onChange={e => setForm({ ...form, notes: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical" }} /></Field>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => setShowAddModal(false)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setShowAddModal(false); setSaveError(null); setForm(emptyForm) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleSaveClass} disabled={saving || !form.class_name || !form.class_date} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Save Class"}</button>
               </div>
             </div>
@@ -201,8 +245,13 @@ export default function MarketingClasses() {
       {/* Assign Gifts Modal */}
       <AnimatePresence>
         {showGiftModal && (
-          <Modal title={`Assign Gifts — ${showGiftModal.class_name}`} onClose={() => setShowGiftModal(null)}>
+          <Modal title={`Assign Gifts — ${showGiftModal.class_name}`} onClose={() => { setShowGiftModal(null); setSaveError(null) }}>
             <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
               {giftList.map((g, i) => (
                 <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 1fr 80px 30px", gap: "6px", alignItems: "end" }}>
                   <Field label={i === 0 ? "Item" : ""}>
@@ -230,7 +279,7 @@ export default function MarketingClasses() {
                 + Add Another Item
               </button>
               <div style={{ display: "flex", gap: "10px" }}>
-                <button onClick={() => setShowGiftModal(null)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setShowGiftModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleAssignGifts} disabled={saving} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Assign Gifts"}</button>
               </div>
             </div>

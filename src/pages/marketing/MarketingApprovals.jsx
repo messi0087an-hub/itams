@@ -45,7 +45,14 @@ export default function MarketingApprovals() {
   const [rejectModal, setRejectModal] = useState(null)
   const [rejectReason, setRejectReason] = useState("")
   const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState(null)
+  const [successMsg, setSuccessMsg] = useState(null)
   const [form, setForm] = useState({ item_id: "", quantity: "", reason: "", request_type: "stock_request" })
+
+  const showSuccess = (msg) => {
+    setSuccessMsg(msg)
+    setTimeout(() => setSuccessMsg(null), 4000)
+  }
 
   useEffect(() => { fetchAll() }, [])
 
@@ -66,13 +73,17 @@ export default function MarketingApprovals() {
 
   const handleApprove = async (id) => {
     setSaving(true)
-    await supabase.from("marketing_approvals").update({
+    const { error } = await supabase.from("marketing_approvals").update({
       status: "approved",
       approver_id: userProfile.id,
-      approver_name: userProfile.full_name,
+      approver_name: userProfile?.name || userProfile?.email,
       approved_at: new Date().toISOString(),
     }).eq("id", id)
-    // Send notification to requester
+    if (error) {
+      setSaving(false)
+      showSuccess(`❌ Could not approve: ${error.message}`)
+      return
+    }
     const approval = approvals.find(a => a.id === id)
     if (approval?.requested_by) {
       await supabase.from("marketing_notifications").insert({
@@ -85,18 +96,24 @@ export default function MarketingApprovals() {
       })
     }
     setSaving(false)
+    showSuccess("✅ Request approved!")
     fetchAll()
   }
 
   const handleReject = async () => {
     if (!rejectModal || !rejectReason.trim()) return
     setSaving(true)
-    await supabase.from("marketing_approvals").update({
+    const { error } = await supabase.from("marketing_approvals").update({
       status: "rejected",
       approver_id: userProfile.id,
-      approver_name: userProfile.full_name,
+      approver_name: userProfile?.name || userProfile?.email,
       rejection_reason: rejectReason,
     }).eq("id", rejectModal.id)
+    if (error) {
+      setSaving(false)
+      setSaveError(`Could not reject: ${error.message}`)
+      return
+    }
     if (rejectModal.requested_by) {
       await supabase.from("marketing_notifications").insert({
         user_id: rejectModal.requested_by,
@@ -110,36 +127,58 @@ export default function MarketingApprovals() {
     setSaving(false)
     setRejectModal(null)
     setRejectReason("")
+    setSaveError(null)
+    showSuccess("Request rejected.")
     fetchAll()
   }
 
   const handleSubmitRequest = async () => {
     if (!form.item_id || !form.quantity || !form.reason) return
     setSaving(true)
-    await supabase.from("marketing_approvals").insert({
+    setSaveError(null)
+    const { error } = await supabase.from("marketing_approvals").insert({
       request_type: form.request_type,
       requested_by: userProfile.id,
-      requested_by_name: userProfile.full_name,
+      requested_by_name: userProfile?.name || userProfile?.email,
       item_id: form.item_id,
       quantity: parseInt(form.quantity),
       reason: form.reason,
       status: "pending",
     })
+    if (error) {
+      setSaving(false)
+      setSaveError(`Could not submit request: ${error.message}`)
+      return
+    }
     setSaving(false)
     setShowRequestModal(false)
+    setSaveError(null)
     setForm({ item_id: "", quantity: "", reason: "", request_type: "stock_request" })
+    showSuccess("✅ Request submitted successfully!")
     fetchAll()
     setTab("my")
   }
 
   return (
     <div style={{ padding: "24px" }}>
+      {/* Success toast */}
+      <AnimatePresence>
+        {successMsg && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -20 }}
+            style={{ position: "fixed", top: "72px", left: "50%", transform: "translateX(-50%)", zIndex: 9999, background: "#10b981", color: "#fff", padding: "12px 24px", borderRadius: "12px", fontWeight: "600", fontSize: "14px", boxShadow: "0 4px 20px rgba(16,185,129,0.4)", whiteSpace: "nowrap" }}
+          >
+            {successMsg}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
         <div>
           <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>✅ Approvals</h1>
           <p style={{ color: C.sub, fontSize: "13px" }}>{approvals.length} pending requests</p>
         </div>
-        <button onClick={() => setShowRequestModal(true)} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
+        <button onClick={() => { setShowRequestModal(true); setSaveError(null) }} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
           + New Request
         </button>
       </div>
@@ -193,7 +232,7 @@ export default function MarketingApprovals() {
                         style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "7px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>
                         ✅ Approve
                       </button>
-                      <button onClick={() => { setRejectModal(req); setRejectReason("") }}
+                      <button onClick={() => { setRejectModal(req); setRejectReason(""); setSaveError(null) }}
                         style={{ background: "rgba(239,68,68,0.12)", color: C.error, border: "1px solid rgba(239,68,68,0.25)", borderRadius: "8px", padding: "7px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>
                         ❌ Reject
                       </button>
@@ -246,9 +285,14 @@ export default function MarketingApprovals() {
               style={{ background: "#0f2730", border: `1px solid ${C.border}`, borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "480px" }}>
               <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "20px" }}>
                 <h2 style={{ color: C.text, fontSize: "17px", fontWeight: "700" }}>New Request</h2>
-                <button onClick={() => setShowRequestModal(false)} style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
+                <button onClick={() => { setShowRequestModal(false); setSaveError(null) }} style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
               </div>
               <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                {saveError && (
+                  <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                    {saveError}
+                  </div>
+                )}
                 <Field label="Request Type">
                   <select value={form.request_type} onChange={e => setForm({ ...form, request_type: e.target.value })} style={inputStyle}>
                     <option value="stock_request">Stock Request</option>
@@ -274,7 +318,7 @@ export default function MarketingApprovals() {
                   <textarea value={form.reason} onChange={e => setForm({ ...form, reason: e.target.value })} rows={3} placeholder="Why do you need this?" style={{ ...inputStyle, resize: "vertical" }} />
                 </Field>
                 <div style={{ display: "flex", gap: "10px" }}>
-                  <button onClick={() => setShowRequestModal(false)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
+                  <button onClick={() => { setShowRequestModal(false); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
                   <button onClick={handleSubmitRequest} disabled={saving || !form.item_id || !form.quantity || !form.reason} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Submitting..." : "Submit Request"}</button>
                 </div>
               </div>
@@ -291,11 +335,16 @@ export default function MarketingApprovals() {
             <motion.div initial={{ scale: 0.95 }} animate={{ scale: 1 }} exit={{ scale: 0.95 }}
               style={{ background: "#0f2730", border: `1px solid rgba(239,68,68,0.3)`, borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "400px" }}>
               <h2 style={{ color: C.text, fontSize: "16px", fontWeight: "700", marginBottom: "16px" }}>Reject Request</h2>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px", marginBottom: "12px" }}>
+                  {saveError}
+                </div>
+              )}
               <Field label="Rejection Reason *">
                 <textarea value={rejectReason} onChange={e => setRejectReason(e.target.value)} rows={3} placeholder="Explain why this request is rejected..." style={{ ...inputStyle, resize: "vertical" }} />
               </Field>
               <div style={{ display: "flex", gap: "10px", marginTop: "16px" }}>
-                <button onClick={() => setRejectModal(null)} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
+                <button onClick={() => { setRejectModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleReject} disabled={!rejectReason.trim() || saving} style={{ flex: 2, background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving || !rejectReason.trim() ? 0.6 : 1 }}>Reject</button>
               </div>
             </motion.div>
