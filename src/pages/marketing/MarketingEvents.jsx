@@ -76,7 +76,7 @@ export default function MarketingEvents() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: e }, { data: i }, { data: v }] = await Promise.all([
-      supabase.from("marketing_events").select("*, marketing_event_collaterals(*, marketing_items(name), marketing_item_variants(variant_name, color))").order("event_date", { ascending: false }),
+      supabase.from("marketing_events").select("*, marketing_event_collaterals(*)").order("event_date", { ascending: false }),
       supabase.from("marketing_items").select("id, name").order("name"),
       supabase.from("marketing_item_variants").select("*"),
     ])
@@ -230,11 +230,14 @@ export default function MarketingEvents() {
                 <div>
                   <p style={{ color: C.sub, fontSize: "11px", marginBottom: "6px" }}>Collaterals:</p>
                   <div style={{ display: "flex", flexDirection: "column", gap: "4px" }}>
-                    {ev.marketing_event_collaterals.map(col => (
+                    {ev.marketing_event_collaterals.map(col => {
+                      const colItemName = items.find(it => it.id === col.item_id)?.name || "?"
+                      const colVariantName = variants.find(v => v.id === col.variant_id)?.variant_name
+                      return (
                       <div key={col.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(6,182,212,0.04)", borderRadius: "8px", padding: "6px 10px" }}>
                         <span style={{ color: C.text, fontSize: "12px" }}>
-                          {col.marketing_items?.name} × {col.quantity_needed}
-                          {col.marketing_item_variants?.variant_name && ` (${col.marketing_item_variants.variant_name})`}
+                          {colItemName} × {col.quantity_needed}
+                          {colVariantName && ` (${colVariantName})`}
                         </span>
                         <div style={{ display: "flex", gap: "4px" }}>
                           {!col.signed_out_at && <button onClick={() => handleSignOut(col.id)} style={{ background: "rgba(245,158,11,0.15)", color: C.warning, border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}>Sign Out</button>}
@@ -243,7 +246,7 @@ export default function MarketingEvents() {
                           {col.signed_out_at && !col.signed_in_at && <span style={{ color: C.warning, fontSize: "10px" }}>📤 Out</span>}
                         </div>
                       </div>
-                    ))}
+                    )})}
                   </div>
                 </div>
               )}

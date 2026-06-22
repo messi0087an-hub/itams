@@ -59,8 +59,8 @@ export default function MarketingApprovals() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: all }, { data: mine }] = await Promise.all([
-      supabase.from("marketing_approvals").select("*, marketing_items(name)").eq("status", "pending").order("created_at"),
-      supabase.from("marketing_approvals").select("*, marketing_items(name)").eq("requested_by", userProfile?.id).order("created_at", { ascending: false }),
+      supabase.from("marketing_approvals").select("*").eq("status", "pending").order("created_at"),
+      supabase.from("marketing_approvals").select("*").eq("requested_by", userProfile?.id).order("created_at", { ascending: false }),
     ])
     const { data: itemList } = await supabase.from("marketing_items").select("id, name").order("name")
     setApprovals(all || [])
@@ -89,7 +89,7 @@ export default function MarketingApprovals() {
       await supabase.from("marketing_notifications").insert({
         user_id: approval.requested_by,
         title: "Request Approved ✅",
-        message: `Your request for ${approval.marketing_items?.name || "item"} has been approved.`,
+        message: `Your request for ${items.find(i => i.id === approval.item_id)?.name || "item"} has been approved.`,
         type: "approved",
         related_id: id,
         related_type: "approval",
@@ -218,7 +218,7 @@ export default function MarketingApprovals() {
                       {isUrgent && <span style={{ background: "rgba(239,68,68,0.15)", color: C.error, border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "1px 7px", fontSize: "10px", fontWeight: "700" }}>⏰ {days}d waiting</span>}
                     </div>
                     <p style={{ color: C.sub, fontSize: "13px" }}>
-                      Requesting: <b style={{ color: C.text }}>{req.marketing_items?.name || "Unknown item"}</b> × {req.quantity}
+                      Requesting: <b style={{ color: C.text }}>{items.find(i => i.id === req.item_id)?.name || "Unknown item"}</b> × {req.quantity}
                     </p>
                     {req.quantity > 30 && <p style={{ color: C.warning, fontSize: "11px", marginTop: "2px" }}>⚠️ Large quantity — requires senior approval (April)</p>}
                     {req.reason && <p style={{ color: C.sub, fontSize: "12px", marginTop: "4px", fontStyle: "italic" }}>Reason: {req.reason}</p>}
@@ -259,7 +259,7 @@ export default function MarketingApprovals() {
               <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
                 <div>
                   <p style={{ color: C.text, fontSize: "14px", fontWeight: "600" }}>
-                    {req.marketing_items?.name || "Item"} × {req.quantity}
+                    {items.find(i => i.id === req.item_id)?.name || "Item"} × {req.quantity}
                   </p>
                   {req.reason && <p style={{ color: C.sub, fontSize: "12px", marginTop: "2px" }}>Reason: {req.reason}</p>}
                   {req.rejection_reason && <p style={{ color: C.error, fontSize: "12px", marginTop: "2px" }}>Rejected: {req.rejection_reason}</p>}

@@ -65,7 +65,7 @@ export default function MarketingClasses() {
   const fetchAll = async () => {
     setLoading(true)
     const [{ data: c }, { data: i }, { data: v }, { data: s }] = await Promise.all([
-      supabase.from("marketing_classes").select("*, marketing_class_gifts(*, marketing_items(name), marketing_item_variants(variant_name, color))").order("class_date", { ascending: false }),
+      supabase.from("marketing_classes").select("*, marketing_class_gifts(*)").order("class_date", { ascending: false }),
       supabase.from("marketing_items").select("id, name, unit").order("name"),
       supabase.from("marketing_item_variants").select("*"),
       supabase.from("marketing_stock").select("item_id, quantity"),
@@ -324,13 +324,17 @@ function ClassCard({ cls, onAssign, onPacked, onDistributed, canManage, items, v
         <div>
           <p style={{ color: C.sub, fontSize: "11px", marginBottom: "5px" }}>Assigned gifts:</p>
           <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
-            {gifts.map(g => (
-              <span key={g.id} style={{ background: "rgba(6,182,212,0.08)", color: C.text, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "3px 10px", fontSize: "11px" }}>
-                {g.marketing_items?.name || "?"} × {g.quantity}
-                {g.marketing_item_variants?.variant_name && ` (${g.marketing_item_variants.variant_name})`}
-                {g.is_distributed ? " ✅" : g.is_packed ? " 📦" : ""}
-              </span>
-            ))}
+            {gifts.map(g => {
+              const itemName = items.find(it => it.id === g.item_id)?.name || "?"
+              const variantName = variants.find(v => v.id === g.variant_id)?.variant_name
+              return (
+                <span key={g.id} style={{ background: "rgba(6,182,212,0.08)", color: C.text, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "3px 10px", fontSize: "11px" }}>
+                  {itemName} × {g.quantity}
+                  {variantName && ` (${variantName})`}
+                  {g.is_distributed ? " ✅" : g.is_packed ? " 📦" : ""}
+                </span>
+              )
+            })}
           </div>
         </div>
       )}
