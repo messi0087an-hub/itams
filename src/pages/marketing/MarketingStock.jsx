@@ -149,7 +149,7 @@ export default function MarketingStock() {
   const filteredMovements = filterType === "All" ? movements : movements.filter(m => m.movement_type === (filterType === "Stock In" ? "stock_in" : "stock_out"))
 
   return (
-    <div className="pt-20 md:pt-6" style={{ paddingLeft: "24px", paddingRight: "24px", paddingBottom: "24px", maxWidth: "900px" }}>
+    <div style={{ padding: "24px", maxWidth: "900px" }}>
       <div style={{ marginBottom: "24px" }}>
         <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>📊 Stock In / Out</h1>
         <p style={{ color: C.sub, fontSize: "13px" }}>Record stock receipts and disbursements</p>

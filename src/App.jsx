@@ -829,6 +829,14 @@ function PageLoader() {
 }
 
 function MarketingLayout({ user }) {
+  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
+  useEffect(() => {
+    const mq = window.matchMedia("(max-width: 767px)")
+    const handler = (e) => setIsMobile(e.matches)
+    mq.addEventListener("change", handler)
+    return () => mq.removeEventListener("change", handler)
+  }, [])
+
   return (
     <AuthProvider user={user}>
       <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#0a1a1f", position: "relative", overflow: "hidden" }}>
@@ -846,9 +854,10 @@ function MarketingLayout({ user }) {
         />
         <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
           <MarketingSidebar />
-          <main className="flex-1 overflow-auto md:ml-64">
-            {/* Spacer for the 56px fixed top bar on mobile */}
-            <div className="h-14 md:hidden" />
+          <main
+            className="flex-1 overflow-auto md:ml-64"
+            style={{ paddingTop: isMobile ? "64px" : "0px" }}
+          >
             <Suspense fallback={<PageLoader />}>
               {/* Paths here are RELATIVE to the parent /marketing/* match */}
               <Routes>
