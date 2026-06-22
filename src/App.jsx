@@ -848,18 +848,19 @@ function MarketingLayout({ user }) {
           <MarketingSidebar />
           <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
             <Suspense fallback={<PageLoader />}>
+              {/* Paths here are RELATIVE to the parent /marketing/* match */}
               <Routes>
-                <Route path="/marketing/dashboard" element={<MarketingDashboard />} />
-                <Route path="/marketing/items" element={<MarketingItems />} />
-                <Route path="/marketing/stock" element={<MarketingStock />} />
-                <Route path="/marketing/classes" element={<MarketingClasses />} />
-                <Route path="/marketing/events" element={<MarketingEvents />} />
-                <Route path="/marketing/approvals" element={<MarketingApprovals />} />
-                <Route path="/marketing/reports" element={<MarketingReports />} />
-                <Route path="/marketing/history" element={<MarketingHistory />} />
-                <Route path="/marketing/settings" element={<MarketingSettings />} />
-                <Route path="/marketing/stocktake" element={<MarketingStocktake />} />
-                <Route path="*" element={<Navigate to="/marketing/dashboard" />} />
+                <Route path="dashboard"  element={<MarketingDashboard />} />
+                <Route path="items"      element={<MarketingItems />} />
+                <Route path="stock"      element={<MarketingStock />} />
+                <Route path="classes"    element={<MarketingClasses />} />
+                <Route path="events"     element={<MarketingEvents />} />
+                <Route path="approvals"  element={<MarketingApprovals />} />
+                <Route path="reports"    element={<MarketingReports />} />
+                <Route path="history"    element={<MarketingHistory />} />
+                <Route path="settings"   element={<MarketingSettings />} />
+                <Route path="stocktake"  element={<MarketingStocktake />} />
+                <Route path="*"          element={<Navigate to="/marketing/dashboard" replace />} />
               </Routes>
             </Suspense>
           </main>
@@ -955,13 +956,14 @@ function AdminLayout({ user }) {
 }
 
 function AppRouter({ user, mfaVerified, onVerified }) {
-  const showLogin = !user || !mfaVerified
   const [profile, setProfile] = useState(null)
+  const [profileLoading, setProfileLoading] = useState(true)
 
   useEffect(() => {
-    if (!user) { setProfile(null); return }
+    if (!user) { setProfile(null); setProfileLoading(false); return }
+    setProfileLoading(true)
     supabase.from("user_profiles").select("role,marketing_access").eq("id", user.id).single()
-      .then(({ data }) => setProfile(data))
+      .then(({ data }) => { setProfile(data); setProfileLoading(false) })
   }, [user?.id])
 
   if (!user || !mfaVerified) {
@@ -978,13 +980,22 @@ function AppRouter({ user, mfaVerified, onVerified }) {
     )
   }
 
+  // Wait for profile before deciding which layout to render
+  if (profileLoading) {
+    return (
+      <div className="min-h-screen bg-black flex items-center justify-center">
+        <p className="text-white text-sm">Loading...</p>
+      </div>
+    )
+  }
+
   // Marketing-only users → marketing module
   const isMarketingOnly = profile?.marketing_access && profile?.role !== "admin"
-  const isAdminWithMarketing = profile?.role === "admin" && profile?.marketing_access
+  const canAccessMarketing = profile?.marketing_access || profile?.role === "admin"
 
   return (
     <Routes>
-      <Route path="/login" element={<Navigate to={isMarketingOnly ? "/marketing/dashboard" : "/admin"} />} />
+      <Route path="/login" element={<Navigate to={isMarketingOnly ? "/marketing/dashboard" : "/admin"} replace />} />
       <Route path="/reset-password" element={
         <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
           <ResetPasswordPage />
@@ -992,14 +1003,14 @@ function AppRouter({ user, mfaVerified, onVerified }) {
       } />
       {/* Marketing module routes */}
       <Route path="/marketing/*" element={
-        (profile?.marketing_access || profile?.role === "admin")
+        canAccessMarketing
           ? <MarketingLayout user={user} />
-          : <Navigate to="/admin" />
+          : <Navigate to="/admin" replace />
       } />
       {/* IT ITAMS routes */}
       <Route path="/*" element={
         isMarketingOnly
-          ? <Navigate to="/marketing/dashboard" />
+          ? <Navigate to="/marketing/dashboard" replace />
           : <AdminLayout user={user} />
       } />
     </Routes>
