@@ -829,14 +829,6 @@ function PageLoader() {
 }
 
 function MarketingLayout({ user }) {
-  const [isMobile, setIsMobile] = useState(() => window.innerWidth < 768)
-  useEffect(() => {
-    const mq = window.matchMedia("(max-width: 767px)")
-    const handler = (e) => setIsMobile(e.matches)
-    mq.addEventListener("change", handler)
-    return () => mq.removeEventListener("change", handler)
-  }, [])
-
   return (
     <AuthProvider user={user}>
       <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#0a1a1f", position: "relative", overflow: "hidden" }}>
@@ -854,10 +846,10 @@ function MarketingLayout({ user }) {
         />
         <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
           <MarketingSidebar />
-          <main
-            className="flex-1 overflow-auto md:ml-64"
-            style={{ paddingTop: isMobile ? "64px" : "0px" }}
-          >
+          <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
+            <div className="sticky top-0 z-30 hidden md:flex items-center px-4 py-2" style={{ background: "rgba(7,25,32,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(6,182,212,0.15)" }}>
+              <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "500", letterSpacing: "0.3px" }}>ITAMS Marketing</span>
+            </div>
             <Suspense fallback={<PageLoader />}>
               {/* Paths here are RELATIVE to the parent /marketing/* match */}
               <Routes>
