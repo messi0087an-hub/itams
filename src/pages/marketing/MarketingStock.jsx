@@ -52,14 +52,24 @@ export default function MarketingStock() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [{ data: i }, { data: v }, { data: l }, { data: m }, { data: c }, { data: e }] = await Promise.all([
+    const [
+      { data: i, error: iErr },
+      { data: v },
+      { data: l },
+      { data: m, error: mErr },
+      { data: c },
+      { data: e },
+    ] = await Promise.all([
       supabase.from("marketing_items").select("id, name, unit").order("name"),
       supabase.from("marketing_item_variants").select("*"),
       supabase.from("marketing_locations").select("*").order("name"),
-      supabase.from("marketing_stock_movements").select("*, marketing_items(name), marketing_locations!marketing_stock_movements_location_id_fkey(name)").order("created_at", { ascending: false }).limit(100),
+      // No FK hint for locations — resolve location names from state instead to avoid ambiguous FK errors
+      supabase.from("marketing_stock_movements").select("*, marketing_items(name, unit)").order("created_at", { ascending: false }).limit(200),
       supabase.from("marketing_classes").select("id, class_name, class_date").order("class_date", { ascending: false }).limit(50),
       supabase.from("marketing_events").select("id, event_name, event_date").order("event_date", { ascending: false }).limit(50),
     ])
+    if (iErr) console.error("Items fetch error:", iErr.message)
+    if (mErr) console.error("Movements fetch error:", mErr.message)
     setItems(i || [])
     setVariants(v || [])
     setLocations(l || [])
@@ -387,32 +397,63 @@ export default function MarketingStock() {
 
           {loading ? <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>Loading...</p> : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
-              {filteredMovements.map(m => (
-                <div key={m.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 16px" }}>
-                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
-                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-                      <span style={{ fontSize: "20px" }}>{m.movement_type === "stock_in" ? "📥" : "📤"}</span>
-                      <div>
-                        <p style={{ color: C.text, fontSize: "13px", fontWeight: "600" }}>{m.marketing_items?.name || "Unknown"}</p>
-                        <p style={{ color: C.sub, fontSize: "11px", marginTop: "2px" }}>
-                          {m.movement_type === "stock_in" ? "Stock In" : "Stock Out"} ·{" "}
-                          <span style={{ color: m.movement_type === "stock_in" ? C.success : C.error, fontWeight: "700" }}>
-                            {m.movement_type === "stock_in" ? "+" : "-"}{m.quantity} units
-                          </span>
-                          {m.marketing_locations?.name && ` · ${m.marketing_locations.name}`}
-                          {m.reason && ` · ${m.reason}`}
-                        </p>
-                        {m.performed_by_name && <p style={{ color: C.sub, fontSize: "10px" }}>by {m.performed_by_name}</p>}
-                      </div>
-                    </div>
-                    <p style={{ color: C.sub, fontSize: "11px", whiteSpace: "nowrap" }}>{new Date(m.created_at).toLocaleString()}</p>
-                  </div>
-                  {m.notes && <p style={{ color: C.sub, fontSize: "11px", marginTop: "6px", fontStyle: "italic" }}>{m.notes}</p>}
-                </div>
-              ))}
               {filteredMovements.length === 0 && (
-                <div style={{ textAlign: "center", padding: "40px", color: C.sub }}>No movements found</div>
+                <div style={{ textAlign: "center", padding: "60px", color: C.sub }}>
+                  <p style={{ fontSize: "36px", marginBottom: "12px" }}>📋</p>
+                  <p style={{ fontWeight: "600", marginBottom: "4px" }}>No movements found</p>
+                  <p style={{ fontSize: "12px" }}>Record a Stock In or Stock Out to see history here</p>
+                </div>
               )}
+              {filteredMovements.map(mv => {
+                const isIn = mv.movement_type === "stock_in"
+                // Resolve location name from local state — avoids FK-hint join issues
+                const locName = locations.find(l => l.id === mv.location_id)?.name || null
+                const itemName = mv.marketing_items?.name || items.find(i => i.id === mv.item_id)?.name || "Unknown item"
+                return (
+                  <div key={mv.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 16px" }}>
+                    <div style={{ display: "flex", alignItems: "flex-start", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                      <div style={{ display: "flex", alignItems: "flex-start", gap: "12px", flex: 1 }}>
+                        {/* Icon */}
+                        <div style={{ width: "36px", height: "36px", borderRadius: "10px", display: "flex", alignItems: "center", justifyContent: "center", fontSize: "18px", flexShrink: 0, background: isIn ? "rgba(16,185,129,0.12)" : "rgba(239,68,68,0.12)" }}>
+                          {isIn ? "📥" : "📤"}
+                        </div>
+                        <div style={{ flex: 1, minWidth: 0 }}>
+                          {/* Item name + quantity */}
+                          <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap", marginBottom: "4px" }}>
+                            <p style={{ color: C.text, fontSize: "13px", fontWeight: "700" }}>{itemName}</p>
+                            <span style={{ background: isIn ? "rgba(16,185,129,0.15)" : "rgba(239,68,68,0.15)", color: isIn ? C.success : C.error, border: `1px solid ${isIn ? "rgba(16,185,129,0.3)" : "rgba(239,68,68,0.3)"}`, borderRadius: "6px", padding: "1px 8px", fontSize: "12px", fontWeight: "700" }}>
+                              {isIn ? "+" : "-"}{mv.quantity} {mv.marketing_items?.unit || "units"}
+                            </span>
+                            <span style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid rgba(6,182,212,0.2)`, borderRadius: "6px", padding: "1px 8px", fontSize: "11px", fontWeight: "600" }}>
+                              {isIn ? "Stock In" : "Stock Out"}
+                            </span>
+                          </div>
+                          {/* Location + reason */}
+                          <div style={{ display: "flex", gap: "12px", flexWrap: "wrap" }}>
+                            {locName && (
+                              <span style={{ color: C.sub, fontSize: "11px" }}>📍 {locName}</span>
+                            )}
+                            {mv.reason && (
+                              <span style={{ color: C.sub, fontSize: "11px" }}>🏷️ {mv.reason}</span>
+                            )}
+                            {mv.performed_by_name && (
+                              <span style={{ color: C.sub, fontSize: "11px" }}>👤 {mv.performed_by_name}</span>
+                            )}
+                          </div>
+                          {/* Notes */}
+                          {mv.notes && (
+                            <p style={{ color: C.sub, fontSize: "11px", marginTop: "4px", fontStyle: "italic" }}>{mv.notes}</p>
+                          )}
+                        </div>
+                      </div>
+                      {/* Date */}
+                      <p style={{ color: C.sub, fontSize: "11px", whiteSpace: "nowrap", flexShrink: 0 }}>
+                        {new Date(mv.created_at).toLocaleString("en-SG", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                      </p>
+                    </div>
+                  </div>
+                )
+              })}
             </div>
           )}
         </motion.div>
