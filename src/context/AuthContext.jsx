@@ -54,6 +54,9 @@ export function AuthProvider({ children, user }) {
 
   const role = userProfile?.role || "guest"
   const isMarketing = !!userProfile?.marketing_access
+  const marketingRole = userProfile?.marketing_role || null
+  const canManageMarketing = ["marketing_admin", "marketing_manager"].includes(marketingRole) || role === "admin"
+  const isMarketingOnly = isMarketing && role !== "admin"
 
   return (
     <AuthContext.Provider value={{
@@ -64,6 +67,9 @@ export function AuthProvider({ children, user }) {
       isStandardUser: role === "standard_user",
       isGuest: role === "guest",
       isMarketing,
+      marketingRole,
+      canManageMarketing,
+      isMarketingOnly,
       canEdit: role === "admin",
       canDelete: role === "admin",
       canManageUsers: role === "admin",

@@ -1,0 +1,442 @@
+import { useState, useEffect } from "react"
+import { supabase } from "../../lib/supabase"
+import { useAuth } from "../../context/AuthContext"
+import { motion, AnimatePresence } from "framer-motion"
+
+const C = {
+  accent: "#06b6d4", teal: "#14b8a6",
+  card: "rgba(6,182,212,0.06)", border: "rgba(6,182,212,0.18)",
+  text: "#ffffff", sub: "#94a3b8",
+  success: "#10b981", warning: "#f59e0b", error: "#ef4444",
+}
+
+const CATEGORIES = ["Gift", "Banner", "Brochure", "Stationery", "Electronics", "Apparel", "Acrylic Stand", "Google Review Gift", "Other"]
+const UNITS = ["pcs", "boxes", "sets", "rolls", "pairs", "cartons"]
+
+const catColors = {
+  Gift: "rgba(236,72,153,0.15)|#f472b6|rgba(236,72,153,0.3)",
+  Banner: "rgba(245,158,11,0.15)|#fbbf24|rgba(245,158,11,0.3)",
+  Brochure: "rgba(59,130,246,0.15)|#60a5fa|rgba(59,130,246,0.3)",
+  Stationery: "rgba(167,139,250,0.15)|#a78bfa|rgba(167,139,250,0.3)",
+  Electronics: "rgba(6,182,212,0.15)|#22d3ee|rgba(6,182,212,0.3)",
+  Apparel: "rgba(16,185,129,0.15)|#34d399|rgba(16,185,129,0.3)",
+  "Acrylic Stand": "rgba(245,158,11,0.15)|#fb923c|rgba(245,158,11,0.3)",
+  "Google Review Gift": "rgba(239,68,68,0.15)|#f87171|rgba(239,68,68,0.3)",
+  Other: "rgba(148,163,184,0.15)|#94a3b8|rgba(148,163,184,0.3)",
+}
+
+function catBadge(cat) {
+  const [bg, color, border] = (catColors[cat] || catColors.Other).split("|")
+  return { background: bg, color, border: `1px solid ${border}` }
+}
+
+function StatusBadge({ qty, min }) {
+  if (qty <= 0) return <span style={{ background: "rgba(239,68,68,0.15)", color: C.error, border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "600" }}>🔴 Out of Stock</span>
+  if (qty <= min && min > 0) return <span style={{ background: "rgba(245,158,11,0.15)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "600" }}>🟡 Low Stock</span>
+  return <span style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "600" }}>🟢 In Stock</span>
+}
+
+export default function MarketingItems() {
+  const { canManageMarketing, marketingRole, role } = useAuth()
+  const isAdmin = canManageMarketing
+  const showCost = ["marketing_admin", "marketing_manager"].includes(marketingRole) || role === "admin"
+
+  const [items, setItems] = useState([])
+  const [variants, setVariants] = useState([])
+  const [stock, setStock] = useState([])
+  const [locations, setLocations] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [search, setSearch] = useState("")
+  const [filterCat, setFilterCat] = useState("All")
+  const [filterStatus, setFilterStatus] = useState("All")
+  const [showModal, setShowModal] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [form, setForm] = useState({ name: "", category: "", description: "", item_code: "", unit: "pcs", cost_per_unit: "", delivery_charge: "", tax_amount: "", total_cost: "", is_free_from_vendor: false, supplier_name: "", minimum_stock_level: 0, expiry_date: "" })
+  const [formVariants, setFormVariants] = useState([{ variant_name: "", color: "", size: "" }])
+
+  useEffect(() => { fetchAll() }, [])
+
+  const fetchAll = async () => {
+    setLoading(true)
+    const [{ data: i }, { data: v }, { data: s }, { data: l }] = await Promise.all([
+      supabase.from("marketing_items").select("*").order("created_at", { ascending: false }),
+      supabase.from("marketing_item_variants").select("*"),
+      supabase.from("marketing_stock").select("*"),
+      supabase.from("marketing_locations").select("*"),
+    ])
+    setItems(i || [])
+    setVariants(v || [])
+    setStock(s || [])
+    setLocations(l || [])
+    setLoading(false)
+  }
+
+  const getItemStock = (itemId) =>
+    (stock || []).filter(s => s.item_id === itemId).reduce((sum, s) => sum + (s.quantity || 0), 0)
+
+  const getItemVariants = (itemId) =>
+    (variants || []).filter(v => v.item_id === itemId)
+
+  const getStockByLocation = (itemId) => {
+    const byLoc = {}
+    stock.filter(s => s.item_id === itemId).forEach(s => {
+      const loc = locations.find(l => l.id === s.location_id)
+      if (loc) byLoc[loc.name] = (byLoc[loc.name] || 0) + s.quantity
+    })
+    return byLoc
+  }
+
+  const autoCalcTotal = (f) => {
+    const cost = parseFloat(f.cost_per_unit) || 0
+    const del = parseFloat(f.delivery_charge) || 0
+    const tax = parseFloat(f.tax_amount) || 0
+    return (cost + del + tax).toFixed(2)
+  }
+
+  const handleFormChange = (key, val) => {
+    const updated = { ...form, [key]: val }
+    if (["cost_per_unit", "delivery_charge", "tax_amount"].includes(key)) {
+      updated.total_cost = autoCalcTotal(updated)
+    }
+    setForm(updated)
+  }
+
+  const handleSave = async () => {
+    if (!form.name) return
+    setSaving(true)
+    const { data: item, error } = await supabase.from("marketing_items").insert({
+      name: form.name, category: form.category, description: form.description, item_code: form.item_code,
+      unit: form.unit, cost_per_unit: parseFloat(form.cost_per_unit) || null,
+      delivery_charge: parseFloat(form.delivery_charge) || null, tax_amount: parseFloat(form.tax_amount) || null,
+      total_cost: parseFloat(form.total_cost) || null, is_free_from_vendor: form.is_free_from_vendor,
+      supplier_name: form.supplier_name, minimum_stock_level: parseInt(form.minimum_stock_level) || 0,
+      expiry_date: form.expiry_date || null,
+    }).select().single()
+
+    if (!error && item) {
+      const validVariants = formVariants.filter(v => v.variant_name)
+      if (validVariants.length) {
+        await supabase.from("marketing_item_variants").insert(
+          validVariants.map(v => ({ item_id: item.id, ...v }))
+        )
+      }
+    }
+    setSaving(false)
+    setShowModal(false)
+    setForm({ name: "", category: "", description: "", item_code: "", unit: "pcs", cost_per_unit: "", delivery_charge: "", tax_amount: "", total_cost: "", is_free_from_vendor: false, supplier_name: "", minimum_stock_level: 0, expiry_date: "" })
+    setFormVariants([{ variant_name: "", color: "", size: "" }])
+    fetchAll()
+  }
+
+  const filtered = items.filter(item => {
+    const qty = getItemStock(item.id)
+    const min = item.minimum_stock_level || 0
+    const matchSearch = item.name.toLowerCase().includes(search.toLowerCase()) || (item.item_code || "").toLowerCase().includes(search.toLowerCase())
+    const matchCat = filterCat === "All" || item.category === filterCat
+    const statusStr = qty <= 0 ? "Out of Stock" : (qty <= min && min > 0) ? "Low Stock" : "In Stock"
+    const matchStatus = filterStatus === "All" || statusStr === filterStatus
+    return matchSearch && matchCat && matchStatus
+  })
+
+  return (
+    <div style={{ padding: "24px" }}>
+      {/* Header */}
+      <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "24px", flexWrap: "wrap", gap: "12px" }}>
+        <div>
+          <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>📦 Marketing Items</h1>
+          <p style={{ color: C.sub, fontSize: "13px" }}>{items.length} items tracked</p>
+        </div>
+        {isAdmin && (
+          <button
+            onClick={() => setShowModal(true)}
+            style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+          >
+            + Add New Item
+          </button>
+        )}
+      </div>
+
+      {/* Filters */}
+      <div style={{ display: "flex", gap: "10px", marginBottom: "20px", flexWrap: "wrap" }}>
+        <input
+          type="text" value={search} onChange={e => setSearch(e.target.value)}
+          placeholder="Search by name or code..."
+          style={{ flex: "1 1 200px", background: "rgba(6,182,212,0.06)", color: C.text, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "9px 14px", fontSize: "13px", outline: "none" }}
+        />
+        <select value={filterCat} onChange={e => setFilterCat(e.target.value)}
+          style={{ background: "#0f2730", color: C.text, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "9px 14px", fontSize: "13px" }}>
+          <option>All</option>
+          {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+        </select>
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          style={{ background: "#0f2730", color: C.text, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "9px 14px", fontSize: "13px" }}>
+          {["All", "In Stock", "Low Stock", "Out of Stock"].map(s => <option key={s}>{s}</option>)}
+        </select>
+      </div>
+
+      {/* Items Grid */}
+      {loading ? (
+        <div style={{ display: "flex", justifyContent: "center", padding: "40px" }}>
+          <p style={{ color: C.sub }}>Loading items...</p>
+        </div>
+      ) : (
+        <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fill, minmax(300px, 1fr))", gap: "16px" }}>
+          {filtered.map(item => {
+            const qty = getItemStock(item.id)
+            const itemVariants = getItemVariants(item.id)
+            const stockByLoc = getStockByLocation(item.id)
+            return (
+              <motion.div
+                key={item.id}
+                whileHover={{ scale: 1.02, boxShadow: "0 8px 30px rgba(6,182,212,0.12)" }}
+                style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "18px", backdropFilter: "blur(8px)" }}
+              >
+                {/* Top row */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: "12px" }}>
+                  {/* Item image placeholder */}
+                  <div style={{
+                    width: "50px", height: "50px", borderRadius: "12px",
+                    background: "rgba(6,182,212,0.1)", border: `1px solid ${C.border}`,
+                    display: "flex", alignItems: "center", justifyContent: "center",
+                    fontSize: "24px", flexShrink: 0,
+                  }}>
+                    {item.image_url ? <img src={item.image_url} alt="" style={{ width: "100%", height: "100%", objectFit: "cover", borderRadius: "12px" }} /> : "📦"}
+                  </div>
+                  <StatusBadge qty={qty} min={item.minimum_stock_level || 0} />
+                </div>
+
+                {/* Name & code */}
+                <p style={{ color: C.text, fontWeight: "700", fontSize: "15px", marginBottom: "4px" }}>{item.name}</p>
+                {item.item_code && (
+                  <span style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "6px", padding: "1px 7px", fontSize: "10px", fontWeight: "600" }}>
+                    #{item.item_code}
+                  </span>
+                )}
+
+                {/* Category */}
+                {item.category && (
+                  <div style={{ marginTop: "8px" }}>
+                    <span style={{ ...catBadge(item.category), borderRadius: "8px", padding: "2px 8px", fontSize: "11px", fontWeight: "600" }}>
+                      {item.category}
+                    </span>
+                  </div>
+                )}
+
+                {/* Variants (color dots) */}
+                {itemVariants.length > 0 && (
+                  <div style={{ display: "flex", gap: "4px", marginTop: "10px", flexWrap: "wrap" }}>
+                    {itemVariants.map(v => (
+                      <span key={v.id} title={`${v.variant_name}${v.color ? " · " + v.color : ""}${v.size ? " · " + v.size : ""}`}
+                        style={{ width: "20px", height: "20px", borderRadius: "50%", background: v.color || C.accent, border: "2px solid rgba(255,255,255,0.2)", display: "inline-block", cursor: "help" }} />
+                    ))}
+                    <span style={{ color: C.sub, fontSize: "11px", alignSelf: "center" }}>
+                      {itemVariants.length} variant{itemVariants.length !== 1 ? "s" : ""}
+                    </span>
+                  </div>
+                )}
+
+                <hr style={{ border: "none", borderTop: `1px solid ${C.border}`, margin: "12px 0" }} />
+
+                {/* Stock info */}
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "6px" }}>
+                  <span style={{ color: C.sub, fontSize: "12px" }}>Total Stock</span>
+                  <span style={{ color: qty <= (item.minimum_stock_level || 0) && qty > 0 ? C.warning : qty <= 0 ? C.error : C.success, fontWeight: "700", fontSize: "15px" }}>
+                    {qty} {item.unit || "pcs"}
+                  </span>
+                </div>
+                {item.minimum_stock_level > 0 && (
+                  <div style={{ display: "flex", justifyContent: "space-between", marginBottom: "6px" }}>
+                    <span style={{ color: C.sub, fontSize: "11px" }}>Min. level</span>
+                    <span style={{ color: C.sub, fontSize: "11px" }}>{item.minimum_stock_level} {item.unit || "pcs"}</span>
+                  </div>
+                )}
+
+                {/* Location breakdown */}
+                {Object.keys(stockByLoc).length > 0 && (
+                  <div style={{ marginTop: "8px" }}>
+                    {Object.entries(stockByLoc).map(([loc, qty]) => (
+                      <div key={loc} style={{ display: "flex", justifyContent: "space-between", marginBottom: "2px" }}>
+                        <span style={{ color: C.sub, fontSize: "11px" }}>{loc}</span>
+                        <span style={{ color: C.accent, fontSize: "11px", fontWeight: "600" }}>{qty}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+
+                {/* Cost (admin only) */}
+                {showCost && item.cost_per_unit && (
+                  <div style={{ marginTop: "10px", padding: "8px", background: "rgba(6,182,212,0.06)", borderRadius: "8px" }}>
+                    <div style={{ display: "flex", justifyContent: "space-between" }}>
+                      <span style={{ color: C.sub, fontSize: "11px" }}>Cost/unit</span>
+                      <span style={{ color: C.text, fontSize: "12px", fontWeight: "600" }}>${item.cost_per_unit}</span>
+                    </div>
+                    {item.supplier_name && (
+                      <div style={{ display: "flex", justifyContent: "space-between", marginTop: "2px" }}>
+                        <span style={{ color: C.sub, fontSize: "11px" }}>Supplier</span>
+                        <span style={{ color: C.sub, fontSize: "11px" }}>{item.supplier_name}</span>
+                      </div>
+                    )}
+                  </div>
+                )}
+
+                {/* Expiry */}
+                {item.expiry_date && (
+                  <div style={{ marginTop: "8px", color: new Date(item.expiry_date) < new Date() ? C.error : C.warning, fontSize: "11px" }}>
+                    ⏰ Expires: {item.expiry_date}
+                  </div>
+                )}
+              </motion.div>
+            )
+          })}
+        </div>
+      )}
+
+      {filtered.length === 0 && !loading && (
+        <div style={{ textAlign: "center", padding: "60px", color: C.sub }}>
+          <p style={{ fontSize: "40px", marginBottom: "12px" }}>📦</p>
+          <p>No items found. {isAdmin && "Add your first item!"}</p>
+        </div>
+      )}
+
+      {/* Add Item Modal */}
+      <AnimatePresence>
+        {showModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+            onClick={e => e.target === e.currentTarget && setShowModal(false)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{ background: "#0f2730", border: `1px solid ${C.border}`, borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "560px", maxHeight: "85vh", overflowY: "auto" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "24px" }}>
+                <h2 style={{ color: C.text, fontSize: "18px", fontWeight: "700" }}>Add New Item</h2>
+                <button onClick={() => setShowModal(false)} style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
+              </div>
+
+              <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+                <Field label="Item Name *">
+                  <input value={form.name} onChange={e => handleFormChange("name", e.target.value)} placeholder="e.g. Notebook" style={inputStyle} />
+                </Field>
+
+                <Field label="Category">
+                  <select value={form.category} onChange={e => handleFormChange("category", e.target.value)} style={inputStyle}>
+                    <option value="">Select category</option>
+                    {CATEGORIES.map(c => <option key={c}>{c}</option>)}
+                  </select>
+                </Field>
+
+                <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+                  <Field label="Item Code">
+                    <input value={form.item_code} onChange={e => handleFormChange("item_code", e.target.value)} placeholder="MKT-001" style={inputStyle} />
+                  </Field>
+                  <Field label="Unit">
+                    <select value={form.unit} onChange={e => handleFormChange("unit", e.target.value)} style={inputStyle}>
+                      {UNITS.map(u => <option key={u}>{u}</option>)}
+                    </select>
+                  </Field>
+                </div>
+
+                <Field label="Description">
+                  <textarea value={form.description} onChange={e => handleFormChange("description", e.target.value)} placeholder="Notes about this item..." rows={2}
+                    style={{ ...inputStyle, resize: "vertical", minHeight: "64px" }} />
+                </Field>
+
+                <Field label="Supplier Name">
+                  <input value={form.supplier_name} onChange={e => handleFormChange("supplier_name", e.target.value)} placeholder="Supplier / vendor" style={inputStyle} />
+                </Field>
+
+                <Field label="Minimum Stock Level">
+                  <input type="number" value={form.minimum_stock_level} onChange={e => handleFormChange("minimum_stock_level", e.target.value)} min={0} style={inputStyle} />
+                </Field>
+
+                <Field label="Expiry Date (if applicable)">
+                  <input type="date" value={form.expiry_date} onChange={e => handleFormChange("expiry_date", e.target.value)} style={inputStyle} />
+                </Field>
+
+                <div style={{ display: "flex", alignItems: "center", gap: "8px" }}>
+                  <input type="checkbox" id="free_vendor" checked={form.is_free_from_vendor} onChange={e => handleFormChange("is_free_from_vendor", e.target.checked)} />
+                  <label htmlFor="free_vendor" style={{ color: C.sub, fontSize: "13px", cursor: "pointer" }}>Free from vendor (no cost)</label>
+                </div>
+
+                {!form.is_free_from_vendor && (
+                  <div style={{ background: "rgba(6,182,212,0.04)", border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px" }}>
+                    <p style={{ color: C.accent, fontSize: "12px", fontWeight: "600", marginBottom: "10px" }}>Costing (Admin only)</p>
+                    <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "10px" }}>
+                      <Field label="Cost/Unit ($)">
+                        <input type="number" value={form.cost_per_unit} onChange={e => handleFormChange("cost_per_unit", e.target.value)} placeholder="0.00" step="0.01" style={inputStyle} />
+                      </Field>
+                      <Field label="Delivery ($)">
+                        <input type="number" value={form.delivery_charge} onChange={e => handleFormChange("delivery_charge", e.target.value)} placeholder="0.00" step="0.01" style={inputStyle} />
+                      </Field>
+                      <Field label="Tax ($)">
+                        <input type="number" value={form.tax_amount} onChange={e => handleFormChange("tax_amount", e.target.value)} placeholder="0.00" step="0.01" style={inputStyle} />
+                      </Field>
+                      <Field label="Total Cost ($)">
+                        <input type="number" value={form.total_cost} readOnly style={{ ...inputStyle, opacity: 0.7 }} />
+                      </Field>
+                    </div>
+                  </div>
+                )}
+
+                {/* Variants */}
+                <div>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: "8px" }}>
+                    <p style={{ color: C.sub, fontSize: "13px", fontWeight: "600" }}>Variants / Colors</p>
+                    <button onClick={() => setFormVariants(prev => [...prev, { variant_name: "", color: "", size: "" }])}
+                      style={{ color: C.accent, background: "none", border: "none", cursor: "pointer", fontSize: "12px" }}>+ Add Variant</button>
+                  </div>
+                  {formVariants.map((v, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1fr 80px 80px 30px", gap: "6px", marginBottom: "6px", alignItems: "center" }}>
+                      <input value={v.variant_name} onChange={e => { const arr = [...formVariants]; arr[i].variant_name = e.target.value; setFormVariants(arr) }}
+                        placeholder="Variant name" style={{ ...inputStyle, fontSize: "12px", padding: "6px 10px" }} />
+                      <input value={v.color} onChange={e => { const arr = [...formVariants]; arr[i].color = e.target.value; setFormVariants(arr) }}
+                        placeholder="Color" style={{ ...inputStyle, fontSize: "12px", padding: "6px 10px" }} />
+                      <input value={v.size} onChange={e => { const arr = [...formVariants]; arr[i].size = e.target.value; setFormVariants(arr) }}
+                        placeholder="Size" style={{ ...inputStyle, fontSize: "12px", padding: "6px 10px" }} />
+                      {formVariants.length > 1 && (
+                        <button onClick={() => setFormVariants(prev => prev.filter((_, idx) => idx !== i))}
+                          style={{ color: C.error, background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+
+                <div style={{ display: "flex", gap: "10px", marginTop: "8px" }}>
+                  <button onClick={() => setShowModal(false)}
+                    style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: `1px solid rgba(148,163,184,0.2)`, borderRadius: "10px", padding: "11px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                    Cancel
+                  </button>
+                  <button onClick={handleSave} disabled={saving || !form.name}
+                    style={{ flex: 2, background: saving ? "rgba(6,182,212,0.3)" : `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "11px", fontSize: "13px", fontWeight: "600", cursor: saving ? "not-allowed" : "pointer" }}>
+                    {saving ? "Saving..." : "Save Item"}
+                  </button>
+                </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </div>
+  )
+}
+
+const inputStyle = {
+  width: "100%", background: "rgba(6,182,212,0.06)", color: "#ffffff",
+  border: "1px solid rgba(6,182,212,0.2)", borderRadius: "8px",
+  padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box",
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "5px", fontWeight: "600" }}>{label}</p>
+      {children}
+    </div>
+  )
+}

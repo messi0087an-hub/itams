@@ -4,6 +4,7 @@ import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
 import Sidebar from "./components/Sidebar"
+import MarketingSidebar from "./components/MarketingSidebar"
 import GlobalSearch from "./components/GlobalSearch"
 import NotificationBell from "./components/NotificationBell"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
@@ -32,6 +33,17 @@ const Settings     = lazy(() => import("./pages/admin/Settings"))
 const Marketing       = lazy(() => import("./pages/marketing/Marketing"))
 const MarketingItem   = lazy(() => import("./pages/marketing/MarketingItem"))
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"))
+// Marketing module pages
+const MarketingDashboard = lazy(() => import("./pages/marketing/MarketingDashboard"))
+const MarketingItems     = lazy(() => import("./pages/marketing/MarketingItems"))
+const MarketingStock     = lazy(() => import("./pages/marketing/MarketingStock"))
+const MarketingClasses   = lazy(() => import("./pages/marketing/MarketingClasses"))
+const MarketingEvents    = lazy(() => import("./pages/marketing/MarketingEvents"))
+const MarketingApprovals = lazy(() => import("./pages/marketing/MarketingApprovals"))
+const MarketingReports   = lazy(() => import("./pages/marketing/MarketingReports"))
+const MarketingHistory   = lazy(() => import("./pages/marketing/MarketingHistory"))
+const MarketingSettings  = lazy(() => import("./pages/marketing/MarketingSettings"))
+const MarketingStocktake = lazy(() => import("./pages/marketing/MarketingStocktake"))
 
 // OTP is now handled entirely by Supabase Auth — no custom email sending needed
 
@@ -816,6 +828,47 @@ function PageLoader() {
   )
 }
 
+function MarketingLayout({ user }) {
+  return (
+    <AuthProvider user={user}>
+      <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#0a1a1f", position: "relative", overflow: "hidden" }}>
+        <motion.div
+          animate={{ x: [0, 60, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.8, 1] }}
+          transition={{ duration: 8, repeat: Infinity, ease: "easeInOut" }}
+          style={{ position: "fixed", top: "-10%", right: "-10%", zIndex: 0, width: "500px", height: "500px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(6,182,212,0.25), transparent 70%)", pointerEvents: "none" }}
+        />
+        <motion.div
+          animate={{ x: [0, -40, 60, 0], y: [0, 40, -60, 0], scale: [1, 0.8, 1.2, 1] }}
+          transition={{ duration: 10, repeat: Infinity, ease: "easeInOut" }}
+          style={{ position: "fixed", bottom: "-10%", left: "-10%", zIndex: 0, width: "500px", height: "500px", borderRadius: "50%",
+            background: "radial-gradient(circle, rgba(20,184,166,0.2), transparent 70%)", pointerEvents: "none" }}
+        />
+        <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
+          <MarketingSidebar />
+          <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/marketing/dashboard" element={<MarketingDashboard />} />
+                <Route path="/marketing/items" element={<MarketingItems />} />
+                <Route path="/marketing/stock" element={<MarketingStock />} />
+                <Route path="/marketing/classes" element={<MarketingClasses />} />
+                <Route path="/marketing/events" element={<MarketingEvents />} />
+                <Route path="/marketing/approvals" element={<MarketingApprovals />} />
+                <Route path="/marketing/reports" element={<MarketingReports />} />
+                <Route path="/marketing/history" element={<MarketingHistory />} />
+                <Route path="/marketing/settings" element={<MarketingSettings />} />
+                <Route path="/marketing/stocktake" element={<MarketingStocktake />} />
+                <Route path="*" element={<Navigate to="/marketing/dashboard" />} />
+              </Routes>
+            </Suspense>
+          </main>
+        </div>
+      </div>
+    </AuthProvider>
+  )
+}
+
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
@@ -901,6 +954,58 @@ function AdminLayout({ user }) {
   )
 }
 
+function AppRouter({ user, mfaVerified, onVerified }) {
+  const showLogin = !user || !mfaVerified
+  const [profile, setProfile] = useState(null)
+
+  useEffect(() => {
+    if (!user) { setProfile(null); return }
+    supabase.from("user_profiles").select("role,marketing_access").eq("id", user.id).single()
+      .then(({ data }) => setProfile(data))
+  }, [user?.id])
+
+  if (!user || !mfaVerified) {
+    return (
+      <Routes>
+        <Route path="/login" element={<LoginPage onVerified={onVerified} />} />
+        <Route path="/reset-password" element={
+          <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
+            <ResetPasswordPage />
+          </Suspense>
+        } />
+        <Route path="*" element={<Navigate to="/login" />} />
+      </Routes>
+    )
+  }
+
+  // Marketing-only users → marketing module
+  const isMarketingOnly = profile?.marketing_access && profile?.role !== "admin"
+  const isAdminWithMarketing = profile?.role === "admin" && profile?.marketing_access
+
+  return (
+    <Routes>
+      <Route path="/login" element={<Navigate to={isMarketingOnly ? "/marketing/dashboard" : "/admin"} />} />
+      <Route path="/reset-password" element={
+        <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
+          <ResetPasswordPage />
+        </Suspense>
+      } />
+      {/* Marketing module routes */}
+      <Route path="/marketing/*" element={
+        (profile?.marketing_access || profile?.role === "admin")
+          ? <MarketingLayout user={user} />
+          : <Navigate to="/admin" />
+      } />
+      {/* IT ITAMS routes */}
+      <Route path="/*" element={
+        isMarketingOnly
+          ? <Navigate to="/marketing/dashboard" />
+          : <AdminLayout user={user} />
+      } />
+    </Routes>
+  )
+}
+
 export default function App() {
   const [user, setUser] = useState(null)
   const [loading, setLoading] = useState(true)
@@ -909,7 +1014,6 @@ export default function App() {
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
-      // Existing sessions skip MFA (already verified in a prior login)
       if (session?.user) setMfaVerified(true)
       setLoading(false)
     })
@@ -925,26 +1029,10 @@ export default function App() {
     </div>
   )
 
-  const showAdmin = user && mfaVerified
-  const showLogin = !user || !mfaVerified
-
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <Routes>
-          <Route path="/login" element={
-            showAdmin ? <Navigate to="/admin" /> : <LoginPage onVerified={() => setMfaVerified(true)} />
-          } />
-          {/* Reset-password is public — accessible via email link without a session */}
-          <Route path="/reset-password" element={
-            <Suspense fallback={<div className="min-h-screen bg-black flex items-center justify-center"><p className="text-white">Loading...</p></div>}>
-              <ResetPasswordPage />
-            </Suspense>
-          } />
-          <Route path="/*" element={
-            showAdmin ? <AdminLayout user={user} /> : <Navigate to="/login" />
-          } />
-        </Routes>
+        <AppRouter user={user} mfaVerified={mfaVerified} onVerified={() => setMfaVerified(true)} />
       </BrowserRouter>
     </ThemeProvider>
   )

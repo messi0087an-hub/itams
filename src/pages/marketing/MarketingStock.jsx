@@ -1,0 +1,343 @@
+import { useState, useEffect } from "react"
+import { supabase } from "../../lib/supabase"
+import { useAuth } from "../../context/AuthContext"
+import { motion } from "framer-motion"
+
+const C = {
+  accent: "#06b6d4", teal: "#14b8a6",
+  card: "rgba(6,182,212,0.06)", border: "rgba(6,182,212,0.18)",
+  text: "#ffffff", sub: "#94a3b8",
+  success: "#10b981", error: "#ef4444",
+}
+
+const PURPOSES = [
+  "End of Class Distribution", "Event Collateral", "Google Review Gift",
+  "Corporate Gift", "BDM Request", "Other",
+]
+
+const inputStyle = {
+  width: "100%", background: "rgba(6,182,212,0.06)", color: "#fff",
+  border: "1px solid rgba(6,182,212,0.2)", borderRadius: "8px",
+  padding: "9px 12px", fontSize: "13px", outline: "none", boxSizing: "border-box",
+}
+
+function Field({ label, children }) {
+  return (
+    <div>
+      <p style={{ color: "#94a3b8", fontSize: "11px", marginBottom: "5px", fontWeight: "600" }}>{label}</p>
+      {children}
+    </div>
+  )
+}
+
+export default function MarketingStock() {
+  const { userProfile } = useAuth()
+  const [tab, setTab] = useState("in")
+  const [items, setItems] = useState([])
+  const [variants, setVariants] = useState([])
+  const [locations, setLocations] = useState([])
+  const [movements, setMovements] = useState([])
+  const [classes, setClasses] = useState([])
+  const [events, setEvents] = useState([])
+  const [loading, setLoading] = useState(true)
+  const [saving, setSaving] = useState(false)
+  const [filterType, setFilterType] = useState("All")
+
+  const [formIn, setFormIn] = useState({ item_id: "", variant_id: "", location_id: "", quantity: "", brought_by: "", intended_for: "", date: new Date().toISOString().split("T")[0], notes: "" })
+  const [formOut, setFormOut] = useState({ item_id: "", variant_id: "", from_location_id: "", quantity: "", taken_by: "", purpose: "", class_id: "", event_id: "", date: new Date().toISOString().split("T")[0], notes: "" })
+
+  useEffect(() => { fetchAll() }, [])
+
+  const fetchAll = async () => {
+    setLoading(true)
+    const [{ data: i }, { data: v }, { data: l }, { data: m }, { data: c }, { data: e }] = await Promise.all([
+      supabase.from("marketing_items").select("id, name, unit").order("name"),
+      supabase.from("marketing_item_variants").select("*"),
+      supabase.from("marketing_locations").select("*").order("name"),
+      supabase.from("marketing_stock_movements").select("*, marketing_items(name), marketing_locations!marketing_stock_movements_location_id_fkey(name)").order("created_at", { ascending: false }).limit(100),
+      supabase.from("marketing_classes").select("id, class_name, class_date").order("class_date", { ascending: false }).limit(50),
+      supabase.from("marketing_events").select("id, event_name, event_date").order("event_date", { ascending: false }).limit(50),
+    ])
+    setItems(i || [])
+    setVariants(v || [])
+    setLocations(l || [])
+    setMovements(m || [])
+    setClasses(c || [])
+    setEvents(e || [])
+    setLoading(false)
+  }
+
+  const getVariantsForItem = (itemId) => variants.filter(v => v.item_id === itemId)
+
+  const handleStockIn = async (e) => {
+    e.preventDefault()
+    if (!formIn.item_id || !formIn.quantity || !formIn.location_id) return
+    setSaving(true)
+    const qty = parseInt(formIn.quantity)
+
+    // Insert movement
+    await supabase.from("marketing_stock_movements").insert({
+      item_id: formIn.item_id,
+      variant_id: formIn.variant_id || null,
+      location_id: formIn.location_id,
+      movement_type: "stock_in",
+      quantity: qty,
+      to_location_id: formIn.location_id,
+      notes: [formIn.notes, formIn.brought_by ? `Brought by: ${formIn.brought_by}` : "", formIn.intended_for ? `For: ${formIn.intended_for}` : ""].filter(Boolean).join(" | "),
+      performed_by: userProfile?.id,
+      performed_by_name: userProfile?.full_name,
+    })
+
+    // Upsert stock
+    const { data: existing } = await supabase
+      .from("marketing_stock")
+      .select("id, quantity")
+      .eq("item_id", formIn.item_id)
+      .eq("location_id", formIn.location_id)
+      .eq("variant_id", formIn.variant_id || null)
+      .maybeSingle()
+
+    if (existing) {
+      await supabase.from("marketing_stock").update({ quantity: existing.quantity + qty, updated_at: new Date().toISOString() }).eq("id", existing.id)
+    } else {
+      await supabase.from("marketing_stock").insert({ item_id: formIn.item_id, variant_id: formIn.variant_id || null, location_id: formIn.location_id, quantity: qty })
+    }
+
+    setSaving(false)
+    setFormIn({ item_id: "", variant_id: "", location_id: "", quantity: "", brought_by: "", intended_for: "", date: new Date().toISOString().split("T")[0], notes: "" })
+    fetchAll()
+  }
+
+  const handleStockOut = async (e) => {
+    e.preventDefault()
+    if (!formOut.item_id || !formOut.quantity || !formOut.from_location_id) return
+    setSaving(true)
+    const qty = parseInt(formOut.quantity)
+
+    await supabase.from("marketing_stock_movements").insert({
+      item_id: formOut.item_id,
+      variant_id: formOut.variant_id || null,
+      location_id: formOut.from_location_id,
+      from_location_id: formOut.from_location_id,
+      movement_type: "stock_out",
+      quantity: qty,
+      reason: formOut.purpose,
+      notes: formOut.notes,
+      class_id: formOut.class_id || null,
+      event_id: formOut.event_id || null,
+      performed_by: userProfile?.id,
+      performed_by_name: formOut.taken_by || userProfile?.full_name,
+    })
+
+    // Decrease stock
+    const { data: existing } = await supabase
+      .from("marketing_stock")
+      .select("id, quantity")
+      .eq("item_id", formOut.item_id)
+      .eq("location_id", formOut.from_location_id)
+      .maybeSingle()
+
+    if (existing) {
+      await supabase.from("marketing_stock").update({ quantity: Math.max(0, existing.quantity - qty), updated_at: new Date().toISOString() }).eq("id", existing.id)
+    }
+
+    setSaving(false)
+    setFormOut({ item_id: "", variant_id: "", from_location_id: "", quantity: "", taken_by: "", purpose: "", class_id: "", event_id: "", date: new Date().toISOString().split("T")[0], notes: "" })
+    fetchAll()
+  }
+
+  const filteredMovements = filterType === "All" ? movements : movements.filter(m => m.movement_type === (filterType === "Stock In" ? "stock_in" : "stock_out"))
+
+  return (
+    <div style={{ padding: "24px", maxWidth: "900px" }}>
+      <div style={{ marginBottom: "24px" }}>
+        <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>📊 Stock In / Out</h1>
+        <p style={{ color: C.sub, fontSize: "13px" }}>Record stock receipts and disbursements</p>
+      </div>
+
+      {/* Tabs */}
+      <div style={{ display: "flex", gap: "6px", marginBottom: "24px" }}>
+        {[["in", "📥 Stock In"], ["out", "📤 Stock Out"], ["history", "📋 Movement History"]].map(([t, label]) => (
+          <button key={t} onClick={() => setTab(t)} style={{
+            padding: "9px 18px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "13px",
+            background: tab === t ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(6,182,212,0.08)",
+            color: tab === t ? "#fff" : C.sub,
+          }}>{label}</button>
+        ))}
+      </div>
+
+      {/* Stock In Form */}
+      {tab === "in" && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
+          <h2 style={{ color: C.text, fontSize: "16px", fontWeight: "700", marginBottom: "20px" }}>📥 Record Stock In</h2>
+          <form onSubmit={handleStockIn} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="Item *">
+                <select value={formIn.item_id} onChange={e => setFormIn({ ...formIn, item_id: e.target.value, variant_id: "" })} required style={inputStyle}>
+                  <option value="">Select item</option>
+                  {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </Field>
+              {formIn.item_id && getVariantsForItem(formIn.item_id).length > 0 && (
+                <Field label="Variant / Color">
+                  <select value={formIn.variant_id} onChange={e => setFormIn({ ...formIn, variant_id: e.target.value })} style={inputStyle}>
+                    <option value="">All variants</option>
+                    {getVariantsForItem(formIn.item_id).map(v => <option key={v.id} value={v.id}>{v.variant_name}{v.color ? ` (${v.color})` : ""}</option>)}
+                  </select>
+                </Field>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="Storage Location *">
+                <select value={formIn.location_id} onChange={e => setFormIn({ ...formIn, location_id: e.target.value })} required style={inputStyle}>
+                  <option value="">Select location</option>
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Quantity Received *">
+                <input type="number" min="1" value={formIn.quantity} onChange={e => setFormIn({ ...formIn, quantity: e.target.value })} required style={inputStyle} />
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="Brought In By">
+                <input value={formIn.brought_by} onChange={e => setFormIn({ ...formIn, brought_by: e.target.value })} placeholder="Name" style={inputStyle} />
+              </Field>
+              <Field label="Intended For">
+                <input value={formIn.intended_for} onChange={e => setFormIn({ ...formIn, intended_for: e.target.value })} placeholder="Department / person" style={inputStyle} />
+              </Field>
+            </div>
+            <Field label="Date Received">
+              <input type="date" value={formIn.date} onChange={e => setFormIn({ ...formIn, date: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="Notes">
+              <textarea value={formIn.notes} onChange={e => setFormIn({ ...formIn, notes: e.target.value })} rows={2} placeholder="Additional notes..." style={{ ...inputStyle, resize: "vertical" }} />
+            </Field>
+            <button type="submit" disabled={saving} style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "12px", fontWeight: "700", fontSize: "14px", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving..." : "📥 Record Stock In"}
+            </button>
+          </form>
+        </motion.div>
+      )}
+
+      {/* Stock Out Form */}
+      {tab === "out" && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}
+          style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "24px" }}>
+          <h2 style={{ color: C.text, fontSize: "16px", fontWeight: "700", marginBottom: "20px" }}>📤 Record Stock Out</h2>
+          <form onSubmit={handleStockOut} style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="Item *">
+                <select value={formOut.item_id} onChange={e => setFormOut({ ...formOut, item_id: e.target.value, variant_id: "" })} required style={inputStyle}>
+                  <option value="">Select item</option>
+                  {items.map(i => <option key={i.id} value={i.id}>{i.name}</option>)}
+                </select>
+              </Field>
+              {formOut.item_id && getVariantsForItem(formOut.item_id).length > 0 && (
+                <Field label="Variant / Color">
+                  <select value={formOut.variant_id} onChange={e => setFormOut({ ...formOut, variant_id: e.target.value })} style={inputStyle}>
+                    <option value="">All variants</option>
+                    {getVariantsForItem(formOut.item_id).map(v => <option key={v.id} value={v.id}>{v.variant_name}{v.color ? ` (${v.color})` : ""}</option>)}
+                  </select>
+                </Field>
+              )}
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="From Location *">
+                <select value={formOut.from_location_id} onChange={e => setFormOut({ ...formOut, from_location_id: e.target.value })} required style={inputStyle}>
+                  <option value="">Select location</option>
+                  {locations.map(l => <option key={l.id} value={l.id}>{l.name}</option>)}
+                </select>
+              </Field>
+              <Field label="Quantity *">
+                <input type="number" min="1" value={formOut.quantity} onChange={e => setFormOut({ ...formOut, quantity: e.target.value })} required style={inputStyle} />
+              </Field>
+            </div>
+            <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: "12px" }}>
+              <Field label="Taken By">
+                <input value={formOut.taken_by} onChange={e => setFormOut({ ...formOut, taken_by: e.target.value })} placeholder="Name" style={inputStyle} />
+              </Field>
+              <Field label="Purpose *">
+                <select value={formOut.purpose} onChange={e => setFormOut({ ...formOut, purpose: e.target.value })} required style={inputStyle}>
+                  <option value="">Select purpose</option>
+                  {PURPOSES.map(p => <option key={p}>{p}</option>)}
+                </select>
+              </Field>
+            </div>
+            {formOut.purpose === "End of Class Distribution" && (
+              <Field label="Link to Class">
+                <select value={formOut.class_id} onChange={e => setFormOut({ ...formOut, class_id: e.target.value })} style={inputStyle}>
+                  <option value="">Select class (optional)</option>
+                  {classes.map(c => <option key={c.id} value={c.id}>{c.class_name} ({c.class_date})</option>)}
+                </select>
+              </Field>
+            )}
+            {formOut.purpose === "Event Collateral" && (
+              <Field label="Link to Event">
+                <select value={formOut.event_id} onChange={e => setFormOut({ ...formOut, event_id: e.target.value })} style={inputStyle}>
+                  <option value="">Select event (optional)</option>
+                  {events.map(e => <option key={e.id} value={e.id}>{e.event_name} ({e.event_date})</option>)}
+                </select>
+              </Field>
+            )}
+            <Field label="Date">
+              <input type="date" value={formOut.date} onChange={e => setFormOut({ ...formOut, date: e.target.value })} style={inputStyle} />
+            </Field>
+            <Field label="Notes">
+              <textarea value={formOut.notes} onChange={e => setFormOut({ ...formOut, notes: e.target.value })} rows={2} placeholder="Reason / additional details..." style={{ ...inputStyle, resize: "vertical" }} />
+            </Field>
+            <button type="submit" disabled={saving} style={{ background: "linear-gradient(135deg, #ef4444, #dc2626)", color: "#fff", border: "none", borderRadius: "10px", padding: "12px", fontWeight: "700", fontSize: "14px", cursor: saving ? "not-allowed" : "pointer", opacity: saving ? 0.6 : 1 }}>
+              {saving ? "Saving..." : "📤 Record Stock Out"}
+            </button>
+          </form>
+        </motion.div>
+      )}
+
+      {/* Movement History */}
+      {tab === "history" && (
+        <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }}>
+          <div style={{ display: "flex", gap: "8px", marginBottom: "16px", flexWrap: "wrap" }}>
+            {["All", "Stock In", "Stock Out"].map(t => (
+              <button key={t} onClick={() => setFilterType(t)} style={{
+                padding: "7px 14px", borderRadius: "8px", border: "none", cursor: "pointer", fontSize: "12px", fontWeight: "600",
+                background: filterType === t ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(6,182,212,0.08)",
+                color: filterType === t ? "#fff" : C.sub,
+              }}>{t}</button>
+            ))}
+          </div>
+
+          {loading ? <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>Loading...</p> : (
+            <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+              {filteredMovements.map(m => (
+                <div key={m.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "14px 16px" }}>
+                  <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: "12px", flexWrap: "wrap" }}>
+                    <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
+                      <span style={{ fontSize: "20px" }}>{m.movement_type === "stock_in" ? "📥" : "📤"}</span>
+                      <div>
+                        <p style={{ color: C.text, fontSize: "13px", fontWeight: "600" }}>{m.marketing_items?.name || "Unknown"}</p>
+                        <p style={{ color: C.sub, fontSize: "11px", marginTop: "2px" }}>
+                          {m.movement_type === "stock_in" ? "Stock In" : "Stock Out"} ·{" "}
+                          <span style={{ color: m.movement_type === "stock_in" ? C.success : C.error, fontWeight: "700" }}>
+                            {m.movement_type === "stock_in" ? "+" : "-"}{m.quantity} units
+                          </span>
+                          {m.marketing_locations?.name && ` · ${m.marketing_locations.name}`}
+                          {m.reason && ` · ${m.reason}`}
+                        </p>
+                        {m.performed_by_name && <p style={{ color: C.sub, fontSize: "10px" }}>by {m.performed_by_name}</p>}
+                      </div>
+                    </div>
+                    <p style={{ color: C.sub, fontSize: "11px", whiteSpace: "nowrap" }}>{new Date(m.created_at).toLocaleString()}</p>
+                  </div>
+                  {m.notes && <p style={{ color: C.sub, fontSize: "11px", marginTop: "6px", fontStyle: "italic" }}>{m.notes}</p>}
+                </div>
+              ))}
+              {filteredMovements.length === 0 && (
+                <div style={{ textAlign: "center", padding: "40px", color: C.sub }}>No movements found</div>
+              )}
+            </div>
+          )}
+        </motion.div>
+      )}
+    </div>
+  )
+}
