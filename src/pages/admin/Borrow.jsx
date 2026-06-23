@@ -59,8 +59,8 @@ export default function Borrow() {
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
   const [form, setForm] = useState({
-    asset_id: "", borrowing_for: "myself", customer_name: "",
-    borrower_email: "", notes: "", due_date: ""
+    category: "", asset_id: "", borrowing_for: "myself", customer_name: "",
+    borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: ""
   })
 
   useEffect(() => {
@@ -91,7 +91,7 @@ export default function Borrow() {
   }
 
   const fetchAssets = async () => {
-    let q = supabase.from("assets").select("id, name, serial_number, status").eq("status", "available").order("name")
+    let q = supabase.from("assets").select("id, name, serial_number, status, category").eq("status", "available").order("name")
     if (userCountry) q = q.eq("country", userCountry)
     const { data } = await q
     setAssets(data || [])
@@ -114,7 +114,7 @@ export default function Borrow() {
 
     const { error } = await supabase.from("borrow_history").insert([{
       asset_id:         form.asset_id,
-      borrowed_at:      new Date().toISOString(),
+      borrowed_at:      form.borrow_date ? new Date(form.borrow_date).toISOString() : new Date().toISOString(),
       due_date:         form.due_date || null,
       borrower_name:    borrowerName,
       borrower_email:   borrowerEmail,
@@ -133,7 +133,7 @@ export default function Borrow() {
 
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
-      setForm({ asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", due_date: "" })
+      setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })
       setBorrowSuccess(true)
       setTimeout(() => {
         setBorrowSuccess(false)
@@ -402,23 +402,50 @@ export default function Borrow() {
             <h2 className="text-white font-semibold mb-4">Borrow an Asset</h2>
             <div className="space-y-3">
 
-              {/* Asset */}
+              {/* Category */}
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
+                <label className="text-gray-400 text-sm mb-2 block">Category *</label>
                 <select
-                  value={form.asset_id}
-                  onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
+                  value={form.category}
+                  onChange={(e) => setForm({ ...form, category: e.target.value, asset_id: "" })}
                   required
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 >
-                  <option value="">Select available asset…</option>
-                  {assets.map(a => (
-                    <option key={a.id} value={a.id}>
-                      {a.name} {a.serial_number ? `(${a.serial_number})` : ""}
-                    </option>
+                  <option value="">Select category…</option>
+                  {["Laptop","Monitor","Portable Speaker","Microphone","Clicker","Others"].map(c => (
+                    <option key={c} value={c}>{c}</option>
                   ))}
                 </select>
               </div>
+
+              {/* Asset — shown after category selected */}
+              {form.category && (
+                <div>
+                  <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
+                  <select
+                    value={form.asset_id}
+                    onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
+                    required
+                    className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                  >
+                    <option value="">Select available asset…</option>
+                    {assets
+                      .filter(a => form.category === "Others"
+                        ? !["Laptop","Monitor","Portable Speaker","Microphone","Clicker"].includes(a.category)
+                        : a.category === form.category)
+                      .map(a => (
+                        <option key={a.id} value={a.id}>
+                          {a.name} {a.serial_number ? `(${a.serial_number})` : ""}
+                        </option>
+                      ))}
+                  </select>
+                  {assets.filter(a => form.category === "Others"
+                    ? !["Laptop","Monitor","Portable Speaker","Microphone","Clicker"].includes(a.category)
+                    : a.category === form.category).length === 0 && (
+                    <p className="text-yellow-500 text-xs mt-1">No available assets in this category</p>
+                  )}
+                </div>
+              )}
 
               {/* Borrowing for */}
               <div>
@@ -495,6 +522,20 @@ export default function Borrow() {
                   </motion.div>
                 )}
               </AnimatePresence>
+
+              {/* Date Borrowed */}
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">
+                  Date Borrowed <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.borrow_date}
+                  required
+                  onChange={(e) => setForm({ ...form, borrow_date: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm [color-scheme:dark]"
+                />
+              </div>
 
               {/* Return date */}
               <div>

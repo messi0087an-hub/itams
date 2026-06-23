@@ -71,7 +71,6 @@ export default function AddAsset() {
 
   const fields = [
     { name: "name", label: "Asset Name *", placeholder: "e.g. Dell XPS 13", required: true },
-    { name: "category", label: "Category", placeholder: "e.g. Laptop, Monitor" },
     { name: "brand_model", label: "Brand / Model", placeholder: "e.g. Dell XPS 13 9310" },
     { name: "serial_number", label: "Serial Number", placeholder: "e.g. ABC123XYZ" },
     { name: "asset_tag", label: "Asset Tag", placeholder: "e.g. COM/2024/0001" },
@@ -191,6 +190,21 @@ export default function AddAsset() {
               />
             </div>
           ))}
+
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Category</label>
+            <select
+              name="category"
+              value={form.category}
+              onChange={handleChange}
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            >
+              <option value="">Select category…</option>
+              {["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"].map(c => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
 
           <div>
             <label className="text-gray-400 text-sm mb-2 block">Status</label>

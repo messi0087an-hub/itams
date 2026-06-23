@@ -37,6 +37,7 @@ export default function Dashboard() {
   const [procurementData, setProcurementData] = useState([])
   const [conditionData, setConditionData] = useState([])
   const [healthStats, setHealthStats] = useState(null)
+  const [warrantyStats, setWarrantyStats] = useState(null)
   const [deprStats, setDeprStats] = useState(null)
   const [loading, setLoading] = useState(true)
   const [pendingRequests, setPendingRequests] = useState([])
@@ -63,6 +64,7 @@ export default function Dashboard() {
     fetchProcurement(countryFilter)
     fetchCondition(countryFilter)
     fetchHealthStats(countryFilter)
+    fetchWarrantyStats(countryFilter)
     fetchDeprStats(countryFilter)
   }, [countryFilter, profileLoading])
 
@@ -211,6 +213,20 @@ export default function Dashboard() {
     setHealthStats({ avg: Math.round(scoreSum / assets.length), green, yellow, red, total: assets.length })
   }
 
+  const fetchWarrantyStats = async (country) => {
+    let q = supabase.from("assets").select("warranty_expiry")
+    if (country) q = q.eq("country", country)
+    const { data } = await q
+    const today = new Date()
+    let valid = 0, expired = 0, none = 0
+    ;(data || []).forEach(a => {
+      if (!a.warranty_expiry) { none++; return }
+      if (new Date(a.warranty_expiry) >= today) valid++
+      else expired++
+    })
+    setWarrantyStats({ valid, expired, none, total: (data || []).length })
+  }
+
   const fetchDeprStats = async (country) => {
     let q = supabase.from("assets").select("purchase_price, purchase_date")
       .not("purchase_price", "is", null).not("purchase_date", "is", null)
@@ -282,69 +298,41 @@ export default function Dashboard() {
         ))}
       </div>
 
-      {/* Fleet Health Score */}
+      {/* Warranty Status */}
       <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
         className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
-        {!healthStats ? (
+        {!warrantyStats ? (
           <div className="animate-pulse space-y-4">
-            <div className="flex items-center justify-between">
-              <div className="space-y-2">
-                <div className="h-4 bg-gray-700 rounded w-36" />
-                <div className="h-3 bg-gray-700 rounded w-52" />
-              </div>
-              <div className="h-9 bg-gray-700 rounded w-12" />
-            </div>
-            <div className="h-2 bg-gray-700 rounded-full" />
-            <div className="grid grid-cols-3 gap-3">
-              {[0,1,2].map(i => <div key={i} className="h-14 bg-gray-700 rounded-xl" />)}
+            <div className="h-4 bg-gray-700 rounded w-36" />
+            <div className="grid grid-cols-2 gap-3">
+              {[0,1].map(i => <div key={i} className="h-20 bg-gray-700 rounded-xl" />)}
             </div>
           </div>
         ) : (
           <>
-            <div className="flex items-center justify-between mb-4">
-              <div>
-                <h2 className="text-white font-semibold">Fleet Health Score</h2>
-                <p className="text-gray-500 text-xs mt-0.5">
-                  {healthStats.total > 0
-                    ? `Overall asset condition across ${healthStats.total} assets`
-                    : "Add assets to see health scores"}
-                </p>
-              </div>
-              {healthStats.total > 0 && (
-                <div className="text-right">
-                  <p className={`text-3xl font-bold ${
-                    healthStats.avg >= 71 ? "text-green-400" :
-                    healthStats.avg >= 41 ? "text-yellow-400" : "text-red-400"
-                  }`}>{healthStats.avg}</p>
-                  <p className="text-gray-500 text-xs">/ 100</p>
-                </div>
-              )}
+            <div className="flex items-center gap-2 mb-4">
+              <span className="text-xl">🛡️</span>
+              <h2 className="text-white font-semibold">Warranty Status</h2>
+              <span className="text-gray-500 text-xs">({warrantyStats.total} total assets)</span>
             </div>
-            {healthStats.total > 0 && (
-              <>
-                <div className="h-2 bg-gray-800 rounded-full overflow-hidden mb-4">
-                  <motion.div initial={{ width: 0 }} animate={{ width: `${healthStats.avg}%` }}
-                    transition={{ duration: 0.8, ease: "easeOut" }}
-                    className={`h-full rounded-full ${
-                      healthStats.avg >= 71 ? "bg-green-500" :
-                      healthStats.avg >= 41 ? "bg-yellow-500" : "bg-red-500"
-                    }`} />
+            <div className="grid grid-cols-2 gap-3">
+              <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/20 flex items-center gap-3">
+                <span className="text-2xl">✅</span>
+                <div>
+                  <p className="text-green-400 text-2xl font-bold">{warrantyStats.valid}</p>
+                  <p className="text-green-400/70 text-xs mt-0.5">Valid Warranty</p>
                 </div>
-                <div className="grid grid-cols-3 gap-3">
-                  <div className="bg-green-500/10 rounded-xl p-3 text-center border border-green-500/20">
-                    <p className="text-green-400 text-xl font-bold">{healthStats.green}</p>
-                    <p className="text-green-400/70 text-xs mt-0.5">Healthy</p>
-                  </div>
-                  <div className="bg-yellow-500/10 rounded-xl p-3 text-center border border-yellow-500/20">
-                    <p className="text-yellow-400 text-xl font-bold">{healthStats.yellow}</p>
-                    <p className="text-yellow-400/70 text-xs mt-0.5">Fair</p>
-                  </div>
-                  <div className="bg-red-500/10 rounded-xl p-3 text-center border border-red-500/20">
-                    <p className="text-red-400 text-xl font-bold">{healthStats.red}</p>
-                    <p className="text-red-400/70 text-xs mt-0.5">Needs Attention</p>
-                  </div>
+              </div>
+              <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/20 flex items-center gap-3">
+                <span className="text-2xl">❌</span>
+                <div>
+                  <p className="text-red-400 text-2xl font-bold">{warrantyStats.expired}</p>
+                  <p className="text-red-400/70 text-xs mt-0.5">Expired Warranty</p>
                 </div>
-              </>
+              </div>
+            </div>
+            {warrantyStats.none > 0 && (
+              <p className="text-gray-600 text-xs mt-2 text-center">{warrantyStats.none} assets have no warranty date recorded</p>
             )}
           </>
         )}

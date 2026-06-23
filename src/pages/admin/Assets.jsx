@@ -4,7 +4,6 @@ import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useAuth } from "../../context/AuthContext"
-import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
 
@@ -342,9 +341,9 @@ export default function Assets() {
           <EmptyState preset={search ? "search" : "assets"} />
         ) : (
           filtered.map((asset) => {
-            const { score, band } = calculateHealthScore(asset, maintByAsset[asset.id] || [])
-            const hc = HEALTH_COLORS[band]
             const isChecked = selected.has(asset.id)
+            const cardWarrantyExpiry = asset.warranty_expiry ? new Date(asset.warranty_expiry) : null
+            const cardWarrantyValid = cardWarrantyExpiry && cardWarrantyExpiry >= new Date()
             return (
               <motion.div key={asset.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
                 onClick={() => navigate(`/admin/assets/${asset.id}`)}
@@ -364,11 +363,18 @@ export default function Assets() {
                     <p className="text-gray-500 text-xs mt-1">{asset.category}</p>
                     <p className="text-gray-400 text-sm mt-1">{asset.serial_number || "No serial"}</p>
                     <p className="text-gray-400 text-sm">{asset.assigned_user || "Unassigned"}</p>
-                    <div className="mt-2 flex items-center gap-2">
-                      <div className="flex-1 h-1 bg-gray-800 rounded-full overflow-hidden max-w-[80px]">
-                        <div className={`h-full ${hc.bar} rounded-full`} style={{ width: `${score}%` }} />
-                      </div>
-                      <span className={`text-xs font-bold ${hc.text}`}>{score}</span>
+                    <div className="mt-2 flex items-center gap-1.5">
+                      {asset.warranty_expiry ? (
+                        <>
+                          <span className="text-xs">{cardWarrantyValid ? "🟢" : "🔴"}</span>
+                          <span className={`text-xs font-medium ${cardWarrantyValid ? "text-green-400" : "text-red-400"}`}>
+                            {cardWarrantyValid ? "Valid" : "Expired"}
+                          </span>
+                          <span className="text-gray-600 text-xs">{asset.warranty_expiry}</span>
+                        </>
+                      ) : (
+                        <span className="text-gray-600 text-xs">No warranty</span>
+                      )}
                     </div>
                   </div>
                   <div className="flex flex-col items-end gap-2 shrink-0">
@@ -410,7 +416,7 @@ export default function Assets() {
               <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Serial No.</th>
               <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Assigned To</th>
               <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Status</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Health</th>
+              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Warranty Status</th>
               <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Location</th>
               <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Actions</th>
             </tr>
@@ -422,9 +428,9 @@ export default function Assets() {
               <tr><td colSpan={8}><EmptyState preset={search ? "search" : "assets"} /></td></tr>
             ) : (
               filtered.map((asset) => {
-                const { score, band } = calculateHealthScore(asset, maintByAsset[asset.id] || [])
-                const hc = HEALTH_COLORS[band]
                 const isChecked = selected.has(asset.id)
+                const warrantyExpiry = asset.warranty_expiry ? new Date(asset.warranty_expiry) : null
+                const warrantyValid = warrantyExpiry && warrantyExpiry >= new Date()
                 return (
                   <tr key={asset.id} onClick={() => navigate(`/admin/assets/${asset.id}`)}
                     className={`border-b border-gray-800 transition-all cursor-pointer ${
@@ -449,12 +455,19 @@ export default function Assets() {
                       </span>
                     </td>
                     <td className="px-4 py-4">
-                      <div className="flex items-center gap-2">
-                        <div className="w-16 h-1.5 bg-gray-800 rounded-full overflow-hidden">
-                          <div className={`h-full ${hc.bar} rounded-full`} style={{ width: `${score}%` }} />
+                      {!asset.warranty_expiry ? (
+                        <span className="text-gray-600 text-xs">—</span>
+                      ) : (
+                        <div className="flex items-center gap-1.5">
+                          <span>{warrantyValid ? "🟢" : "🔴"}</span>
+                          <div>
+                            <span className={`text-xs font-medium ${warrantyValid ? "text-green-400" : "text-red-400"}`}>
+                              {warrantyValid ? "Valid" : "Expired"}
+                            </span>
+                            <p className="text-gray-500 text-xs">{asset.warranty_expiry}</p>
+                          </div>
                         </div>
-                        <span className={`text-xs font-bold ${hc.text}`}>{score}</span>
-                      </div>
+                      )}
                     </td>
                     <td className="px-4 py-4 text-gray-400 text-sm">{asset.location || "—"}</td>
                     <td className="px-4 py-4">
