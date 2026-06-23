@@ -364,7 +364,12 @@ export default function Assets() {
                     <p className="text-gray-400 text-sm mt-1">{asset.serial_number || "No serial"}</p>
                     <p className="text-gray-400 text-sm">{asset.assigned_user || "Unassigned"}</p>
                     <div className="mt-2 flex items-center gap-1.5">
-                      {asset.warranty_expiry ? (
+                      {!asset.warranty_expiry ? (
+                        <>
+                          <span className="text-xs">⚪</span>
+                          <span className="text-gray-500 text-xs">No Warranty</span>
+                        </>
+                      ) : (
                         <>
                           <span className="text-xs">{cardWarrantyValid ? "🟢" : "🔴"}</span>
                           <span className={`text-xs font-medium ${cardWarrantyValid ? "text-green-400" : "text-red-400"}`}>
@@ -372,8 +377,6 @@ export default function Assets() {
                           </span>
                           <span className="text-gray-600 text-xs">{asset.warranty_expiry}</span>
                         </>
-                      ) : (
-                        <span className="text-gray-600 text-xs">No warranty</span>
                       )}
                     </div>
                   </div>
@@ -456,10 +459,13 @@ export default function Assets() {
                     </td>
                     <td className="px-4 py-4">
                       {!asset.warranty_expiry ? (
-                        <span className="text-gray-600 text-xs">—</span>
+                        <div className="flex items-center gap-1.5">
+                          <span className="text-sm">⚪</span>
+                          <span className="text-gray-500 text-xs">No Warranty</span>
+                        </div>
                       ) : (
                         <div className="flex items-center gap-1.5">
-                          <span>{warrantyValid ? "🟢" : "🔴"}</span>
+                          <span className="text-sm">{warrantyValid ? "🟢" : "🔴"}</span>
                           <div>
                             <span className={`text-xs font-medium ${warrantyValid ? "text-green-400" : "text-red-400"}`}>
                               {warrantyValid ? "Valid" : "Expired"}

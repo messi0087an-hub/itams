@@ -419,33 +419,39 @@ export default function Borrow() {
               </div>
 
               {/* Asset — shown after category selected */}
-              {form.category && (
-                <div>
-                  <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
-                  <select
-                    value={form.asset_id}
-                    onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
-                    required
-                    className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                  >
-                    <option value="">Select available asset…</option>
-                    {assets
-                      .filter(a => form.category === "Others"
-                        ? !["Laptop","Monitor","Portable Speaker","Microphone","Clicker"].includes(a.category)
-                        : a.category === form.category)
-                      .map(a => (
-                        <option key={a.id} value={a.id}>
-                          {a.name} {a.serial_number ? `(${a.serial_number})` : ""}
-                        </option>
-                      ))}
-                  </select>
-                  {assets.filter(a => form.category === "Others"
-                    ? !["Laptop","Monitor","Portable Speaker","Microphone","Clicker"].includes(a.category)
-                    : a.category === form.category).length === 0 && (
-                    <p className="text-yellow-500 text-xs mt-1">No available assets in this category</p>
-                  )}
-                </div>
-              )}
+              {form.category && (() => {
+                const knownCats = ["Laptop","Monitor","Portable Speaker","Microphone","Clicker"]
+                const filtered = form.category === "Others"
+                  ? assets.filter(a => !knownCats.includes(a.category))
+                  : assets.filter(a => (a.category || "").toLowerCase() === form.category.toLowerCase())
+                const listToShow = filtered.length > 0 ? filtered : assets
+                const noMatch = filtered.length === 0
+                return (
+                  <div>
+                    <label className="text-gray-400 text-sm mb-2 block">Select Asset *</label>
+                    {noMatch && assets.length > 0 && (
+                      <p className="text-yellow-500 text-xs mb-1">No assets match this category — showing all available assets</p>
+                    )}
+                    {assets.length === 0 ? (
+                      <p className="text-gray-500 text-sm py-3 text-center">No available assets right now</p>
+                    ) : (
+                      <select
+                        value={form.asset_id}
+                        onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
+                        required
+                        className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                      >
+                        <option value="">Select available asset…</option>
+                        {listToShow.map(a => (
+                          <option key={a.id} value={a.id}>
+                            {a.name}{a.category ? ` [${a.category}]` : ""}{a.serial_number ? ` (${a.serial_number})` : ""}
+                          </option>
+                        ))}
+                      </select>
+                    )}
+                  </div>
+                )
+              })()}
 
               {/* Borrowing for */}
               <div>
