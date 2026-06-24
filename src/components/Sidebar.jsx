@@ -87,7 +87,7 @@ export default function Sidebar() {
     <>
       {/* Mobile top bar */}
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between px-4 py-3">
-        <h1 className="text-white font-bold text-lg">ITAMS</h1>
+        <h1 className="text-white font-bold text-lg">Trainocate</h1>
         <div className="flex items-center gap-2">
           <NotificationBell />
           <button
@@ -114,7 +114,7 @@ export default function Sidebar() {
         {/* ── TOP: Logo (desktop) / spacer (mobile) — never scrolls ── */}
         <div className="shrink-0">
           <div className="p-6 border-b border-gray-800 hidden md:block">
-            <h1 className="text-2xl font-bold text-white">ITAMS</h1>
+            <h1 className="text-xl font-bold text-white leading-tight">Trainocate Asset Portal</h1>
             <p className="text-gray-500 text-xs mt-1">Trainocate Singapore</p>
           </div>
           <div className="h-14 md:hidden" />
@@ -151,7 +151,7 @@ export default function Sidebar() {
                   cursor: "default",
                 }}
               >
-                🖥️ IT ITAMS
+                🖥️ IT Portal
               </button>
               <button
                 onClick={() => { setOpen(false); navigate("/marketing/dashboard") }}

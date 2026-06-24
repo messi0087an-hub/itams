@@ -37,7 +37,8 @@ export default function ManageUsers() {
   const [deleteTarget, setDeleteTarget] = useState(null)
   const [deleting, setDeleting] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
-  const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", marketing_access: false })
+  const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", marketing_access: false, marketing_role: "" })
+  const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef()
 
@@ -166,30 +167,34 @@ export default function ManageUsers() {
       role: u.role || "standard_user",
       country: u.country || "Singapore",
       marketing_access: !!u.marketing_access,
+      marketing_role: u.marketing_role || "",
     })
     setEditTarget(u)
+  }
+
+  const generatePassword = () => {
+    const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnpqrstuvwxyz23456789!@#$"
+    let pwd = ""
+    for (let i = 0; i < 12; i++) pwd += chars[Math.floor(Math.random() * chars.length)]
+    setForm(f => ({ ...f, password: pwd }))
   }
 
   const handleSaveEdit = async () => {
     if (!editTarget) return
     setSaving(true)
     try {
-      const { error: updateErr } = await supabase.from("user_profiles").update({
+      const updatePayload = {
         name: editForm.name,
         role: editForm.role,
         country: editForm.country,
         marketing_access: editForm.marketing_access,
-      }).eq("id", editTarget.id)
+        marketing_role: editForm.marketing_access ? (editForm.marketing_role || null) : null,
+      }
+      const { error: updateErr } = await supabase.from("user_profiles").update(updatePayload).eq("id", editTarget.id)
 
       if (updateErr) throw updateErr
 
-      setUsers(users.map(u => u.id === editTarget.id ? {
-        ...u,
-        name: editForm.name,
-        role: editForm.role,
-        country: editForm.country,
-        marketing_access: editForm.marketing_access,
-      } : u))
+      setUsers(users.map(u => u.id === editTarget.id ? { ...u, ...updatePayload } : u))
 
       showSuccess(`${editForm.name || editTarget.email}'s profile updated.`)
       setEditTarget(null)
@@ -548,12 +553,33 @@ export default function ManageUsers() {
                   </div>
                   <button
                     type="button"
-                    onClick={() => setEditForm(f => ({ ...f, marketing_access: !f.marketing_access }))}
+                    onClick={() => setEditForm(f => ({ ...f, marketing_access: !f.marketing_access, marketing_role: "" }))}
                     className={`relative w-11 h-6 rounded-full transition-colors duration-200 ${editForm.marketing_access ? "bg-purple-600" : "bg-gray-600"}`}
                   >
                     <span className={`absolute top-0.5 left-0.5 w-5 h-5 bg-white rounded-full shadow transition-transform duration-200 ${editForm.marketing_access ? "translate-x-5" : "translate-x-0"}`} />
                   </button>
                 </div>
+
+                {/* Marketing Role — only when marketing_access is ON */}
+                {editForm.marketing_access && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                    exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }} style={{ overflow: "hidden" }}
+                  >
+                    <label className="text-gray-400 text-xs mb-1 block">Marketing Role</label>
+                    <select
+                      value={editForm.marketing_role}
+                      onChange={e => setEditForm(f => ({ ...f, marketing_role: e.target.value }))}
+                      className="w-full bg-gray-800 text-white rounded-lg px-3 py-2.5 border border-purple-500/30 focus:border-purple-500 focus:outline-none text-sm"
+                    >
+                      <option value="">Select role…</option>
+                      <option value="marketing_admin">Marketing Admin</option>
+                      <option value="marketing_staff">Marketing Staff</option>
+                      <option value="bdm">BDM</option>
+                      <option value="bdms">BDMS</option>
+                    </select>
+                  </motion.div>
+                )}
               </div>
 
               <div className="flex gap-3 mt-6">
@@ -718,15 +744,27 @@ export default function ManageUsers() {
               </div>
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">{t("password")}</label>
-                <input
-                  type="password"
-                  value={form.password}
-                  onChange={e => setForm({ ...form, password: e.target.value })}
-                  placeholder="Min 6 characters"
-                  minLength={6}
-                  required
-                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                />
+                <div className="flex gap-2">
+                  <div className="relative flex-1">
+                    <input
+                      type={showPassword ? "text" : "password"}
+                      value={form.password}
+                      onChange={e => setForm({ ...form, password: e.target.value })}
+                      placeholder="Min 6 characters"
+                      minLength={6}
+                      required
+                      className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 pr-10 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                    />
+                    <button type="button" onClick={() => setShowPassword(v => !v)}
+                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-sm">
+                      {showPassword ? "🙈" : "👁"}
+                    </button>
+                  </div>
+                  <button type="button" onClick={generatePassword}
+                    className="px-3 py-2 rounded-lg text-sm font-medium border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-all whitespace-nowrap">
+                    🔑 Generate
+                  </button>
+                </div>
               </div>
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">{t("userRole")}</label>

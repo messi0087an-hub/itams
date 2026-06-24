@@ -32,6 +32,26 @@ export default function Scanner() {
   const [manualInput, setManualInput] = useState("")
   const scannerRef = useRef(null)
 
+  // --- Asset cache for fast QR lookup ---
+  const assetCache = useRef(null) // Map<id, asset>
+  const assetBySerial = useRef(null) // Map<serial_lower, asset>
+
+  useEffect(() => {
+    // Pre-fetch all assets into memory cache for instant QR lookup
+    supabase.from("assets").select("*").then(({ data }) => {
+      if (!data) return
+      const byId = new Map()
+      const bySerial = new Map()
+      data.forEach(a => {
+        byId.set(a.id, a)
+        if (a.serial_number) bySerial.set(a.serial_number.toLowerCase().trim(), a)
+        if (a.asset_tag) bySerial.set(a.asset_tag.toLowerCase().trim(), a)
+      })
+      assetCache.current = byId
+      assetBySerial.current = bySerial
+    })
+  }, [])
+
   // --- Photo Scan state ---
   const [photoPreview, setPhotoPreview] = useState(null)
   const [photoFile, setPhotoFile] = useState(null)
@@ -104,15 +124,33 @@ export default function Scanner() {
   const handleScanResult = async (text) => {
     setLoading(true)
     setAsset(null)
+
     let assetId = null
     if (text.includes("/admin/assets/")) {
       assetId = text.split("/admin/assets/")[1]
     }
+
     if (assetId) {
+      // Try cache first — instant
+      const cached = assetCache.current?.get(assetId)
+      if (cached) {
+        setAsset(cached)
+        setLoading(false)
+        return
+      }
       const { data } = await supabase.from("assets").select("*").eq("id", assetId).single()
       if (data) setAsset(data)
       else setError("Asset not found in ITAMS database.")
     } else {
+      // Try serial/tag cache
+      const key = text.trim().toLowerCase()
+      const cached = assetBySerial.current?.get(key)
+      if (cached) {
+        setAsset(cached)
+        setLoading(false)
+        return
+      }
+      // Fallback partial search
       const { data } = await supabase
         .from("assets").select("*")
         .ilike("serial_number", `%${text.trim()}%`).limit(1).single()
@@ -129,6 +167,29 @@ export default function Scanner() {
     setError("")
     setAsset(null)
     setResult(manualInput)
+
+    // Check cache first
+    const key = manualInput.trim().toLowerCase()
+    const cachedSerial = assetBySerial.current?.get(key)
+    if (cachedSerial) {
+      setAsset(cachedSerial)
+      setLoading(false)
+      return
+    }
+    // Cache partial name search
+    if (assetCache.current) {
+      const found = [...assetCache.current.values()].find(a =>
+        a.name?.toLowerCase().includes(key) ||
+        a.serial_number?.toLowerCase().includes(key) ||
+        a.asset_tag?.toLowerCase().includes(key)
+      )
+      if (found) {
+        setAsset(found)
+        setLoading(false)
+        return
+      }
+    }
+
     const { data } = await supabase
       .from("assets").select("*")
       .or(`serial_number.ilike.%${manualInput}%,asset_tag.ilike.%${manualInput}%,name.ilike.%${manualInput}%`)

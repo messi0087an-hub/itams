@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
@@ -7,7 +8,27 @@ import { useAuth } from "../../context/AuthContext"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
 
+const CATEGORIES = ["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"]
+
 const STATUS_OPTIONS = ["available", "assigned", "maintenance", "retired"]
+
+function exportToExcel(data, filename = "assets") {
+  const rows = data.map(a => ({
+    "Asset Name": a.name,
+    "Category": a.category || "",
+    "Serial No.": a.serial_number || "",
+    "Asset Tag": a.asset_tag || "",
+    "Assigned To": a.assigned_user || "",
+    "Location": a.location || "",
+    "Status": a.status,
+    "Warranty Expiry": a.warranty_expiry || "",
+    "Purchase Price": a.purchase_price || "",
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Assets")
+  XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split("T")[0]}.xlsx`)
+}
 
 function exportToPDF(selectedAssets) {
   const rows = selectedAssets.map(a => `
@@ -62,6 +83,10 @@ export default function Assets() {
   const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
   const [search, setSearch] = useState(searchParams.get("q") || "")
+  const [filterStatus, setFilterStatus] = useState("")
+  const [filterCategory, setFilterCategory] = useState("")
+  const [sortCol, setSortCol] = useState("")
+  const [sortDir, setSortDir] = useState("asc")
   const [loading, setLoading] = useState(true)
   const [deleteModal, setDeleteModal] = useState(null)
   const navigate = useNavigate()
@@ -156,15 +181,31 @@ export default function Assets() {
     setBulkModal(null); clearSelected(); setBulkWorking(false)
   }
 
+  const handleSort = (col) => {
+    if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc")
+    else { setSortCol(col); setSortDir("asc") }
+  }
+
   const filtered = assets.filter(a => {
     const q = search.toLowerCase()
-    return (
+    const matchSearch = (
       a.name?.toLowerCase().includes(q) ||
       a.serial_number?.toLowerCase().includes(q) ||
       a.assigned_user?.toLowerCase().includes(q) ||
       a.location?.toLowerCase().includes(q) ||
       a.category?.toLowerCase().includes(q)
     )
+    const matchStatus = !filterStatus || a.status === filterStatus
+    const matchCat = !filterCategory || a.category === filterCategory
+    return matchSearch && matchStatus && matchCat
+  }).sort((a, b) => {
+    if (!sortCol) return 0
+    let va = "", vb = ""
+    if (sortCol === "name")     { va = a.name || ""; vb = b.name || "" }
+    if (sortCol === "category") { va = a.category || ""; vb = b.category || "" }
+    if (sortCol === "status")   { va = a.status || ""; vb = b.status || "" }
+    if (sortCol === "warranty") { va = a.warranty_expiry || ""; vb = b.warranty_expiry || "" }
+    return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va)
   })
 
   const allSelected = filtered.length > 0 && selected.size === filtered.length
@@ -281,22 +322,48 @@ export default function Assets() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">All Assets</h1>
           <p className="text-gray-400 mt-1 text-sm">{assets.length} total assets</p>
         </div>
-        {canEdit && (
-          <button onClick={() => navigate("/admin/add-asset")}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm">
-            + Add
+        <div className="flex gap-2">
+          <button onClick={() => exportToExcel(filtered)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => { e.currentTarget.style.background = "rgba(59,130,246,0.15)" }}
+            onMouseLeave={e => { e.currentTarget.style.background = "rgba(30,41,59,0.8)" }}
+          >
+            📥 Export Excel
           </button>
-        )}
+          {canEdit && (
+            <button onClick={() => navigate("/admin/add-asset")}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm">
+              + Add
+            </button>
+          )}
+        </div>
       </div>
 
-      <input type="text" placeholder="Search assets..." value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="w-full bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none mb-4" />
+      {/* Search + Filters */}
+      <div className="flex flex-col md:flex-row gap-2 mb-4">
+        <input type="text" placeholder="Search assets..." value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="flex-1 bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none" />
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
+          className="bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none text-sm">
+          <option value="">All Status</option>
+          <option value="available">Available</option>
+          <option value="assigned">Assigned</option>
+          <option value="maintenance">Maintenance</option>
+          <option value="retired">Retired</option>
+        </select>
+        <select value={filterCategory} onChange={e => setFilterCategory(e.target.value)}
+          className="bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none text-sm">
+          <option value="">All Categories</option>
+          {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+      </div>
 
       {/* Bulk action bar */}
       <AnimatePresence>
@@ -415,13 +482,24 @@ export default function Assets() {
                   {(allSelected || someSelected) && <span className="text-white text-xs leading-none">{allSelected ? "✓" : "–"}</span>}
                 </div>
               </th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Asset</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Serial No.</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Assigned To</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Status</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Warranty Status</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Location</th>
-              <th className="text-left text-gray-400 text-sm font-medium px-4 py-4">Actions</th>
+              {[
+                { key: "name",     label: "Asset" },
+                { key: "",         label: "Serial No." },
+                { key: "",         label: "Assigned To" },
+                { key: "status",   label: "Status" },
+                { key: "warranty", label: "Warranty" },
+                { key: "category", label: "Category" },
+                { key: "",         label: "Actions" },
+              ].map(({ key, label }) => (
+                <th key={label} className="text-left text-gray-400 text-sm font-medium px-4 py-4">
+                  {key ? (
+                    <button onClick={() => handleSort(key)} className="flex items-center gap-1 hover:text-white transition-colors">
+                      {label}
+                      <span className="text-xs">{sortCol === key ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
+                    </button>
+                  ) : label}
+                </th>
+              ))}
             </tr>
           </thead>
           <tbody>
@@ -475,7 +553,7 @@ export default function Assets() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-gray-400 text-sm">{asset.location || "—"}</td>
+                    <td className="px-4 py-4 text-gray-400 text-sm">{asset.category || "—"}</td>
                     <td className="px-4 py-4">
                       <div className="flex gap-2">
                         {canEdit && (

@@ -1,15 +1,32 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 import { useAuth } from "../../context/AuthContext"
+import { motion, AnimatePresence } from "framer-motion"
 
 export default function ImportAssets() {
-  const { userCountry } = useAuth()
+  const { userCountry, userProfile } = useAuth()
   const [loading, setLoading] = useState(false)
   const [preview, setPreview] = useState([])
   const [imported, setImported] = useState(false)
   const [count, setCount] = useState(0)
   const [importedCount, setImportedCount] = useState(0)
+  const [updatedCount, setUpdatedCount] = useState(0)
+  const [importMode, setImportMode] = useState("add") // "add" | "update"
+  const [importHistory, setImportHistory] = useState([])
+
+  useEffect(() => {
+    loadHistory()
+  }, [])
+
+  const loadHistory = async () => {
+    const { data } = await supabase
+      .from("import_history")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(10)
+    setImportHistory(data || [])
+  }
 
   const handleFile = (e) => {
     const file = e.target.files[0]
@@ -40,13 +57,12 @@ export default function ImportAssets() {
         const assetTag = row[5] ? String(row[5]).trim() : null
         const remarks = row[6] ? String(row[6]).trim() : null
 
-        // Make serial unique by appending index if duplicate
         if (serial && seenSerials.has(serial)) {
           serial = `${serial}_${i}`
         }
         if (serial) seenSerials.add(serial)
 
-        const category = 
+        const category =
           name.toLowerCase().includes("desktop") ? "Desktop" : "Laptop"
 
         assets.push({
@@ -64,6 +80,9 @@ export default function ImportAssets() {
 
       setPreview(assets.slice(0, 5))
       setCount(assets.length)
+      setImported(false)
+      setImportedCount(0)
+      setUpdatedCount(0)
       window._importData = assets
     }
     reader.readAsBinaryString(file)
@@ -75,18 +94,45 @@ export default function ImportAssets() {
 
     const data = window._importData
     let successCount = 0
+    let updateCount = 0
+    const fileName = `Import_${new Date().toISOString().split("T")[0]}`
 
     for (let i = 0; i < data.length; i++) {
-      const { error } = await supabase.from("assets").insert([data[i]])
-      if (!error) {
-        successCount++
+      const item = data[i]
+
+      if (importMode === "update" && item.serial_number) {
+        const { data: existing } = await supabase
+          .from("assets")
+          .select("id")
+          .eq("serial_number", item.serial_number)
+          .single()
+
+        if (existing?.id) {
+          const { error } = await supabase.from("assets").update(item).eq("id", existing.id)
+          if (!error) updateCount++
+          setUpdatedCount(updateCount)
+          continue
+        }
       }
+
+      const { error } = await supabase.from("assets").insert([item])
+      if (!error) successCount++
       setImportedCount(successCount)
     }
 
+    // Save import history
+    await supabase.from("import_history").insert([{
+      file_name: fileName,
+      imported_by: userProfile?.name || userProfile?.email || "Unknown",
+      total_count: data.length,
+      success_count: successCount,
+      updated_count: updateCount,
+      status: "Success",
+    }])
+
     setImported(true)
-    setImportedCount(successCount)
     setLoading(false)
+    loadHistory()
   }
 
   return (
@@ -94,19 +140,43 @@ export default function ImportAssets() {
       <h1 className="text-3xl font-bold text-white mb-2">Import Assets</h1>
       <p className="text-gray-400 mb-8">Upload your asset list{userCountry ? ` — assets will be imported to ${userCountry}` : ""}</p>
 
-      {imported && (
-        <div className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">
-          ✅ Successfully imported {importedCount} out of {count} assets!
-        </div>
-      )}
+      <AnimatePresence>
+        {imported && (
+          <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+            className="bg-green-500/20 border border-green-500/30 text-green-400 rounded-lg px-4 py-3 mb-6">
+            ✅ {importedCount} new asset{importedCount !== 1 ? "s" : ""} added
+            {updatedCount > 0 ? `, ${updatedCount} existing updated` : ""}!
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {loading && (
         <div className="bg-blue-500/20 border border-blue-500/30 text-blue-400 rounded-lg px-4 py-3 mb-6">
-          ⏳ Importing... {importedCount} / {count} assets done
+          ⏳ Importing... {importedCount + updatedCount} / {count} done
         </div>
       )}
 
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6 mb-6">
+        {/* Import Mode */}
+        <div className="mb-5">
+          <label className="text-gray-400 text-sm mb-3 block font-medium">Import Mode</label>
+          <div className="space-y-2">
+            {[
+              { value: "add", label: "Add new assets only", desc: "Skip assets with existing serial numbers" },
+              { value: "update", label: "Add new + update existing", desc: "Update asset details if serial number matches" },
+            ].map(opt => (
+              <label key={opt.value} className="flex items-start gap-3 cursor-pointer group">
+                <input type="radio" name="importMode" value={opt.value} checked={importMode === opt.value}
+                  onChange={() => setImportMode(opt.value)} className="mt-0.5" />
+                <div>
+                  <p className={`text-sm font-medium ${importMode === opt.value ? "text-white" : "text-gray-400"}`}>{opt.label}</p>
+                  <p className="text-gray-600 text-xs">{opt.desc}</p>
+                </div>
+              </label>
+            ))}
+          </div>
+        </div>
+
         <label className="text-gray-400 text-sm mb-3 block">Select Excel File (IT_Asset_Tracking.xlsx)</label>
         <input
           type="file"
@@ -138,11 +208,13 @@ export default function ImportAssets() {
                     <td className="text-gray-400 py-2 px-3">{a.category}</td>
                   </tr>
                 ))}
-                <tr>
-                  <td colSpan={4} className="text-gray-500 py-2 px-3 text-center">
-                    ... and {count - 5} more assets
-                  </td>
-                </tr>
+                {count > 5 && (
+                  <tr>
+                    <td colSpan={4} className="text-gray-500 py-2 px-3 text-center">
+                      ... and {count - 5} more assets
+                    </td>
+                  </tr>
+                )}
               </tbody>
             </table>
           </div>
@@ -152,10 +224,58 @@ export default function ImportAssets() {
             disabled={loading}
             className="mt-6 bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-all disabled:opacity-50"
           >
-            {loading ? `Importing ${importedCount}/${count}...` : `Import All ${count} Assets`}
+            {loading
+              ? `Importing ${importedCount + updatedCount}/${count}...`
+              : `Import ${count} Assets (${importMode === "update" ? "Add + Update" : "Add Only"})`}
           </button>
         </div>
       )}
+
+      {/* Import History */}
+      <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
+        <h2 className="text-white font-semibold mb-4">Import History</h2>
+        {importHistory.length === 0 ? (
+          <p className="text-gray-500 text-sm">No import history yet.</p>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead>
+                <tr className="border-b border-gray-800">
+                  <th className="text-left text-gray-400 py-2 px-3">File</th>
+                  <th className="text-left text-gray-400 py-2 px-3">Date</th>
+                  <th className="text-left text-gray-400 py-2 px-3">By</th>
+                  <th className="text-left text-gray-400 py-2 px-3">Added</th>
+                  <th className="text-left text-gray-400 py-2 px-3">Updated</th>
+                  <th className="text-left text-gray-400 py-2 px-3">Status</th>
+                </tr>
+              </thead>
+              <tbody>
+                {importHistory.map((h, i) => (
+                  <tr key={h.id || i} className="border-b border-gray-800 hover:bg-gray-800/50">
+                    <td className="text-white py-2 px-3 max-w-xs truncate">{h.file_name || "—"}</td>
+                    <td className="text-gray-400 py-2 px-3 text-xs whitespace-nowrap">
+                      {h.created_at ? new Date(h.created_at).toLocaleString() : "—"}
+                    </td>
+                    <td className="text-gray-400 py-2 px-3">{h.imported_by || "—"}</td>
+                    <td className="text-gray-400 py-2 px-3">{h.success_count ?? "—"}</td>
+                    <td className="text-gray-400 py-2 px-3">{h.updated_count ?? 0}</td>
+                    <td className="py-2 px-3">
+                      <span className={`text-xs px-2 py-0.5 rounded-full ${
+                        h.status === "Success"
+                          ? "bg-green-500/20 text-green-400"
+                          : "bg-red-500/20 text-red-400"
+                      }`}>
+                        {h.status || "—"}
+                      </span>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+        <p className="text-gray-600 text-xs mt-3">Showing last 10 imports</p>
+      </div>
     </div>
   )
 }

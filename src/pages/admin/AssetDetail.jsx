@@ -152,6 +152,108 @@ function AssetTimeline({ asset, history }) {
   )
 }
 
+// ── Photo Gallery ─────────────────────────────────────────────────────────────
+function PhotoGallery({ assetId }) {
+  const [photos, setPhotos] = useState([])
+  const [uploading, setUploading] = useState(false)
+  const [lightbox, setLightbox] = useState(null)
+
+  useEffect(() => { loadPhotos() }, [assetId])
+
+  const loadPhotos = async () => {
+    const { data } = await supabase.storage.from("asset-photos").list(assetId, {
+      sortBy: { column: "created_at", order: "asc" },
+    })
+    if (!data) return
+    const urls = await Promise.all(
+      data.map(async (f) => {
+        const { data: signed } = await supabase.storage
+          .from("asset-photos")
+          .createSignedUrl(`${assetId}/${f.name}`, 3600)
+        return { name: f.name, url: signed?.signedUrl }
+      })
+    )
+    setPhotos(urls.filter(p => p.url))
+  }
+
+  const handleUpload = async (e) => {
+    const file = e.target.files[0]
+    if (!file) return
+    setUploading(true)
+    const ext = file.name.split(".").pop()
+    const path = `${assetId}/${Date.now()}.${ext}`
+    await supabase.storage.from("asset-photos").upload(path, file)
+    await loadPhotos()
+    setUploading(false)
+  }
+
+  const handleDelete = async (name) => {
+    await supabase.storage.from("asset-photos").remove([`${assetId}/${name}`])
+    setPhotos(p => p.filter(x => x.name !== name))
+    if (lightbox?.name === name) setLightbox(null)
+  }
+
+  return (
+    <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
+      className="bg-gray-900 rounded-xl border border-gray-800 p-6 mt-6">
+      <div className="flex items-center justify-between mb-4">
+        <h2 className="text-white font-semibold flex items-center gap-2">
+          <span>📷</span> Photos {photos.length > 0 && <span className="text-gray-500 text-sm font-normal">({photos.length})</span>}
+        </h2>
+        <label className="cursor-pointer flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+          style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+          onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+          onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}>
+          {uploading ? "⏳ Uploading..." : "📷 Add Photo"}
+          <input type="file" accept="image/*" onChange={handleUpload} className="hidden" disabled={uploading} />
+        </label>
+      </div>
+
+      {photos.length === 0 ? (
+        <p className="text-gray-600 text-sm text-center py-6">No photos yet. Click "Add Photo" to upload.</p>
+      ) : (
+        <div className="grid grid-cols-3 md:grid-cols-4 gap-3">
+          {photos.map(p => (
+            <div key={p.name} className="relative group aspect-square rounded-lg overflow-hidden border border-gray-800 cursor-pointer"
+              onClick={() => setLightbox(p)}>
+              <img src={p.url} alt="" className="w-full h-full object-cover transition-transform group-hover:scale-105" />
+              <button
+                onClick={e => { e.stopPropagation(); handleDelete(p.name) }}
+                className="absolute top-1 right-1 w-6 h-6 rounded-full bg-black/70 text-white text-xs opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center hover:bg-red-600">
+                ✕
+              </button>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {/* Lightbox */}
+      <AnimatePresence>
+        {lightbox && (
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/90 z-50 flex items-center justify-center p-4"
+            onClick={() => setLightbox(null)}>
+            <motion.div initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
+              className="relative max-w-3xl max-h-[85vh]" onClick={e => e.stopPropagation()}>
+              <img src={lightbox.url} alt="" className="max-w-full max-h-[80vh] rounded-xl object-contain" />
+              <div className="absolute top-3 right-3 flex gap-2">
+                <button onClick={() => handleDelete(lightbox.name)}
+                  className="px-3 py-1.5 bg-red-600 hover:bg-red-700 text-white text-sm rounded-lg transition-all">
+                  🗑 Delete
+                </button>
+                <button onClick={() => setLightbox(null)}
+                  className="w-8 h-8 rounded-full bg-black/60 text-white flex items-center justify-center hover:bg-black transition-all">
+                  ✕
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+    </motion.div>
+  )
+}
+
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AssetDetail() {
   const { t } = useTranslation()
@@ -316,6 +418,9 @@ export default function AssetDetail() {
           <p className="text-gray-700 text-xs mt-3 font-mono truncate w-full text-center">{id}</p>
         </div>
       </div>
+
+      {/* Photo Gallery */}
+      <PhotoGallery assetId={id} />
 
       {/* Asset Timeline */}
       <AssetTimeline asset={asset} history={history} />

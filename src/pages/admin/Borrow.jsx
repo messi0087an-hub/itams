@@ -1,8 +1,26 @@
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders } from "../../lib/emailService"
+
+function exportBorrowsToExcel(borrows) {
+  const rows = borrows.map(b => ({
+    "Asset": b.assets?.name || "",
+    "Serial No.": b.assets?.serial_number || "",
+    "Borrower": b.borrower_name || "",
+    "Signed Off By": b.signed_off_by || "",
+    "Date Borrowed": b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString() : "",
+    "Due Date": b.due_date ? new Date(b.due_date).toLocaleDateString() : "",
+    "Returned": b.returned_at ? new Date(b.returned_at).toLocaleDateString() : "Active",
+    "Notes": b.notes || "",
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Borrows")
+  XLSX.writeFile(wb, `borrows_${new Date().toISOString().split("T")[0]}.xlsx`)
+}
 
 function getDaysRemaining(dueDate) {
   if (!dueDate) return null
@@ -91,10 +109,21 @@ export default function Borrow() {
   }
 
   const fetchAssets = async () => {
-    let q = supabase.from("assets").select("id, name, serial_number, status, category").eq("status", "available").order("name")
-    if (userCountry) q = q.eq("country", userCountry)
-    const { data } = await q
-    setAssets(data || [])
+    if (isStandardUser && userProfile) {
+      let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user").order("name")
+      if (userCountry) q = q.eq("country", userCountry)
+      const { data } = await q
+      const mine = (data || []).filter(a =>
+        a.assigned_user === userProfile.email ||
+        a.assigned_user === userProfile.name
+      )
+      setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
+    } else {
+      let q = supabase.from("assets").select("id, name, serial_number, status, category").eq("status", "available").order("name")
+      if (userCountry) q = q.eq("country", userCountry)
+      const { data } = await q
+      setAssets(data || [])
+    }
   }
 
   const handleBorrow = async (e) => {
@@ -377,16 +406,26 @@ export default function Borrow() {
           <h1 className="text-2xl md:text-3xl font-bold text-white">Borrow / Return</h1>
           <p className="text-gray-400 mt-1 text-sm">{activeBorrows.length} active borrows</p>
         </div>
-        {canBorrow && (
-          <motion.button
-            whileHover={{ scale: 1.05 }}
-            whileTap={{ scale: 0.95 }}
-            onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all text-sm font-medium"
+        <div className="flex gap-2">
+          <button onClick={() => exportBorrowsToExcel(borrows)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}
           >
-            + Borrow Asset
-          </motion.button>
-        )}
+            📥 Export Excel
+          </button>
+          {canBorrow && (
+            <motion.button
+              whileHover={{ scale: 1.05 }}
+              whileTap={{ scale: 0.95 }}
+              onClick={() => setShowForm(!showForm)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg transition-all text-sm font-medium"
+            >
+              + Borrow Asset
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* Borrow Form */}

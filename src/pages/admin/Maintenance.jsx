@@ -1,7 +1,26 @@
 import { useEffect, useState, useCallback } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+
+function exportMaintenanceToExcel(schedules) {
+  const rows = schedules.map(s => ({
+    "Asset": s.asset_name || "",
+    "Type": s.maintenance_type || "",
+    "Status": s.status || "",
+    "Scheduled Date": s.scheduled_date || "",
+    "Assigned To": s.assigned_to || "",
+    "Recurrence": s.recurrence || "",
+    "Notes": s.notes || "",
+    "Completed At": s.completed_at ? new Date(s.completed_at).toLocaleDateString() : "",
+    "Completed By": s.completed_by || "",
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Maintenance")
+  XLSX.writeFile(wb, `maintenance_${new Date().toISOString().split("T")[0]}.xlsx`)
+}
 
 const TYPE_STYLES = {
   repair:     { pill: "bg-red-500/20 text-red-400 border-red-500/30",      emoji: "🔧", label: "Repair" },
@@ -34,7 +53,7 @@ function daysUntil(dateStr) {
 }
 
 export default function Maintenance() {
-  const { userProfile, canEdit, canSubmitMaintenance, userCountry, profileLoading } = useAuth()
+  const { userProfile, canEdit, canSubmitMaintenance, userCountry, profileLoading, isStandardUser } = useAuth()
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -60,14 +79,23 @@ export default function Maintenance() {
   }, [profileLoading, userCountry])
 
   const fetchAll = async () => {
-    let assetQuery = supabase.from("assets").select("id, name, category").order("name")
+    let assetQuery = supabase.from("assets").select("id, name, category, assigned_user").order("name")
     if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
     const [{ data: s }, { data: a }] = await Promise.all([
       supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true }),
       assetQuery,
     ])
     setSchedules(s || [])
-    setAssets(a || [])
+    const all = a || []
+    if (isStandardUser && userProfile) {
+      const mine = all.filter(x =>
+        x.assigned_user === userProfile.email ||
+        x.assigned_user === userProfile.name
+      )
+      setAssets(mine.length > 0 ? mine : all)
+    } else {
+      setAssets(all)
+    }
     setLoading(false)
   }
 
@@ -231,6 +259,7 @@ export default function Maintenance() {
       <div className="flex items-center justify-between mb-6">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Maintenance</h1>
+
           <p className="text-gray-400 mt-1 text-sm">
             {overdueCount > 0
               ? <span className="text-red-400">{overdueCount} overdue · </span>
@@ -240,13 +269,23 @@ export default function Maintenance() {
               : "No upcoming maintenance this week"}
           </p>
         </div>
-        {canSubmitMaintenance && (
-          <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-            onClick={() => setShowForm(!showForm)}
-            className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
-            + Schedule
-          </motion.button>
-        )}
+        <div className="flex gap-2">
+          <button onClick={() => exportMaintenanceToExcel(schedules)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}
+          >
+            📥 Export Excel
+          </button>
+          {canSubmitMaintenance && (
+            <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+              onClick={() => setShowForm(!showForm)}
+              className="bg-blue-600 hover:bg-blue-700 text-white px-4 py-2 rounded-lg text-sm font-medium">
+              + Schedule
+            </motion.button>
+          )}
+        </div>
       </div>
 
       {/* Alert banners */}

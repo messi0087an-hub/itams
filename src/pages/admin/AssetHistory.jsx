@@ -1,8 +1,47 @@
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
+
+function exportHistoryToPDF(history) {
+  const rows = history.map(h => `
+    <tr>
+      <td>${h.action || ""}</td>
+      <td>${h.assets?.name || "Unknown"}</td>
+      <td>${h.details || ""}</td>
+      <td>${h.changed_by || ""}</td>
+      <td>${h.created_at ? new Date(h.created_at).toLocaleString() : ""}</td>
+    </tr>`).join("")
+  const win = window.open("")
+  win.document.write(`<html><head><title>History — Trainocate Asset Portal</title>
+    <style>body{font-family:Arial,sans-serif;padding:24px;font-size:12px}h1{font-size:18px;margin-bottom:4px}
+    table{width:100%;border-collapse:collapse}th{background:#1e293b;color:#fff;text-align:left;padding:8px 10px;font-size:11px}
+    td{padding:7px 10px;border-bottom:1px solid #e5e7eb}tr:nth-child(even) td{background:#f8fafc}
+    @media print{body{padding:0}}</style></head>
+    <body><h1>Asset History — Trainocate Asset Portal</h1>
+    <p style="color:#666;font-size:11px;margin-bottom:16px">Exported ${history.length} records on ${new Date().toLocaleDateString("en-SG",{day:"numeric",month:"long",year:"numeric"})}</p>
+    <table><thead><tr><th>Action</th><th>Asset</th><th>Details</th><th>By</th><th>Date</th></tr></thead>
+    <tbody>${rows}</tbody></table></body></html>`)
+  win.document.close()
+  win.print()
+}
+
+function exportHistoryToExcel(history) {
+  const rows = history.map(h => ({
+    "Action": h.action || "",
+    "Asset": h.assets?.name || "Unknown",
+    "Serial No.": h.assets?.serial_number || "",
+    "Details": h.details || "",
+    "By": h.changed_by || "",
+    "Date": h.created_at ? new Date(h.created_at).toLocaleString() : "",
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "History")
+  XLSX.writeFile(wb, `history_${new Date().toISOString().split("T")[0]}.xlsx`)
+}
 
 export default function AssetHistory() {
   const { t } = useTranslation()
@@ -31,23 +70,59 @@ export default function AssetHistory() {
     "Returned": "bg-yellow-500/20 text-yellow-400",
     "Issue Reported": "bg-orange-500/20 text-orange-400",
     "Issue Resolved": "bg-teal-500/20 text-teal-400",
+    "Maintenance Requested": "bg-blue-500/20 text-blue-400",
+    "Maintenance Completed": "bg-green-500/20 text-green-400",
+    "Request Submitted": "bg-indigo-500/20 text-indigo-400",
+    "Request Approved": "bg-green-500/20 text-green-400",
+    "Request Rejected": "bg-red-500/20 text-red-400",
+    "User Created": "bg-cyan-500/20 text-cyan-400",
+    "User Deleted": "bg-red-500/20 text-red-400",
+    "Assigned": "bg-blue-500/20 text-blue-400",
   }
 
   const actionEmoji = {
     "Created": "✅",
     "Updated": "✏️",
     "Deleted": "🗑️",
-    "Borrowed": "📤",
-    "Returned": "📥",
+    "Borrowed": "🔄",
+    "Returned": "↩️",
     "Issue Reported": "⚠️",
     "Issue Resolved": "✅",
+    "Maintenance Requested": "🔧",
+    "Maintenance Completed": "✅",
+    "Request Submitted": "🔔",
+    "Request Approved": "✅",
+    "Request Rejected": "❌",
+    "User Created": "👤",
+    "User Deleted": "🗑️",
+    "Assigned": "👤",
   }
 
   return (
     <div className="p-4 md:p-8">
-      <div className="mb-6">
-        <h1 className="text-2xl md:text-3xl font-bold text-white">{t("historyTitle")}</h1>
-        <p className="text-gray-400 mt-1 text-sm">{t("auditTrail")}</p>
+      <div className="flex items-center justify-between mb-6">
+        <div>
+          <h1 className="text-2xl md:text-3xl font-bold text-white">{t("historyTitle")}</h1>
+          <p className="text-gray-400 mt-1 text-sm">{t("auditTrail")}</p>
+        </div>
+        <div className="flex gap-2">
+          <button onClick={() => exportHistoryToPDF(history)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}
+          >
+            📥 Export PDF
+          </button>
+          <button onClick={() => exportHistoryToExcel(history)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}
+          >
+            📥 Export Excel
+          </button>
+        </div>
       </div>
 
       {loading ? (

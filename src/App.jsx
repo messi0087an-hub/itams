@@ -30,8 +30,6 @@ const ManageUsers  = lazy(() => import("./pages/admin/ManageUsers"))
 const AssetRequests= lazy(() => import("./pages/admin/AssetRequests"))
 const Maintenance  = lazy(() => import("./pages/admin/Maintenance"))
 const Settings     = lazy(() => import("./pages/admin/Settings"))
-const Marketing       = lazy(() => import("./pages/marketing/Marketing"))
-const MarketingItem   = lazy(() => import("./pages/marketing/MarketingItem"))
 const ResetPasswordPage = lazy(() => import("./pages/ResetPassword"))
 // Marketing module pages
 const MarketingDashboard = lazy(() => import("./pages/marketing/MarketingDashboard"))
@@ -330,16 +328,25 @@ function LoginPage({ onVerified }) {
   const Brand = () => (
     <div className="text-center mb-10">
       <motion.div
-        initial={{ scale: 0 }}
-        animate={{ scale: 1 }}
-        transition={{ delay: 0.2, type: "spring", stiffness: 200 }}
-        className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30"
+        initial={{ opacity: 0, y: -10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.1 }}
+        className="flex items-center justify-center mb-5"
       >
-        <span className="text-white text-2xl font-bold">IT</span>
+        <div style={{
+          width: 200, height: 60,
+          background: "rgba(255,255,255,0.1)",
+          border: "1px dashed rgba(255,255,255,0.3)",
+          borderRadius: 8,
+          display: "flex", alignItems: "center", justifyContent: "center",
+        }}>
+          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>
+            TRAINOCATE LOGO
+          </span>
+        </div>
       </motion.div>
-      <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
-      <p className="text-gray-400">IT Asset Management System</p>
-      <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
+      <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
+      <p className="text-gray-500 text-sm">Trainocate Singapore</p>
     </div>
   )
 
@@ -428,7 +435,7 @@ function LoginPage({ onVerified }) {
             <p className="text-gray-600 text-xs text-center mt-4">Check your inbox — code sent via Supabase</p>
           </div>
           <p className="text-center text-gray-600 text-xs mt-6">
-            © 2026 Trainocate Singapore · ITAMS v1.0
+            © 2026 Trainocate Singapore · Trainocate Asset Portal v1.0
           </p>
         </motion.div>
       </div>
@@ -624,194 +631,13 @@ function LoginPage({ onVerified }) {
         </AnimatePresence>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          © 2026 Trainocate Singapore · ITAMS v1.0
+          © 2026 Trainocate Singapore · Trainocate Asset Portal v1.0
         </p>
       </motion.div>
     </div>
   )
 }
 
-// Fetch a rich snapshot of live data to pass as AI context
-async function fetchAIContext() {
-  const todayStr = new Date().toISOString().split("T")[0]
-  const in30 = new Date(); in30.setDate(in30.getDate() + 30)
-  const in30Str = in30.toISOString().split("T")[0]
-
-  const [
-    { data: assets },
-    { data: borrows },
-    { data: expiring },
-    { data: expired },
-    { data: maintenance },
-    { data: recentHistory },
-  ] = await Promise.all([
-    supabase.from("assets").select("id, name, category, status, assigned_user, department, warranty_expiry, purchase_price"),
-    supabase.from("borrow_requests").select("id, status, requester_name, assets(name)").in("status", ["borrowed", "approved"]),
-    supabase.from("assets").select("name, warranty_expiry").not("warranty_expiry", "is", null).gte("warranty_expiry", todayStr).lte("warranty_expiry", in30Str).order("warranty_expiry"),
-    supabase.from("assets").select("name, warranty_expiry").not("warranty_expiry", "is", null).lt("warranty_expiry", todayStr).order("warranty_expiry", { ascending: false }).limit(5),
-    supabase.from("maintenance_schedules").select("status").eq("status", "pending"),
-    supabase.from("asset_history").select("action, details, created_at").order("created_at", { ascending: false }).limit(5),
-  ])
-
-  const total = assets?.length ?? 0
-  const byStatus = (assets ?? []).reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
-  const byCategory = (assets ?? []).reduce((acc, a) => { const c = a.category || "Unknown"; acc[c] = (acc[c] || 0) + 1; return acc }, {})
-  const byDept = (assets ?? []).reduce((acc, a) => { const d = a.department || "Unassigned"; acc[d] = (acc[d] || 0) + 1; return acc }, {})
-  const byPerson = (assets ?? []).filter(a => a.assigned_user).reduce((acc, a) => { acc[a.assigned_user] = (acc[a.assigned_user] || 0) + 1; return acc }, {})
-  const topHolder = Object.entries(byPerson).sort((a, b) => b[1] - a[1])[0]
-
-  const lines = [
-    `Total assets: ${total}`,
-    `Status breakdown: ${Object.entries(byStatus).map(([k,v]) => `${v} ${k}`).join(", ")}`,
-    `By category: ${Object.entries(byCategory).map(([k,v]) => `${v} ${k}`).join(", ")}`,
-    `By department: ${Object.entries(byDept).map(([k,v]) => `${k}: ${v}`).join(", ")}`,
-    topHolder ? `Most assets held by: ${topHolder[0]} (${topHolder[1]} assets)` : "",
-    `Currently borrowed/active loans: ${borrows?.length ?? 0}`,
-    borrows?.length ? `Active borrowers: ${[...new Set(borrows.map(b => b.requester_name).filter(Boolean))].join(", ")}` : "",
-    `Pending maintenance tasks: ${maintenance?.length ?? 0}`,
-    expiring?.length
-      ? `Warranties expiring within 30 days (${expiring.length}): ${expiring.slice(0,5).map(a => `${a.name} (${a.warranty_expiry})`).join(", ")}`
-      : "No warranties expiring in the next 30 days",
-    expired?.length
-      ? `Already expired warranties (${expired.length}): ${expired.slice(0,5).map(a => `${a.name} (${a.warranty_expiry})`).join(", ")}`
-      : "No expired warranties",
-    recentHistory?.length
-      ? `Recent activity: ${recentHistory.map(h => `${h.action} — ${h.details || ""}`).join("; ")}`
-      : "",
-  ]
-  return lines.filter(Boolean).join("\n")
-}
-
-function AIChat() {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState("")
-  const [messages, setMessages] = useState([
-    { role: "ai", text: "Hi! Ask me anything about your assets — warranties, assignments, counts, and more." }
-  ])
-  const [loading, setLoading] = useState(false)
-  const bottomRef = useRef()
-
-  // Scroll to bottom whenever messages change
-  useEffect(() => {
-    bottomRef.current?.scrollIntoView({ behavior: "smooth" })
-  }, [messages, loading])
-
-  const handleSend = async (e) => {
-    e.preventDefault()
-    if (!query.trim() || loading) return
-
-    const userText = query.trim()
-    setMessages(prev => [...prev, { role: "user", text: userText }])
-    setQuery("")
-    setLoading(true)
-
-    try {
-      const context = await fetchAIContext()
-      const { data, error } = await supabase.functions.invoke("ai-chat", {
-        body: { message: userText, context },
-      })
-
-      if (error || data?.error) {
-        throw new Error(data?.error || error?.message || "Unknown error")
-      }
-
-      setMessages(prev => [...prev, { role: "ai", text: data.text }])
-    } catch (err) {
-      setMessages(prev => [...prev, {
-        role: "ai",
-        text: `Sorry, I couldn't connect to the AI right now. (${err.message})`,
-      }])
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  return (
-    <>
-      <motion.button
-        onClick={() => setOpen(!open)}
-        whileHover={{ scale: 1.1 }}
-        whileTap={{ scale: 0.95 }}
-        className="fixed bottom-6 right-6 z-50 w-14 h-14 bg-blue-600 hover:bg-blue-500 rounded-full flex items-center justify-center text-2xl"
-        style={{ boxShadow: "0 0 20px rgba(59,130,246,0.6), 0 0 40px rgba(59,130,246,0.3)" }}
-      >
-        {open ? "✕" : "🤖"}
-      </motion.button>
-
-      <AnimatePresence>
-        {open && (
-          <motion.div
-            initial={{ opacity: 0, y: 20, scale: 0.95 }}
-            animate={{ opacity: 1, y: 0, scale: 1 }}
-            exit={{ opacity: 0, y: 20, scale: 0.95 }}
-            transition={{ duration: 0.2 }}
-            className="fixed bottom-24 right-6 z-50 w-80 bg-gray-900 rounded-2xl border border-gray-700 shadow-2xl flex flex-col overflow-hidden"
-            style={{ height: "420px", boxShadow: "0 0 30px rgba(59,130,246,0.2)" }}
-          >
-            {/* Header */}
-            <div className="bg-blue-600 px-4 py-3 flex items-center gap-2 shrink-0">
-              <span className="text-xl">🤖</span>
-              <div>
-                <p className="text-white font-semibold text-sm">ITAMS AI</p>
-                <p className="text-blue-200 text-xs">Powered by live data</p>
-              </div>
-            </div>
-
-            {/* Messages */}
-            <div className="flex-1 overflow-y-auto p-4 space-y-3">
-              {messages.map((msg, i) => (
-                <motion.div
-                  key={i}
-                  initial={{ opacity: 0, y: 8 }}
-                  animate={{ opacity: 1, y: 0 }}
-                  className={`flex ${msg.role === "user" ? "justify-end" : "justify-start"}`}
-                >
-                  <div className={`max-w-xs rounded-xl px-3 py-2 text-sm whitespace-pre-wrap leading-relaxed ${
-                    msg.role === "user" ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-200"
-                  }`}>
-                    {msg.text}
-                  </div>
-                </motion.div>
-              ))}
-
-              {/* Typing indicator */}
-              {loading && (
-                <div className="flex justify-start">
-                  <div className="bg-gray-800 rounded-xl px-3 py-2.5">
-                    <div className="flex gap-1 items-center">
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }} />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }} />
-                      <div className="w-2 h-2 bg-blue-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }} />
-                    </div>
-                  </div>
-                </div>
-              )}
-              <div ref={bottomRef} />
-            </div>
-
-            {/* Input */}
-            <form onSubmit={handleSend} className="p-3 border-t border-gray-700 flex gap-2 shrink-0">
-              <input
-                type="text"
-                value={query}
-                onChange={(e) => setQuery(e.target.value)}
-                placeholder="Ask about assets..."
-                className="flex-1 bg-gray-800 text-white rounded-xl px-3 py-2 text-sm border border-gray-700 focus:border-blue-500 focus:outline-none"
-              />
-              <button
-                type="submit"
-                disabled={loading || !query.trim()}
-                className="bg-blue-600 hover:bg-blue-700 disabled:opacity-40 text-white px-3 py-2 rounded-xl text-sm transition-all"
-              >
-                →
-              </button>
-            </form>
-          </motion.div>
-        )}
-      </AnimatePresence>
-    </>
-  )
-}
 
 function PageLoader() {
   return (
@@ -870,6 +696,104 @@ function MarketingLayout({ user }) {
         </div>
       </div>
     </AuthProvider>
+  )
+}
+
+function InactivityLogout() {
+  const IDLE_MS = 15 * 60 * 1000   // 15 min
+  const WARN_MS = 2  * 60 * 1000   // 2 min warning countdown
+  const [showWarning, setShowWarning] = useState(false)
+  const [countdown, setCountdown] = useState(WARN_MS / 1000)
+  const idleTimer = useRef(null)
+  const countdownTimer = useRef(null)
+
+  const resetIdle = () => {
+    if (showWarning) return
+    clearTimeout(idleTimer.current)
+    idleTimer.current = setTimeout(() => {
+      setShowWarning(true)
+      setCountdown(WARN_MS / 1000)
+    }, IDLE_MS)
+  }
+
+  useEffect(() => {
+    const events = ["mousemove", "keydown", "mousedown", "touchstart", "scroll"]
+    events.forEach(e => window.addEventListener(e, resetIdle, { passive: true }))
+    resetIdle()
+    return () => {
+      events.forEach(e => window.removeEventListener(e, resetIdle))
+      clearTimeout(idleTimer.current)
+      clearInterval(countdownTimer.current)
+    }
+  }, [showWarning])
+
+  useEffect(() => {
+    if (!showWarning) { clearInterval(countdownTimer.current); return }
+    countdownTimer.current = setInterval(() => {
+      setCountdown(c => {
+        if (c <= 1) { clearInterval(countdownTimer.current); supabase.auth.signOut(); return 0 }
+        return c - 1
+      })
+    }, 1000)
+    return () => clearInterval(countdownTimer.current)
+  }, [showWarning])
+
+  const stayLoggedIn = () => {
+    setShowWarning(false)
+    clearInterval(countdownTimer.current)
+    resetIdle()
+  }
+
+  if (!showWarning) return null
+
+  return (
+    <AnimatePresence>
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="fixed inset-0 bg-black/70 backdrop-blur-sm z-[9999] flex items-center justify-center p-4"
+      >
+        <motion.div
+          initial={{ opacity: 0, y: -40, scale: 0.95 }}
+          animate={{ opacity: 1, y: 0, scale: 1 }}
+          exit={{ opacity: 0, y: -40, scale: 0.95 }}
+          transition={{ type: "spring", stiffness: 220, damping: 24 }}
+          className="bg-gray-900 rounded-2xl border border-yellow-500/40 p-6 w-full max-w-sm shadow-2xl text-center"
+          style={{ boxShadow: "0 0 40px rgba(234,179,8,0.2)" }}
+        >
+          <div className="text-4xl mb-3">⚠️</div>
+          <h3 className="text-white font-bold text-lg mb-1">Still there?</h3>
+          <p className="text-gray-400 text-sm mb-4">
+            You will be logged out in{" "}
+            <span className="text-yellow-400 font-bold text-lg">{countdown}s</span>
+          </p>
+          <div className="h-1.5 bg-gray-800 rounded-full overflow-hidden mb-5">
+            <motion.div
+              initial={{ width: "100%" }}
+              animate={{ width: "0%" }}
+              transition={{ duration: WARN_MS / 1000, ease: "linear" }}
+              className="h-full bg-yellow-500 rounded-full"
+            />
+          </div>
+          <div className="flex gap-3">
+            <button
+              onClick={() => supabase.auth.signOut()}
+              className="flex-1 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-white text-sm transition-all"
+            >
+              Log Out Now
+            </button>
+            <button
+              onClick={stayLoggedIn}
+              className="flex-1 py-2.5 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-sm font-semibold transition-all"
+              style={{ boxShadow: "0 0 16px rgba(59,130,246,0.3)" }}
+            >
+              Stay Logged In
+            </button>
+          </div>
+        </motion.div>
+      </motion.div>
+    </AnimatePresence>
   )
 }
 
@@ -945,14 +869,12 @@ function AdminLayout({ user }) {
               <Route path="/admin/requests" element={<AssetRequests />} />
               <Route path="/admin/maintenance" element={<Maintenance />} />
               <Route path="/admin/settings" element={<Settings />} />
-              <Route path="/admin/marketing" element={<Marketing />} />
-              <Route path="/admin/marketing/:id" element={<MarketingItem />} />
               <Route path="*" element={<Navigate to="/admin" />} />
             </Routes>
           </Suspense>
         </main>
       </div>
-      <AIChat />
+      <InactivityLogout />
     </div>
     </AuthProvider>
   )

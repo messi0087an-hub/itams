@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef } from "react"
 import { useAuth } from "../context/AuthContext"
-import { fetchNotifications, markNotificationRead, markAllNotificationsRead } from "../lib/notifications"
+import { fetchNotifications, markNotificationRead, markAllNotificationsRead, clearAllNotifications } from "../lib/notifications"
 
 function timeAgo(ts) {
   const secs = Math.floor((Date.now() - new Date(ts)) / 1000)
@@ -72,6 +72,11 @@ export default function NotificationBell() {
     setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
   }
 
+  const handleClearAll = async () => {
+    await clearAllNotifications(userId)
+    setNotifications([])
+  }
+
   if (!userId) return null
 
   return (
@@ -105,11 +110,18 @@ export default function NotificationBell() {
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
             <p className="text-white font-semibold text-sm">Notifications</p>
-            {unread > 0 && (
-              <button onClick={handleMarkAll} className="text-blue-400 hover:text-blue-300 text-xs transition-colors">
-                Mark all read
-              </button>
-            )}
+            <div className="flex items-center gap-2">
+              {unread > 0 && (
+                <button onClick={handleMarkAll} className="text-blue-400 hover:text-blue-300 text-xs transition-colors">
+                  Mark all read
+                </button>
+              )}
+              {notifications.length > 0 && (
+                <button onClick={handleClearAll} className="text-gray-500 hover:text-red-400 text-xs transition-colors">
+                  Clear all
+                </button>
+              )}
+            </div>
           </div>
           <div className="max-h-80 overflow-y-auto">
             {notifications.length === 0 ? (

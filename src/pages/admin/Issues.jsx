@@ -1,13 +1,30 @@
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 
+function exportIssuesToExcel(issues) {
+  const rows = issues.map(i => ({
+    "Asset": i.assets?.name || "",
+    "Serial No.": i.assets?.serial_number || "",
+    "Issue Type": i.issue_type || "",
+    "Description": i.description || "",
+    "Status": i.status,
+    "Reported At": i.created_at ? new Date(i.created_at).toLocaleString() : "",
+    "Resolved At": i.resolved_at ? new Date(i.resolved_at).toLocaleString() : "",
+  }))
+  const ws = XLSX.utils.json_to_sheet(rows)
+  const wb = XLSX.utils.book_new()
+  XLSX.utils.book_append_sheet(wb, ws, "Issues")
+  XLSX.writeFile(wb, `issues_${new Date().toISOString().split("T")[0]}.xlsx`)
+}
+
 export default function Issues() {
   const { t } = useTranslation()
-  const { isAdmin } = useAuth()
+  const { isAdmin, isStandardUser, userProfile } = useAuth()
   const [issues, setIssues] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -33,11 +50,18 @@ export default function Issues() {
   }
 
   const fetchAssets = async () => {
-    const { data } = await supabase
-      .from("assets")
-      .select("id, name, serial_number")
-      .order("name")
-    setAssets(data || [])
+    let q = supabase.from("assets").select("id, name, serial_number, assigned_user").order("name")
+    const { data } = await q
+    const all = data || []
+    if (isStandardUser && userProfile) {
+      const mine = all.filter(a =>
+        a.assigned_user === userProfile.email ||
+        a.assigned_user === userProfile.name
+      )
+      setAssets(mine.length > 0 ? mine : all)
+    } else {
+      setAssets(all)
+    }
   }
 
   const handleSubmit = async (e) => {
@@ -169,14 +193,24 @@ export default function Issues() {
             {issues.filter(i => i.status === "open").length} {t("openIssues")}
           </p>
         </div>
-        <motion.button
-          whileHover={{ scale: 1.05 }}
-          whileTap={{ scale: 0.95 }}
-          onClick={() => setShowForm(!showForm)}
-          className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm font-medium"
-        >
-          {t("reportIssue")}
-        </motion.button>
+        <div className="flex gap-2">
+          <button onClick={() => exportIssuesToExcel(issues)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(30,41,59,0.8)"}
+          >
+            📥 Export Excel
+          </button>
+          <motion.button
+            whileHover={{ scale: 1.05 }}
+            whileTap={{ scale: 0.95 }}
+            onClick={() => setShowForm(!showForm)}
+            className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm font-medium"
+          >
+            {t("reportIssue")}
+          </motion.button>
+        </div>
       </div>
 
       <AnimatePresence>

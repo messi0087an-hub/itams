@@ -1,7 +1,7 @@
 import { useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate } from "react-router-dom"
-import { motion } from "framer-motion"
+import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
@@ -15,13 +15,17 @@ export default function AddAsset() {
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [assetName, setAssetName] = useState("")
+  const [serialError, setSerialError] = useState("")
   const [form, setForm] = useState({
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
-    warranty_expiry: "", license_expiry: "", remarks: "",
+    warranty_expiry: "", license_key: "", license_seats: "",
+    license_expiry: "", licensed_to: "", remarks: "",
     country: userCountry || "Singapore",
   })
+
+  const isSoftware = form.category === "Software License"
 
   const handleChange = (e) => {
     setForm({ ...form, [e.target.name]: e.target.value })
@@ -46,20 +50,24 @@ export default function AddAsset() {
     if (form.department) cleanForm.department = form.department
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
-    if (form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
-    if (form.license_expiry) cleanForm.license_expiry = form.license_expiry
+    if (!isSoftware && form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
+    if (isSoftware && form.license_expiry) cleanForm.license_expiry = form.license_expiry
+    if (isSoftware && form.license_key) cleanForm.license_key = form.license_key
+    if (isSoftware && form.license_seats) cleanForm.license_seats = parseInt(form.license_seats)
+    if (isSoftware && form.licensed_to) cleanForm.licensed_to = form.licensed_to
     if (form.remarks) cleanForm.remarks = form.remarks
 
     const { data, error } = await supabase.from("assets").insert([cleanForm]).select().single()
     if (!error && data) {
-      await logHistory(data.id, "Created", `Asset "${data.name}" was added to ITAMS`)
+      await logHistory(data.id, "Created", `Asset "${data.name}" was added to Trainocate Asset Portal`)
       setAssetName(data.name)
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 3000)
     } else {
       const msg = error?.message || ""
       if (msg.includes("serial_number")) {
-        alert(`Serial number "${form.serial_number}" already exists. Please use a different serial number or leave it blank.`)
+        setSerialError(`Serial number "${form.serial_number}" already exists!`)
+        setTimeout(() => setSerialError(""), 5000)
       } else if (msg.includes("asset_tag")) {
         alert(`Asset tag "${form.asset_tag}" already exists. Please use a different asset tag or leave it blank.`)
       } else {
@@ -69,7 +77,7 @@ export default function AddAsset() {
     setLoading(false)
   }
 
-  const fields = [
+  const baseFields = [
     { name: "name", label: "Asset Name *", placeholder: "e.g. Dell XPS 13", required: true },
     { name: "brand_model", label: "Brand / Model", placeholder: "e.g. Dell XPS 13 9310" },
     { name: "serial_number", label: "Serial Number", placeholder: "e.g. ABC123XYZ" },
@@ -79,8 +87,6 @@ export default function AddAsset() {
     { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
-    { name: "warranty_expiry", label: "Warranty Expiry", type: "date" },
-    { name: "license_expiry", label: "License Expiry", type: "date" },
   ]
 
   if (success) {
@@ -164,6 +170,35 @@ export default function AddAsset() {
       animate={{ opacity: 1, y: 0 }}
       className="p-4 md:p-8 max-w-3xl"
     >
+      {/* Serial Number Error Popup */}
+      <AnimatePresence>
+        {serialError && (
+          <motion.div
+            initial={{ opacity: 0, y: -60 }}
+            animate={{ opacity: 1, y: 0, x: [0, -8, 8, -6, 6, -3, 3, 0] }}
+            exit={{ opacity: 0, y: -60 }}
+            transition={{ duration: 0.4, x: { duration: 0.5, delay: 0.2 } }}
+            className="fixed top-4 left-1/2 -translate-x-1/2 z-50 w-full max-w-sm px-4"
+          >
+            <div style={{
+              background: "rgba(10,14,30,0.96)", backdropFilter: "blur(14px)",
+              border: "1.5px solid rgba(239,68,68,0.7)",
+              boxShadow: "0 0 24px rgba(239,68,68,0.4), 0 0 60px rgba(239,68,68,0.15)",
+              borderRadius: 16, padding: "14px 18px",
+            }}>
+              <div className="flex items-center gap-3">
+                <span className="text-2xl shrink-0">⚠️</span>
+                <div className="flex-1">
+                  <p className="text-white text-sm font-semibold">Serial number already exists!</p>
+                  <p className="text-red-400 text-xs mt-0.5">{serialError}</p>
+                </div>
+                <button onClick={() => setSerialError("")} className="text-gray-500 hover:text-white text-sm">✕</button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       <button
         onClick={() => navigate("/admin/assets")}
         className="flex items-center gap-2 text-gray-400 hover:text-white mb-6 transition-all"
@@ -176,7 +211,7 @@ export default function AddAsset() {
 
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fields.map((field) => (
+          {baseFields.map((field) => (
             <div key={field.name}>
               <label className="text-gray-400 text-sm mb-2 block">{field.label}</label>
               <input
@@ -220,6 +255,65 @@ export default function AddAsset() {
               <option value="retired">Retired</option>
             </select>
           </div>
+
+          {/* Dynamic fields based on category */}
+          <AnimatePresence mode="wait">
+            {!isSoftware && (
+              <motion.div key="warranty" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <label className="text-gray-400 text-sm mb-2 block">Warranty Expiry</label>
+                <input type="date" name="warranty_expiry" value={form.warranty_expiry} onChange={handleChange}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {isSoftware && (
+              <motion.div key="license_key" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <label className="text-gray-400 text-sm mb-2 block">License Key</label>
+                <input type="text" name="license_key" value={form.license_key} onChange={handleChange}
+                  placeholder="e.g. XXXXX-XXXXX-XXXXX"
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {isSoftware && (
+              <motion.div key="license_seats" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <label className="text-gray-400 text-sm mb-2 block">Number of Seats</label>
+                <input type="number" name="license_seats" value={form.license_seats} onChange={handleChange}
+                  placeholder="e.g. 10"
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {isSoftware && (
+              <motion.div key="license_expiry" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <label className="text-gray-400 text-sm mb-2 block">License Expiry Date</label>
+                <input type="date" name="license_expiry" value={form.license_expiry} onChange={handleChange}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          <AnimatePresence mode="wait">
+            {isSoftware && (
+              <motion.div key="licensed_to" initial={{ opacity: 0, height: 0 }} animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.25 }} style={{ overflow: "hidden" }}>
+                <label className="text-gray-400 text-sm mb-2 block">Licensed To</label>
+                <input type="text" name="licensed_to" value={form.licensed_to} onChange={handleChange}
+                  placeholder="e.g. Trainocate Singapore"
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+              </motion.div>
+            )}
+          </AnimatePresence>
 
           <div>
             <label className="text-gray-400 text-sm mb-2 block">Country</label>

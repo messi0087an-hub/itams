@@ -24,7 +24,7 @@ export async function fetchNotifications(userId) {
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(20)
+      .limit(15)
     return data || []
   } catch {
     return []
@@ -41,6 +41,13 @@ export async function markAllNotificationsRead(userId) {
   if (!userId) return
   try {
     await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false)
+  } catch {}
+}
+
+export async function clearAllNotifications(userId) {
+  if (!userId) return
+  try {
+    await supabase.from("notifications").delete().eq("user_id", userId)
   } catch {}
 }
 
