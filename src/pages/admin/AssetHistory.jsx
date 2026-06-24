@@ -47,6 +47,11 @@ export default function AssetHistory() {
   const { t } = useTranslation()
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
+  const [filterAction, setFilterAction] = useState("")
+  const [filterUser, setFilterUser] = useState("")
+  const [filterAsset, setFilterAsset] = useState("")
+  const [filterDateFrom, setFilterDateFrom] = useState("")
+  const [filterDateTo, setFilterDateTo] = useState("")
 
   useEffect(() => {
     fetchHistory()
@@ -57,10 +62,21 @@ export default function AssetHistory() {
       .from("asset_history")
       .select("*, assets(name, serial_number)")
       .order("created_at", { ascending: false })
-      .limit(100)
+      .limit(500)
     setHistory(data || [])
     setLoading(false)
   }
+
+  const filtered = history.filter(h => {
+    if (filterAction && h.action !== filterAction) return false
+    if (filterUser && !(h.changed_by || "").toLowerCase().includes(filterUser.toLowerCase())) return false
+    if (filterAsset && !(h.assets?.name || "").toLowerCase().includes(filterAsset.toLowerCase())) return false
+    if (filterDateFrom && new Date(h.created_at) < new Date(filterDateFrom)) return false
+    if (filterDateTo && new Date(h.created_at) > new Date(filterDateTo + "T23:59:59")) return false
+    return true
+  })
+
+  const uniqueActions = [...new Set(history.map(h => h.action).filter(Boolean))]
 
   const actionColor = {
     "Created": "bg-green-500/20 text-green-400",
@@ -106,7 +122,7 @@ export default function AssetHistory() {
           <p className="text-gray-400 mt-1 text-sm">{t("auditTrail")}</p>
         </div>
         <div className="flex gap-2">
-          <button onClick={() => exportHistoryToPDF(history)}
+          <button onClick={() => exportHistoryToPDF(filtered)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
@@ -114,7 +130,7 @@ export default function AssetHistory() {
           >
             📥 Export PDF
           </button>
-          <button onClick={() => exportHistoryToExcel(history)}
+          <button onClick={() => exportHistoryToExcel(filtered)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
@@ -125,13 +141,73 @@ export default function AssetHistory() {
         </div>
       </div>
 
+      {/* Filters */}
+      {!loading && history.length > 0 && (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-6">
+          <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Filter History</p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            <select
+              value={filterAction}
+              onChange={e => setFilterAction(e.target.value)}
+              className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            >
+              <option value="">All Actions</option>
+              {uniqueActions.map(a => <option key={a} value={a}>{a}</option>)}
+            </select>
+            <input
+              type="text"
+              placeholder="Filter by user..."
+              value={filterUser}
+              onChange={e => setFilterUser(e.target.value)}
+              className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500"
+            />
+            <input
+              type="text"
+              placeholder="Filter by asset name..."
+              value={filterAsset}
+              onChange={e => setFilterAsset(e.target.value)}
+              className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm placeholder-gray-500"
+            />
+            <input
+              type="date"
+              value={filterDateFrom}
+              onChange={e => setFilterDateFrom(e.target.value)}
+              className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+              title="From date"
+            />
+            <input
+              type="date"
+              value={filterDateTo}
+              onChange={e => setFilterDateTo(e.target.value)}
+              className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+              title="To date"
+            />
+            {(filterAction || filterUser || filterAsset || filterDateFrom || filterDateTo) && (
+              <button
+                onClick={() => { setFilterAction(""); setFilterUser(""); setFilterAsset(""); setFilterDateFrom(""); setFilterDateTo("") }}
+                className="px-3 py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 hover:bg-red-500/20 text-sm transition-all"
+              >
+                ✕ Clear Filters
+              </button>
+            )}
+          </div>
+          {(filterAction || filterUser || filterAsset || filterDateFrom || filterDateTo) && (
+            <p className="text-gray-500 text-xs mt-2">Showing {filtered.length} of {history.length} records</p>
+          )}
+        </div>
+      )}
+
       {loading ? (
         <LoadingSkeleton rows={4} cols={2} />
       ) : history.length === 0 ? (
         <EmptyState preset="history" />
+      ) : filtered.length === 0 ? (
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center">
+          <p className="text-gray-400 text-sm">No history matches your filters.</p>
+        </div>
       ) : (
         <div className="space-y-3">
-          {history.map((item, i) => (
+          {filtered.map((item, i) => (
             <motion.div
               key={item.id}
               initial={{ opacity: 0, x: -10 }}

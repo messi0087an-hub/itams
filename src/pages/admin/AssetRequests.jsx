@@ -137,6 +137,15 @@ export default function AssetRequests() {
       // Email to approving officer
       sendAssetRequestNotification({ requestedBy, assetType: form.asset_type, reason: form.reason, priority: form.priority, createdAt })
 
+      // In-app notification to submitter
+      createNotification(
+        userProfile?.id,
+        "📋 Request Submitted",
+        `Your asset request for ${form.asset_type} has been submitted`,
+        "info",
+        inserted?.id
+      )
+
       // In-app notification to approving officer
       if (officer.id) {
         createNotification(

@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
 import { Html5Qrcode } from "html5-qrcode"
 import { motion, AnimatePresence } from "framer-motion"
+import { EmptyState } from "../../components/EmptyState"
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -350,11 +351,16 @@ export default function Scanner() {
           </div>
         ) : null)}
       </div>
+      <div className="flex flex-wrap gap-2 mb-3">
+        <button onClick={() => navigate(`/admin/issues?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 hover:bg-orange-600/30 transition-all text-sm font-medium">⚠️ Report Issue</button>
+        <button onClick={() => navigate(`/admin/maintenance?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 transition-all text-sm font-medium">🔧 Request Maintenance</button>
+        <button onClick={() => navigate(`/admin/borrow?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 hover:bg-purple-600/30 transition-all text-sm font-medium">🔄 Borrow This Asset</button>
+      </div>
       <div className="flex gap-3">
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
           onClick={() => { window.location.href = `/admin/assets/${a.id}` }}
           className="flex-1 bg-blue-600 hover:bg-blue-700 text-white py-3 rounded-xl font-medium text-sm">
-          View Full Details
+          📋 View Full Details
         </motion.button>
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
           onClick={onReset}
@@ -464,8 +470,8 @@ export default function Scanner() {
 
           {error && !loading && (
             <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-              className="bg-red-500/10 border border-red-500/30 rounded-2xl p-4 mb-4">
-              <p className="text-red-400 text-sm">❌ {error}</p>
+              className="bg-gray-900/80 border border-gray-800 rounded-2xl mb-4">
+              <EmptyState preset="scanner" sub={error} />
             </motion.div>
           )}
 

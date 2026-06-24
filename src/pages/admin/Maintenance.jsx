@@ -3,12 +3,45 @@ import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+
+function SuccessToast({ message }) {
+  if (!message) return null
+  return (
+    <div style={{
+      position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+      background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)",
+      borderRadius: "12px", padding: "12px 18px",
+      display: "flex", alignItems: "center", gap: "10px",
+      backdropFilter: "blur(12px)", boxShadow: "0 0 20px rgba(34,197,94,0.2)",
+      animation: "slideInFromTop 0.3s ease-out",
+    }}>
+      <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <span>✅</span>
+      <span style={{color:"#86efac",fontSize:"14px",fontWeight:500}}>{message}</span>
+    </div>
+  )
+}
+
+const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
+
+function AnimatedError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div style={{animation:"slideInFromTop 0.3s ease-out",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:"12px",padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px",boxShadow:"0 0 20px rgba(239,68,68,0.15)"}}>
+      <span style={{fontSize:"18px"}}>⚠️</span>
+      <span style={{color:"#fca5a5",fontSize:"14px",flex:1}}>{message}</span>
+      <button onClick={onDismiss} style={{color:"#9ca3af",background:"none",border:"none",cursor:"pointer",fontSize:"16px"}}>✕</button>
+    </div>
+  )
+}
 
 function exportMaintenanceToExcel(schedules) {
   const rows = schedules.map(s => ({
     "Asset": s.asset_name || "",
     "Type": s.maintenance_type || "",
     "Status": s.status || "",
+    "Priority": s.priority || "",
     "Scheduled Date": s.scheduled_date || "",
     "Assigned To": s.assigned_to || "",
     "Recurrence": s.recurrence || "",
@@ -33,6 +66,13 @@ const STATUS_STYLES = {
   completed: { pill: "bg-green-500/20 text-green-400",    label: "Completed" },
   cancelled: { pill: "bg-gray-500/20 text-gray-400",      label: "Cancelled" },
   overdue:   { pill: "bg-red-500/20 text-red-400",        label: "Overdue" },
+}
+
+const PRIORITY_COLOR = {
+  low:      "bg-gray-500/20 text-gray-400",
+  medium:   "bg-yellow-500/20 text-yellow-400",
+  high:     "bg-orange-500/20 text-orange-400",
+  critical: "bg-red-500/20 text-red-400",
 }
 
 const RECURRENCE_LABELS = {
@@ -63,6 +103,16 @@ export default function Maintenance() {
   const [completing, setCompleting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [tab, setTab] = useState("upcoming")
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterPriority, setFilterPriority] = useState("all")
+  const [showArchived, setShowArchived] = useState(false)
+  const [formError, setFormError] = useState("")
+  const [toast, setToast] = useState("")
+
+  const showToast = (msg) => {
+    setToast(msg)
+    setTimeout(() => setToast(""), 3000)
+  }
   const [assetSearch, setAssetSearch] = useState("")
   const [assetDropdown, setAssetDropdown] = useState(false)
   const [form, setForm] = useState({
@@ -71,20 +121,27 @@ export default function Maintenance() {
     scheduled_date: "",
     assigned_to: "",
     recurrence: "none",
+    priority: "medium",
     notes: "",
   })
 
   useEffect(() => {
     if (!profileLoading) fetchAll()
-  }, [profileLoading, userCountry])
+  }, [profileLoading, userCountry, showArchived])
 
   const fetchAll = async () => {
+    let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
+
+    if (showArchived) {
+      maintenanceQuery = maintenanceQuery.eq("archived", true)
+    } else {
+      maintenanceQuery = maintenanceQuery.or("archived.is.null,archived.eq.false")
+    }
+
     let assetQuery = supabase.from("assets").select("id, name, category, assigned_user").order("name")
     if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
-    const [{ data: s }, { data: a }] = await Promise.all([
-      supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true }),
-      assetQuery,
-    ])
+
+    const [{ data: s }, { data: a }] = await Promise.all([maintenanceQuery, assetQuery])
     setSchedules(s || [])
     const all = a || []
     if (isStandardUser && userProfile) {
@@ -106,7 +163,8 @@ export default function Maintenance() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
-    if (!form.asset_id) { alert("Please select an asset"); return }
+    setFormError("")
+    if (!form.asset_id) { setFormError("Please select an asset"); return }
     const { error } = await supabase.from("maintenance_schedules").insert([{
       asset_id: form.asset_id,
       asset_name: form.asset_name,
@@ -114,18 +172,19 @@ export default function Maintenance() {
       scheduled_date: form.scheduled_date,
       assigned_to: form.assigned_to || null,
       recurrence: form.recurrence,
+      priority: form.priority,
       notes: form.notes || null,
       status: "pending",
       created_by: userProfile?.name || userProfile?.email,
     }])
     if (!error) {
-      setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", notes: "" })
+      setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
       setAssetSearch("")
       setShowForm(false)
       setSubmitSuccess(true)
       setTimeout(() => { setSubmitSuccess(false); fetchAll() }, 2500)
     } else {
-      alert(error.message)
+      setFormError(error.message)
     }
   }
 
@@ -140,7 +199,6 @@ export default function Maintenance() {
       notes: completingNote || schedule.notes,
     }).eq("id", schedule.id)
 
-    // Auto-schedule next if recurring
     if (schedule.recurrence !== "none") {
       const next = new Date(schedule.scheduled_date)
       if (schedule.recurrence === "monthly")   next.setMonth(next.getMonth() + 1)
@@ -153,6 +211,7 @@ export default function Maintenance() {
         scheduled_date: next.toISOString().split("T")[0],
         assigned_to: schedule.assigned_to,
         recurrence: schedule.recurrence,
+        priority: schedule.priority,
         notes: null,
         status: "pending",
         created_by: "Auto (recurring)",
@@ -162,11 +221,17 @@ export default function Maintenance() {
     setCompleteModal(null)
     setCompletingNote("")
     setCompleting(false)
+    showToast("Maintenance marked as completed!")
     fetchAll()
   }
 
   const handleCancel = async (id) => {
     await supabase.from("maintenance_schedules").update({ status: "cancelled" }).eq("id", id)
+    fetchAll()
+  }
+
+  const handleArchive = async (id) => {
+    await supabase.from("maintenance_schedules").update({ archived: true }).eq("id", id)
     fetchAll()
   }
 
@@ -176,9 +241,16 @@ export default function Maintenance() {
   }))
 
   const filtered = enriched.filter(s => {
-    if (tab === "upcoming") return s.computedStatus === "pending" || s.computedStatus === "overdue"
-    if (tab === "overdue")  return s.computedStatus === "overdue"
-    if (tab === "done")     return s.status === "completed"
+    if (tab === "upcoming") { if (!(s.computedStatus === "pending" || s.computedStatus === "overdue")) return false }
+    else if (tab === "overdue")  { if (s.computedStatus !== "overdue") return false }
+    else if (tab === "done")     { if (s.status !== "completed") return false }
+
+    if (filterStatus !== "all") {
+      if (filterStatus === "pending" && s.computedStatus !== "pending") return false
+      if (filterStatus === "in_progress" && s.status !== "in_progress") return false
+      if (filterStatus === "completed" && s.status !== "completed") return false
+    }
+    if (filterPriority !== "all" && s.priority !== filterPriority) return false
     return true
   })
 
@@ -189,8 +261,11 @@ export default function Maintenance() {
     return d >= 0 && d <= 7
   }).length
 
+  const selectClass = "bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+
   return (
     <div className="p-4 md:p-8">
+      <style>{slideInStyle}</style>
 
       {/* Submit success */}
       <AnimatePresence>
@@ -256,10 +331,9 @@ export default function Maintenance() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">Maintenance</h1>
-
           <p className="text-gray-400 mt-1 text-sm">
             {overdueCount > 0
               ? <span className="text-red-400">{overdueCount} overdue · </span>
@@ -269,8 +343,15 @@ export default function Maintenance() {
               : "No upcoming maintenance this week"}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => exportMaintenanceToExcel(schedules)}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: showArchived ? "rgba(99,102,241,0.2)" : "rgba(30,41,59,0.8)", border: showArchived ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(107,114,128,0.4)", color: showArchived ? "#a5b4fc" : "#9ca3af" }}
+          >
+            📦 {showArchived ? "Hide Archived" : "Show Archived"}
+          </button>
+          <button onClick={() => exportMaintenanceToExcel(filtered)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
@@ -302,6 +383,23 @@ export default function Maintenance() {
         </motion.div>
       )}
 
+      {/* Filters */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectClass}>
+          <option value="all">All Statuses</option>
+          <option value="pending">Pending</option>
+          <option value="in_progress">In Progress</option>
+          <option value="completed">Completed</option>
+        </select>
+        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className={selectClass}>
+          <option value="all">All Priorities</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+
       {/* Schedule Form */}
       <AnimatePresence>
         {showForm && (
@@ -309,6 +407,7 @@ export default function Maintenance() {
             exit={{ opacity: 0, y: -10 }} onSubmit={handleSubmit}
             className="bg-gray-900/80 rounded-xl border border-gray-800 p-5 mb-6">
             <h2 className="text-white font-semibold mb-4">Schedule Maintenance</h2>
+            <AnimatedError message={formError} onDismiss={() => setFormError("")} />
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
               {/* Asset picker */}
@@ -360,6 +459,17 @@ export default function Maintenance() {
               </div>
 
               <div>
+                <label className="text-gray-400 text-sm mb-2 block">Priority</label>
+                <select value={form.priority} onChange={e => setForm({ ...form, priority: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+
+              <div>
                 <label className="text-gray-400 text-sm mb-2 block">Scheduled Date *</label>
                 <input type="date" value={form.scheduled_date} required
                   onChange={e => setForm({ ...form, scheduled_date: e.target.value })}
@@ -396,7 +506,7 @@ export default function Maintenance() {
               <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
                 Schedule
               </button>
-              <button type="button" onClick={() => setShowForm(false)}
+              <button type="button" onClick={() => { setShowForm(false); setFormError("") }}
                 className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
                 Cancel
               </button>
@@ -406,7 +516,7 @@ export default function Maintenance() {
       </AnimatePresence>
 
       {/* Tabs */}
-      <div className="flex gap-2 mb-4">
+      <div className="flex gap-2 mb-4 flex-wrap">
         {[
           { key: "upcoming", label: "Upcoming" },
           { key: "overdue",  label: overdueCount > 0 ? `Overdue (${overdueCount})` : "Overdue" },
@@ -422,21 +532,13 @@ export default function Maintenance() {
         ))}
       </div>
 
+      <SuccessToast message={toast} />
+
       {/* List */}
       {loading ? (
-        <div className="space-y-3">
-          {[...Array(3)].map((_, i) => (
-            <div key={i} className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 animate-pulse">
-              <div className="h-4 bg-gray-800 rounded w-1/3 mb-2" />
-              <div className="h-3 bg-gray-800 rounded w-1/2" />
-            </div>
-          ))}
-        </div>
+        <LoadingSkeleton rows={3} cols={2} />
       ) : filtered.length === 0 ? (
-        <div className="text-center py-16">
-          <div className="text-5xl mb-4 opacity-30">🔧</div>
-          <p className="text-gray-500 text-sm">No maintenance tasks here</p>
-        </div>
+        <EmptyState preset="maintenance" />
       ) : (
         <div className="space-y-3">
           {filtered.map(s => {
@@ -447,8 +549,8 @@ export default function Maintenance() {
 
             return (
               <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className={`bg-gray-900/80 rounded-xl border p-4 ${
-                  isDue ? "border-red-500/30" :
+                className={`bg-gray-900/80 rounded-xl border p-4 ${showArchived ? "opacity-60" : ""} ${
+                  isDue ? "border-l-4 border-red-500 bg-red-500/5 border-red-500/30" :
                   s.status === "completed" ? "border-green-500/20" : "border-gray-800"
                 }`}>
                 <div className="flex items-start justify-between gap-3">
@@ -462,6 +564,11 @@ export default function Maintenance() {
                       <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${status.pill}`}>
                         {status.label}
                       </span>
+                      {s.priority && (
+                        <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${PRIORITY_COLOR[s.priority] || "bg-gray-500/20 text-gray-400"}`}>
+                          {s.priority}
+                        </span>
+                      )}
                       {s.recurrence !== "none" && (
                         <span className="text-xs px-2 py-0.5 rounded-full bg-indigo-500/20 text-indigo-400 font-medium">
                           🔄 {RECURRENCE_LABELS[s.recurrence]}
@@ -496,20 +603,29 @@ export default function Maintenance() {
                     )}
                   </div>
 
-                  {canEdit && s.status === "pending" && (
-                    <div className="flex gap-2 shrink-0">
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                        onClick={() => setCompleteModal(s)}
-                        className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all">
-                        Done
-                      </motion.button>
-                      <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                        onClick={() => handleCancel(s.id)}
-                        className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
-                        Cancel
-                      </motion.button>
-                    </div>
-                  )}
+                  <div className="flex gap-2 shrink-0 flex-wrap">
+                    {canEdit && s.status === "pending" && (
+                      <>
+                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          onClick={() => setCompleteModal(s)}
+                          className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all">
+                          Done
+                        </motion.button>
+                        <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                          onClick={() => handleCancel(s.id)}
+                          className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
+                          Cancel
+                        </motion.button>
+                      </>
+                    )}
+                    {canEdit && s.status === "completed" && !s.archived && (
+                      <button
+                        onClick={() => handleArchive(s.id)}
+                        className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
+                        Archive
+                      </button>
+                    )}
+                  </div>
                 </div>
               </motion.div>
             )

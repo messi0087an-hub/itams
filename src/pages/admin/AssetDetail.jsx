@@ -263,6 +263,7 @@ export default function AssetDetail() {
   const [history, setHistory] = useState([])
   const [loading, setLoading] = useState(true)
   const [showLabelModal, setShowLabelModal] = useState(false)
+  const [timeline, setTimeline] = useState([])
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -274,6 +275,23 @@ export default function AssetDetail() {
     setAsset(a)
     setHistory(h || [])
     setLoading(false)
+    fetchTimeline(id)
+  }
+
+  const fetchTimeline = async (assetId) => {
+    const [borrows, issues, maintenance, hist] = await Promise.all([
+      supabase.from("borrows").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
+      supabase.from("issues").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
+      supabase.from("maintenance_schedules").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
+      supabase.from("asset_history").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
+    ])
+    const items = [
+      ...(borrows.data || []).map(b => ({ ...b, _type: "borrow", _date: b.created_at })),
+      ...(issues.data || []).map(i => ({ ...i, _type: "issue", _date: i.created_at })),
+      ...(maintenance.data || []).map(m => ({ ...m, _type: "maintenance", _date: m.created_at })),
+      ...(hist.data || []).map(h => ({ ...h, _type: "history", _date: h.created_at })),
+    ].sort((a, b) => new Date(b._date) - new Date(a._date))
+    setTimeline(items)
   }
 
   const statusColor = {
@@ -424,6 +442,53 @@ export default function AssetDetail() {
 
       {/* Asset Timeline */}
       <AssetTimeline asset={asset} history={history} />
+
+      {/* Full Activity Timeline */}
+      <motion.div
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        transition={{ delay: 0.2 }}
+        className="bg-gray-900 rounded-xl border border-gray-800 p-6 mt-6"
+      >
+        <h2 className="text-white font-semibold mb-6 flex items-center gap-2">
+          <span className="text-lg">📋</span> Full Activity Timeline
+        </h2>
+        <div className="space-y-0">
+          {timeline.map((item, idx) => (
+            <div key={idx} className="flex gap-4">
+              <div className="flex flex-col items-center">
+                <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm bg-gray-800 border border-gray-700 shrink-0">
+                  {item._type === "borrow" ? "🔄" : item._type === "issue" ? "⚠️" : item._type === "maintenance" ? "🔧" : "📋"}
+                </div>
+                {idx < timeline.length - 1 && <div className="w-px flex-1 bg-gray-800 my-1" />}
+              </div>
+              <div className="pb-4 flex-1">
+                <p className={`text-sm font-medium ${
+                  item._type === "borrow" ? "text-blue-400" :
+                  item._type === "issue" ? "text-orange-400" :
+                  item._type === "maintenance" ? "text-yellow-400" :
+                  "text-gray-300"
+                }`}>
+                  {item._type === "borrow"
+                    ? `Borrowed by ${item.borrowed_by || item.user_email || item.requester_name || "Unknown"}`
+                    : item._type === "issue"
+                    ? `Issue: ${item.title || item.description || "Reported"}`
+                    : item._type === "maintenance"
+                    ? `Maintenance: ${item.description || item.maintenance_type || item.type || "Scheduled"}`
+                    : item.action || "Status changed"}
+                </p>
+                {(item.status) && (
+                  <p className="text-gray-500 text-xs mt-0.5">Status: {item.status}</p>
+                )}
+                <p className="text-gray-600 text-xs mt-0.5">
+                  {new Date(item._date).toLocaleDateString("en-SG", { day: "numeric", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}
+                </p>
+              </div>
+            </div>
+          ))}
+          {timeline.length === 0 && <p className="text-gray-500 text-sm py-4">No history yet</p>}
+        </div>
+      </motion.div>
 
       {/* QR Label Modal */}
       <AnimatePresence>

@@ -5,6 +5,20 @@ import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
+import { createNotification } from "../../lib/notifications"
+
+const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
+
+function AnimatedError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div style={{animation:"slideInFromTop 0.3s ease-out",background:"rgba(239,68,68,0.1)",border:"1px solid rgba(239,68,68,0.4)",borderRadius:"12px",padding:"12px 16px",marginBottom:"16px",display:"flex",alignItems:"center",gap:"10px",boxShadow:"0 0 20px rgba(239,68,68,0.15)"}}>
+      <span style={{fontSize:"18px"}}>⚠️</span>
+      <span style={{color:"#fca5a5",fontSize:"14px",flex:1}}>{message}</span>
+      <button onClick={onDismiss} style={{color:"#9ca3af",background:"none",border:"none",cursor:"pointer",fontSize:"16px"}}>✕</button>
+    </div>
+  )
+}
 
 function exportIssuesToExcel(issues) {
   const rows = issues.map(i => ({
@@ -12,6 +26,7 @@ function exportIssuesToExcel(issues) {
     "Serial No.": i.assets?.serial_number || "",
     "Issue Type": i.issue_type || "",
     "Description": i.description || "",
+    "Priority": i.priority || "",
     "Status": i.status,
     "Reported At": i.created_at ? new Date(i.created_at).toLocaleString() : "",
     "Resolved At": i.resolved_at ? new Date(i.resolved_at).toLocaleString() : "",
@@ -31,21 +46,47 @@ export default function Issues() {
   const [showForm, setShowForm] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [resolveSuccess, setResolveSuccess] = useState(false)
+  const [filterStatus, setFilterStatus] = useState("all")
+  const [filterPriority, setFilterPriority] = useState("all")
+  const [showArchived, setShowArchived] = useState(false)
+  const [formError, setFormError] = useState("")
   const [form, setForm] = useState({
-    asset_id: "", issue_type: "", description: ""
+    asset_id: "", issue_type: "", description: "", priority: "medium"
   })
 
   useEffect(() => {
     fetchIssues()
     fetchAssets()
-  }, [])
+  }, [showArchived])
 
   const fetchIssues = async () => {
-    const { data } = await supabase
+    let q = supabase
       .from("issues")
       .select("*, assets(name, serial_number)")
       .order("created_at", { ascending: false })
-    setIssues(data || [])
+
+    if (showArchived) {
+      q = q.eq("archived", true)
+    } else {
+      q = q.or("archived.is.null,archived.eq.false")
+    }
+
+    if (isStandardUser && userProfile) {
+      // filter handled in JS after fetch since we join assets
+    }
+
+    const { data } = await q
+    let rows = data || []
+
+    if (isStandardUser && userProfile) {
+      rows = rows.filter(i =>
+        i.reported_by === userProfile.email ||
+        i.reported_by === userProfile.id ||
+        i.reported_by === userProfile.name
+      )
+    }
+
+    setIssues(rows)
     setLoading(false)
   }
 
@@ -66,22 +107,30 @@ export default function Issues() {
 
   const handleSubmit = async (e) => {
     e.preventDefault()
+    setFormError("")
+    if (!form.asset_id) { setFormError("Please select an asset."); return }
+    if (!form.issue_type) { setFormError("Please select an issue type."); return }
+    if (!form.description.trim()) { setFormError("Please enter a description."); return }
+
     const { error } = await supabase.from("issues").insert([{
       asset_id: form.asset_id,
       issue_type: form.issue_type,
       description: form.description,
-      status: "open"
+      priority: form.priority,
+      status: "open",
+      reported_by: userProfile?.email || userProfile?.id || null,
     }])
     if (!error) {
+      createNotification(userProfile?.id, "⚠️ Issue Reported", "A new issue has been reported", "warning")
       setShowForm(false)
-      setForm({ asset_id: "", issue_type: "", description: "" })
+      setForm({ asset_id: "", issue_type: "", description: "", priority: "medium" })
       setSubmitSuccess(true)
       setTimeout(() => {
         setSubmitSuccess(false)
         fetchIssues()
       }, 2500)
     } else {
-      alert(error.message)
+      setFormError(error.message)
     }
   }
 
@@ -90,11 +139,17 @@ export default function Issues() {
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
+    createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success")
     setResolveSuccess(true)
     setTimeout(() => {
       setResolveSuccess(false)
       fetchIssues()
     }, 2500)
+  }
+
+  const handleArchive = async (id) => {
+    await supabase.from("issues").update({ archived: true }).eq("id", id)
+    fetchIssues()
   }
 
   const statusColor = {
@@ -103,8 +158,24 @@ export default function Issues() {
     resolved: "bg-green-500/20 text-green-400",
   }
 
+  const priorityColor = {
+    low: "bg-gray-500/20 text-gray-400",
+    medium: "bg-yellow-500/20 text-yellow-400",
+    high: "bg-orange-500/20 text-orange-400",
+    critical: "bg-red-500/20 text-red-400",
+  }
+
+  const filteredIssues = issues.filter(i => {
+    if (filterStatus !== "all" && i.status !== filterStatus) return false
+    if (filterPriority !== "all" && i.priority !== filterPriority) return false
+    return true
+  })
+
+  const selectClass = "bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+
   return (
     <div className="p-4 md:p-8">
+      <style>{slideInStyle}</style>
 
       {/* Submit Issue Success */}
       <AnimatePresence>
@@ -186,15 +257,22 @@ export default function Issues() {
         )}
       </AnimatePresence>
 
-      <div className="flex items-center justify-between mb-6">
+      <div className="flex items-center justify-between mb-4 flex-wrap gap-3">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">{t("issuesTitle")}</h1>
           <p className="text-gray-400 mt-1 text-sm">
             {issues.filter(i => i.status === "open").length} {t("openIssues")}
           </p>
         </div>
-        <div className="flex gap-2">
-          <button onClick={() => exportIssuesToExcel(issues)}
+        <div className="flex gap-2 flex-wrap">
+          <button
+            onClick={() => setShowArchived(!showArchived)}
+            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
+            style={{ background: showArchived ? "rgba(99,102,241,0.2)" : "rgba(30,41,59,0.8)", border: showArchived ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(107,114,128,0.4)", color: showArchived ? "#a5b4fc" : "#9ca3af" }}
+          >
+            📦 {showArchived ? "Hide Archived" : "Show Archived"}
+          </button>
+          <button onClick={() => exportIssuesToExcel(filteredIssues)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
             onMouseEnter={e => e.currentTarget.style.background = "rgba(59,130,246,0.15)"}
@@ -213,6 +291,23 @@ export default function Issues() {
         </div>
       </div>
 
+      {/* Filters */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectClass}>
+          <option value="all">All Statuses</option>
+          <option value="open">Open</option>
+          <option value="in-progress">In Progress</option>
+          <option value="resolved">Resolved</option>
+        </select>
+        <select value={filterPriority} onChange={e => setFilterPriority(e.target.value)} className={selectClass}>
+          <option value="all">All Priorities</option>
+          <option value="low">Low</option>
+          <option value="medium">Medium</option>
+          <option value="high">High</option>
+          <option value="critical">Critical</option>
+        </select>
+      </div>
+
       <AnimatePresence>
         {showForm && (
           <motion.form
@@ -223,6 +318,7 @@ export default function Issues() {
             className="bg-gray-900/80 rounded-xl border border-gray-800 p-4 mb-6"
           >
             <h2 className="text-white font-semibold mb-4">Report New Issue</h2>
+            <AnimatedError message={formError} onDismiss={() => setFormError("")} />
             <div className="space-y-3">
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">Asset</label>
@@ -256,6 +352,19 @@ export default function Issues() {
                 </select>
               </div>
               <div>
+                <label className="text-gray-400 text-sm mb-2 block">Priority</label>
+                <select
+                  value={form.priority}
+                  onChange={(e) => setForm({ ...form, priority: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                >
+                  <option value="low">Low</option>
+                  <option value="medium">Medium</option>
+                  <option value="high">High</option>
+                  <option value="critical">Critical</option>
+                </select>
+              </div>
+              <div>
                 <label className="text-gray-400 text-sm mb-2 block">Description</label>
                 <textarea
                   value={form.description}
@@ -271,7 +380,7 @@ export default function Issues() {
               <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
                 Submit Issue
               </button>
-              <button type="button" onClick={() => setShowForm(false)} className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
+              <button type="button" onClick={() => { setShowForm(false); setFormError("") }} className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
                 Cancel
               </button>
             </div>
@@ -283,15 +392,15 @@ export default function Issues() {
       <div className="block md:hidden space-y-3">
         {loading ? (
           <LoadingSkeleton rows={3} cols={2} />
-        ) : issues.length === 0 ? (
+        ) : filteredIssues.length === 0 ? (
           <EmptyState preset="issues" />
         ) : (
-          issues.map((issue) => (
+          filteredIssues.map((issue) => (
             <motion.div
               key={issue.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className="bg-gray-900/80 rounded-xl border border-gray-800 p-4"
+              className={`bg-gray-900/80 rounded-xl border border-gray-800 p-4 ${showArchived ? "opacity-60" : ""}`}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
@@ -302,18 +411,33 @@ export default function Issues() {
                   {issue.status}
                 </span>
               </div>
+              {issue.priority && (
+                <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-medium mb-1 ${priorityColor[issue.priority] || "bg-gray-500/20 text-gray-400"}`}>
+                  {issue.priority}
+                </span>
+              )}
               <p className="text-gray-400 text-sm capitalize mb-1">{issue.issue_type}</p>
               <p className="text-gray-400 text-sm mb-3">{issue.description}</p>
-              {isAdmin && issue.status === "open" && (
-                <motion.button
-                  whileHover={{ scale: 1.05 }}
-                  whileTap={{ scale: 0.95 }}
-                  onClick={() => handleResolve(issue.id)}
-                  className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
-                >
-                  Resolve
-                </motion.button>
-              )}
+              <div className="flex gap-2 flex-wrap">
+                {isAdmin && issue.status === "open" && (
+                  <motion.button
+                    whileHover={{ scale: 1.05 }}
+                    whileTap={{ scale: 0.95 }}
+                    onClick={() => handleResolve(issue.id)}
+                    className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                  >
+                    Resolve
+                  </motion.button>
+                )}
+                {isAdmin && issue.status === "resolved" && !issue.archived && (
+                  <button
+                    onClick={() => handleArchive(issue.id)}
+                    className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
+                  >
+                    Archive
+                  </button>
+                )}
+              </div>
             </motion.div>
           ))
         )}
@@ -327,18 +451,19 @@ export default function Issues() {
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Asset</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Type</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Description</th>
+              <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Priority</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Status</th>
               <th className="text-left text-gray-400 text-sm font-medium px-6 py-4">Actions</th>
             </tr>
           </thead>
           <tbody>
             {loading ? (
-              <tr><td colSpan={5}><LoadingSkeleton rows={3} cols={2} /></td></tr>
-            ) : issues.length === 0 ? (
-              <tr><td colSpan={5}><EmptyState preset="issues" /></td></tr>
+              <tr><td colSpan={6}><LoadingSkeleton rows={3} cols={2} /></td></tr>
+            ) : filteredIssues.length === 0 ? (
+              <tr><td colSpan={6}><EmptyState preset="issues" /></td></tr>
             ) : (
-              issues.map((issue) => (
-                <tr key={issue.id} className="border-b border-gray-800 hover:bg-gray-800/50 transition-all">
+              filteredIssues.map((issue) => (
+                <tr key={issue.id} className={`border-b border-gray-800 hover:bg-gray-800/50 transition-all ${showArchived ? "opacity-60" : ""}`}>
                   <td className="px-6 py-4">
                     <p className="text-white font-medium">{issue.assets?.name || "—"}</p>
                     <p className="text-gray-500 text-xs">{issue.assets?.serial_number || ""}</p>
@@ -346,21 +471,38 @@ export default function Issues() {
                   <td className="px-6 py-4 text-gray-400 text-sm capitalize">{issue.issue_type}</td>
                   <td className="px-6 py-4 text-gray-400 text-sm max-w-xs truncate">{issue.description}</td>
                   <td className="px-6 py-4">
+                    {issue.priority && (
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${priorityColor[issue.priority] || "bg-gray-500/20 text-gray-400"}`}>
+                        {issue.priority}
+                      </span>
+                    )}
+                  </td>
+                  <td className="px-6 py-4">
                     <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[issue.status] || "bg-gray-500/20 text-gray-400"}`}>
                       {issue.status}
                     </span>
                   </td>
                   <td className="px-6 py-4">
-                    {isAdmin && issue.status === "open" && (
-                      <motion.button
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                        onClick={() => handleResolve(issue.id)}
-                        className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
-                      >
-                        Resolve
-                      </motion.button>
-                    )}
+                    <div className="flex gap-2">
+                      {isAdmin && issue.status === "open" && (
+                        <motion.button
+                          whileHover={{ scale: 1.05 }}
+                          whileTap={{ scale: 0.95 }}
+                          onClick={() => handleResolve(issue.id)}
+                          className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                        >
+                          Resolve
+                        </motion.button>
+                      )}
+                      {isAdmin && issue.status === "resolved" && !issue.archived && (
+                        <button
+                          onClick={() => handleArchive(issue.id)}
+                          className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
+                        >
+                          Archive
+                        </button>
+                      )}
+                    </div>
                   </td>
                 </tr>
               ))

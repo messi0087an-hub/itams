@@ -1,5 +1,6 @@
 import { useState } from "react"
 import { motion, AnimatePresence } from "framer-motion"
+import * as XLSX from "xlsx"
 
 const guides = [
   {
@@ -177,11 +178,66 @@ const colorMap = {
 export default function UserGuide() {
   const [activeId, setActiveId] = useState(null)
 
+  const downloadPDF = () => {
+    const win = window.open("", "_blank", "width=900,height=700")
+    if (!win) { alert("Please allow pop-ups to download PDF."); return }
+    const sectionsHtml = guides.map(g => `
+      <div style="margin-bottom:24px;">
+        <h2 style="font-size:16px;font-weight:700;color:#1e293b;margin-bottom:10px;border-bottom:2px solid #e5e7eb;padding-bottom:6px;">
+          ${g.emoji} ${g.title}
+        </h2>
+        <ol style="margin:0;padding-left:20px;">
+          ${g.steps.map(s => `<li style="margin-bottom:6px;font-size:13px;color:#374151;line-height:1.5;">${s}</li>`).join("")}
+        </ol>
+      </div>`).join("")
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ITAMS User Guide</title>
+      <style>body{font-family:Arial,sans-serif;padding:32px;max-width:800px;margin:0 auto;color:#111;}
+      h1{font-size:24px;font-weight:800;margin-bottom:4px;}
+      .subtitle{color:#6b7280;font-size:13px;margin-bottom:28px;}
+      @media print{body{padding:16px}}</style></head>
+      <body>
+        <h1>📖 ITAMS User Guide</h1>
+        <p class="subtitle">Trainocate Asset Portal — Complete Guide</p>
+        ${sectionsHtml}
+        <p style="color:#9ca3af;font-size:11px;margin-top:32px;text-align:center;">ITAMS v1.0 — Trainocate Singapore © 2026</p>
+      </body></html>`)
+    win.document.close()
+    win.print()
+  }
+
+  const downloadExcel = () => {
+    const rows = []
+    guides.forEach(g => {
+      g.steps.forEach((step, i) => {
+        rows.push({ "Section": g.title, "Step #": i + 1, "Step": step })
+      })
+    })
+    const ws = XLSX.utils.json_to_sheet(rows)
+    ws["!cols"] = [{ wch: 24 }, { wch: 8 }, { wch: 80 }]
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "User Guide")
+    XLSX.writeFile(wb, "ITAMS_User_Guide.xlsx")
+  }
+
   return (
     <div className="p-4 md:p-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-white">📖 User Guide</h1>
         <p className="text-gray-400 mt-1 text-sm">Everything you need to know about using ITAMS</p>
+        <div className="flex flex-wrap gap-3 mt-4">
+          <button
+            onClick={downloadPDF}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-blue-500/30 bg-blue-500/10 text-blue-400 hover:bg-blue-500/20 transition-all text-sm font-medium"
+          >
+            📥 Download PDF
+          </button>
+          <button
+            onClick={downloadExcel}
+            className="flex items-center gap-2 px-4 py-2 rounded-lg border border-green-500/30 bg-green-500/10 text-green-400 hover:bg-green-500/20 transition-all text-sm font-medium"
+          >
+            📥 Download Excel
+          </button>
+        </div>
       </div>
 
       {/* Quick Start */}

@@ -1,5 +1,6 @@
 import { useEffect, useState, useMemo } from "react"
 import { supabase } from "../../lib/supabase"
+import { LoadingSkeleton, EmptyState } from "../../components/EmptyState"
 import * as XLSX from "xlsx"
 import jsPDF from "jspdf"
 import autoTable from "jspdf-autotable"
@@ -13,13 +14,16 @@ import { useAuth } from "../../context/AuthContext"
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
-  { id: "inventory",    icon: "📦", label: "Full Asset Inventory",     desc: "Complete list of all assets" },
-  { id: "warranty",     icon: "🛡️",  label: "Warranty Expiry",          desc: "Assets expiring in 30/60/90 days" },
-  { id: "department",   icon: "🏢", label: "Department Assets",        desc: "Assets grouped by department" },
-  { id: "depreciation", icon: "📉", label: "Asset Depreciation",       desc: "Value & depreciation per asset" },
-  { id: "license",      icon: "📋", label: "License Usage",            desc: "License expiry tracking" },
-  { id: "maintenance",  icon: "🔧", label: "Maintenance History",      desc: "Asset maintenance records" },
-  { id: "borrow",       icon: "📤", label: "Borrow History",           desc: "Borrowing & return records" },
+  { id: "inventory",       icon: "📦", label: "Full Asset Inventory",     desc: "Complete list of all assets" },
+  { id: "warranty",        icon: "🛡️",  label: "Warranty Expiry",          desc: "Assets expiring in 30/60/90 days" },
+  { id: "department",      icon: "🏢", label: "Department Assets",        desc: "Assets grouped by department" },
+  { id: "depreciation",    icon: "📉", label: "Asset Depreciation",       desc: "Value & depreciation per asset" },
+  { id: "license",         icon: "📋", label: "License Usage",            desc: "License expiry tracking" },
+  { id: "maintenance",     icon: "🔧", label: "Maintenance History",      desc: "Asset maintenance records" },
+  { id: "borrow",          icon: "📤", label: "Borrow History",           desc: "Borrowing & return records" },
+  { id: "overdue_borrows", icon: "🔴", label: "Overdue Borrows",          desc: "Active borrows past their return date" },
+  { id: "dept_count",      icon: "🏗️",  label: "Assets by Department",    desc: "Asset count grouped by department" },
+  { id: "license_expiry",  icon: "⏳", label: "License Expiry Report",    desc: "Assets with licenses expiring soon" },
 ]
 
 const STATUS_COLORS = {
@@ -109,6 +113,7 @@ export default function Reports() {
   const [assets, setAssets] = useState([])
   const [borrows, setBorrows] = useState([])
   const [maintenance, setMaintenance] = useState([])
+  const [overdueBorrowsData, setOverdueBorrowsData] = useState([])
   const [loading, setLoading] = useState(true)
   const [dateFrom, setDateFrom] = useState("")
   const [dateTo, setDateTo] = useState("")
@@ -121,14 +126,17 @@ export default function Reports() {
     setLoading(true)
     let assetQuery = supabase.from("assets").select("*").order("name")
     if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
-    const [{ data: a }, { data: b }, { data: m }] = await Promise.all([
+    const todayStr = new Date().toISOString().split("T")[0]
+    const [{ data: a }, { data: b }, { data: m }, { data: od }] = await Promise.all([
       assetQuery,
       supabase.from("borrow_requests").select("*, assets(name,serial_number)").order("created_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
+      supabase.from("borrows").select("*, assets(name,serial_number,asset_tag)").eq("status", "active").lt("expected_return_date", todayStr).order("expected_return_date", { ascending: true }),
     ])
     setAssets(a || [])
     setBorrows(b || [])
     setMaintenance(m || [])
+    setOverdueBorrowsData(od || [])
     setLoading(false)
   }
 
@@ -250,8 +258,51 @@ export default function Reports() {
       return { rows, chartData, stats: { total: rows.length, active, returned } }
     }
 
+    if (reportType === "overdue_borrows") {
+      let rows = [...overdueBorrowsData]
+      if (dateFrom) rows = rows.filter(b => (b.expected_return_date || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(b => (b.expected_return_date || "") <= dateTo)
+      const overdueDays = rows.map(b => {
+        const diff = Math.ceil((new Date() - new Date(b.expected_return_date)) / 86400000)
+        return { ...b, _overdue_days: diff }
+      })
+      return {
+        rows: overdueDays,
+        stats: {
+          total: rows.length,
+          critical: overdueDays.filter(b => b._overdue_days > 14).length,
+          warning: overdueDays.filter(b => b._overdue_days >= 7 && b._overdue_days <= 14).length,
+        }
+      }
+    }
+
+    if (reportType === "dept_count") {
+      const deptMap = assets.reduce((acc, a) => {
+        const dept = a.department || "Unassigned"
+        if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0 }
+        acc[dept].total++
+        if (a.status) acc[dept][a.status] = (acc[dept][a.status] || 0) + 1
+        return acc
+      }, {})
+      const rows = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
+      const chartData = rows.slice(0, 8).map(([name, v]) => ({ name, count: v.total }))
+      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: assets.length } }
+    }
+
+    if (reportType === "license_expiry") {
+      const todayStr_ = today()
+      let rows = assets.filter(a => a.license_expiry)
+      const expDays = warrantyDays // reuse the days filter
+      const cutoff = daysFromNow(expDays)
+      rows = rows.filter(a => a.license_expiry <= cutoff).sort((a, b) => a.license_expiry.localeCompare(b.license_expiry))
+      const expired = rows.filter(a => a.license_expiry < todayStr_).length
+      const expiring30 = rows.filter(a => a.license_expiry >= todayStr_ && a.license_expiry <= daysFromNow(30)).length
+      const active = rows.filter(a => a.license_expiry > daysFromNow(30)).length
+      return { rows, stats: { total: rows.length, expired, expiring30, active } }
+    }
+
     return {}
-  }, [reportType, assets, borrows, maintenance, dateFrom, dateTo, warrantyDays])
+  }, [reportType, assets, borrows, maintenance, overdueBorrowsData, dateFrom, dateTo, warrantyDays])
 
   // ── Export PDF ───────────────────────────────────────────────────────────────
   const exportPDF = () => {
@@ -349,6 +400,41 @@ export default function Reports() {
       })
     }
 
+    if (reportType === "overdue_borrows") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset","Borrower","Expected Return","Days Overdue"]],
+        body: rows.map(b => [
+          b.assets?.name||b.asset_id||"—",
+          b.borrowed_by||b.user_email||b.requester_name||"—",
+          b.expected_return_date||"—",
+          `${b._overdue_days}d`,
+        ]),
+        theme: "striped", headStyles: { fillColor: [220,38,38] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "dept_count") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Department","Total","Available","Assigned","Maintenance","Retired"]],
+        body: rows.map(([dept, v]) => [dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0]),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
+    if (reportType === "license_expiry") {
+      const { rows } = reportData
+      autoTable(doc, {
+        startY: y, head: [["Asset Name","Serial No.","Department","License Expiry","Status"]],
+        body: rows.map(a => {
+          const exp = a.license_expiry < today()
+          return [a.name, a.serial_number||"—", a.department||"—", a.license_expiry, exp ? "Expired" : "Active"]
+        }),
+        theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
+      })
+    }
+
     pdfFooter(doc)
     doc.save(`ITAMS_${reportType}_${today()}.pdf`)
   }
@@ -400,6 +486,25 @@ export default function Reports() {
         "Asset": b.assets?.name||"", "Borrower": b.requester_name||b.user_email||"",
         "Borrow Date": (b.created_at||"").slice(0,10), "Due Date": b.due_date||"",
         "Return Date": b.return_date||"", "Status": b.status||"",
+      }))
+    } else if (reportType === "overdue_borrows") {
+      rows = (reportData.rows || []).map(b => ({
+        "Asset": b.assets?.name||b.asset_id||"",
+        "Borrower": b.borrowed_by||b.user_email||b.requester_name||"",
+        "Expected Return": b.expected_return_date||"",
+        "Days Overdue": b._overdue_days,
+        "Status": b.status||"",
+      }))
+    } else if (reportType === "dept_count") {
+      rows = (reportData.rows || []).map(([dept, v]) => ({
+        "Department": dept, "Total": v.total, "Available": v.available||0,
+        "Assigned": v.assigned||0, "Maintenance": v.maintenance||0, "Retired": v.retired||0,
+      }))
+    } else if (reportType === "license_expiry") {
+      rows = (reportData.rows || []).map(a => ({
+        "Asset Name": a.name, "Serial Number": a.serial_number||"",
+        "Department": a.department||"", "License Expiry": a.license_expiry,
+        "Status": a.license_expiry < today() ? "Expired" : "Active",
       }))
     }
 
@@ -531,7 +636,7 @@ export default function Reports() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-5">
-          {reportType === "warranty" && (
+          {(reportType === "warranty" || reportType === "license_expiry") && (
             <div className="flex gap-2">
               {[30, 60, 90].map(d => (
                 <button key={d} onClick={() => setWarrantyDays(d)}
@@ -545,7 +650,7 @@ export default function Reports() {
               ))}
             </div>
           )}
-          {(reportType === "inventory" || reportType === "warranty" || reportType === "license" || reportType === "maintenance" || reportType === "borrow") && (
+          {(reportType === "inventory" || reportType === "warranty" || reportType === "license" || reportType === "maintenance" || reportType === "borrow" || reportType === "overdue_borrows") && (
             <>
               <div className="flex items-center gap-2">
                 <span className="text-gray-500 text-xs">From</span>
@@ -568,7 +673,9 @@ export default function Reports() {
         </div>
 
         {loading ? (
-          <div className="flex items-center justify-center py-24 text-gray-500">Loading...</div>
+          <div className="py-4">
+            <LoadingSkeleton rows={4} cols={2} />
+          </div>
         ) : (
           <AnimatePresence mode="wait">
             <motion.div key={reportType}
@@ -792,6 +899,87 @@ export default function Reports() {
                 </>
               )}
 
+              {/* ── OVERDUE BORROWS ── */}
+              {reportType === "overdue_borrows" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+                    <StatCard label="Total Overdue" value={reportData.stats.total} color="red" delay={0} />
+                    <StatCard label="Critical (>14d)" value={reportData.stats.critical} color="red" delay={0.05} />
+                    <StatCard label="Warning (7–14d)" value={reportData.stats.warning} color="yellow" delay={0.1} />
+                  </div>
+                  {reportData.rows.length === 0 ? (
+                    <div className="bg-green-500/10 border border-green-500/20 rounded-xl p-8 text-center">
+                      <p className="text-green-400 font-semibold">✅ No overdue borrows!</p>
+                      <p className="text-gray-500 text-sm mt-1">All active borrows are within their return date.</p>
+                    </div>
+                  ) : (
+                    <ReportTable headers={["Asset","Borrower","Expected Return","Days Overdue"]}
+                      rows={reportData.rows.map(b => [
+                        b.assets?.name || b.asset_id || "—",
+                        b.borrowed_by || b.user_email || b.requester_name || "—",
+                        b.expected_return_date || "—",
+                        <span key="d" className={b._overdue_days > 14 ? "text-red-400 font-bold" : b._overdue_days >= 7 ? "text-yellow-400 font-semibold" : "text-orange-400"}>
+                          {b._overdue_days}d overdue
+                        </span>,
+                      ])} />
+                  )}
+                </>
+              )}
+
+              {/* ── DEPT COUNT ── */}
+              {reportType === "dept_count" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 gap-3 mb-5">
+                    <StatCard label="Departments" value={reportData.stats.deptCount} color="blue" />
+                    <StatCard label="Total Assets" value={reportData.stats.totalAssets} color="purple" />
+                  </div>
+                  {reportData.chartData?.length > 0 && (
+                    <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
+                      <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">Asset Count by Department</p>
+                      <ResponsiveContainer width="100%" height={200}>
+                        <BarChart data={reportData.chartData} margin={{ left: 0, right: 8 }}>
+                          <XAxis dataKey="name" tick={{ fill: "#9ca3af", fontSize: 9 }} axisLine={false} tickLine={false} />
+                          <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
+                          <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
+                          <Bar dataKey="count" name="Assets" radius={[4,4,0,0]}>
+                            {reportData.chartData.map((_, i) => <Cell key={i} fill={CHART_COLORS[i % CHART_COLORS.length]} />)}
+                          </Bar>
+                        </BarChart>
+                      </ResponsiveContainer>
+                    </div>
+                  )}
+                  <ReportTable headers={["Department","Total","Available","Assigned","Maintenance","Retired"]}
+                    rows={reportData.rows.map(([dept, v]) => [
+                      dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0,
+                    ])} />
+                </>
+              )}
+
+              {/* ── LICENSE EXPIRY ── */}
+              {reportType === "license_expiry" && reportData.stats && (
+                <>
+                  <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-5">
+                    <StatCard label="Total w/ Licenses" value={reportData.stats.total} color="blue" />
+                    <StatCard label="Expired" value={reportData.stats.expired} color="red" />
+                    <StatCard label="Expiring ≤30 days" value={reportData.stats.expiring30} color="yellow" />
+                  </div>
+                  <ReportTable headers={["Asset Name","License Expiry","Days Left","Status"]}
+                    rows={reportData.rows.map(a => {
+                      const expired = a.license_expiry < today()
+                      const expiring = !expired && a.license_expiry <= daysFromNow(30)
+                      const daysLeft = Math.ceil((new Date(a.license_expiry) - new Date()) / 86400000)
+                      return [
+                        a.name,
+                        a.license_expiry,
+                        expired ? "—" : `${daysLeft}d`,
+                        <span key="s" className={expired ? "text-red-400" : expiring ? "text-yellow-400" : "text-green-400"}>
+                          {expired ? "Expired" : expiring ? "Expiring Soon" : "Active"}
+                        </span>,
+                      ]
+                    })} />
+                </>
+              )}
+
               {/* ── BORROW ── */}
               {reportType === "borrow" && reportData.stats && (
                 <>
@@ -834,8 +1022,8 @@ export default function Reports() {
 function ReportTable({ headers, rows }) {
   if (!rows?.length) {
     return (
-      <div className="bg-gray-900 rounded-xl border border-gray-800 p-8 text-center text-gray-500 text-sm">
-        No data available for this report.
+      <div className="bg-gray-900 rounded-xl border border-gray-800">
+        <EmptyState preset="reports" />
       </div>
     )
   }

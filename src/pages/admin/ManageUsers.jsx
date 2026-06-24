@@ -4,6 +4,26 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
+import { createNotification } from "../../lib/notifications"
+import { LoadingSkeleton, EmptyState } from "../../components/EmptyState"
+
+function SuccessToast({ message }) {
+  if (!message) return null
+  return (
+    <div style={{
+      position: "fixed", bottom: 24, right: 24, zIndex: 9999,
+      background: "rgba(34,197,94,0.15)", border: "1px solid rgba(34,197,94,0.4)",
+      borderRadius: "12px", padding: "12px 18px",
+      display: "flex", alignItems: "center", gap: "10px",
+      backdropFilter: "blur(12px)", boxShadow: "0 0 20px rgba(34,197,94,0.2)",
+      animation: "fadeInUp 0.3s ease-out",
+    }}>
+      <style>{`@keyframes fadeInUp { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <span>✅</span>
+      <span style={{color:"#86efac",fontSize:"14px",fontWeight:500}}>{message}</span>
+    </div>
+  )
+}
 
 const ROLES = ["admin", "standard_user", "guest"]
 const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
@@ -18,6 +38,29 @@ const roleLabels = {
   admin: "Admin",
   standard_user: "Standard User",
   guest: "Guest",
+}
+
+function AnimatedError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div style={{
+      animation: "slideInFromTop 0.3s ease-out",
+      background: "rgba(239,68,68,0.1)",
+      border: "1px solid rgba(239,68,68,0.4)",
+      borderRadius: "12px",
+      padding: "12px 16px",
+      marginBottom: "16px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      boxShadow: "0 0 20px rgba(239,68,68,0.15)"
+    }}>
+      <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <span style={{fontSize:"18px"}}>⚠️</span>
+      <span style={{color:"#fca5a5",fontSize:"14px",flex:1}}>{message}</span>
+      <button onClick={onDismiss} style={{color:"#9ca3af",background:"none",border:"none",cursor:"pointer",fontSize:"16px"}}>✕</button>
+    </div>
+  )
 }
 
 export default function ManageUsers() {
@@ -38,7 +81,6 @@ export default function ManageUsers() {
   const [deleting, setDeleting] = useState(false)
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", marketing_access: false, marketing_role: "" })
-  const [showPassword, setShowPassword] = useState(false)
   const [saving, setSaving] = useState(false)
   const fileInputRef = useRef()
 
@@ -54,16 +96,34 @@ export default function ManageUsers() {
   }, [])
 
   const fetchUsers = async () => {
-    const [{ data: profileData }, { data: authData }] = await Promise.all([
+    const [{ data: profileData }, { data: authData }, { data: assetsData }] = await Promise.all([
       supabase.from("user_profiles").select("*").eq("country", adminCountry).order("created_at", { ascending: true }),
       supabase.rpc("get_auth_users"),
+      supabase.from("assets").select("assigned_user"),
     ])
     const emailMap = {}
     authData?.forEach(u => { emailMap[u.id] = u.email })
-    const merged = (profileData || []).map(u => ({
-      ...u,
-      email: emailMap[u.id] || u.email,
-    }))
+
+    // Build asset count map keyed by lowercase name or email
+    const assetCountMap = {}
+    ;(assetsData || []).forEach(a => {
+      if (a.assigned_user) {
+        const key = a.assigned_user.trim().toLowerCase()
+        assetCountMap[key] = (assetCountMap[key] || 0) + 1
+      }
+    })
+
+    const merged = (profileData || []).map(u => {
+      const email = emailMap[u.id] || u.email
+      const nameKey = (u.name || "").trim().toLowerCase()
+      const emailKey = (email || "").trim().toLowerCase()
+      const assetsCount = (assetCountMap[nameKey] || 0) + (nameKey !== emailKey ? (assetCountMap[emailKey] || 0) : 0)
+      return {
+        ...u,
+        email,
+        assetsCount,
+      }
+    })
     setUsers(merged)
     setLoading(false)
   }
@@ -80,6 +140,13 @@ export default function ManageUsers() {
     setTimeout(() => setError(""), 6000)
   }
 
+  // Auto-dismiss error after 5 seconds (AnimatedError)
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(""), 5000)
+    return () => clearTimeout(t)
+  }, [error])
+
   const handleRoleChange = async (userId, newRole) => {
     if (userId === userProfile?.id && newRole !== "admin") {
       alert("You cannot demote yourself from admin.")
@@ -95,13 +162,10 @@ export default function ManageUsers() {
     setError("")
 
     try {
-      // Always get a fresh session token before calling the edge function
-      const { data: sessionData, error: sessionErr } = await supabase.auth.getSession()
-      const session = sessionData?.session
-
-      if (sessionErr || !session?.access_token) {
-        throw new Error("Session expired — please log out and log in again")
-      }
+      // Force a session refresh to avoid "Invalid or expired session" errors
+      const { data: refreshed } = await supabase.auth.refreshSession()
+      const token = refreshed?.session?.access_token
+      if (!token) throw new Error("Session expired — please log out and log in again")
 
       const { data, error: fnError } = await supabase.functions.invoke("create-user", {
         body: {
@@ -111,7 +175,7 @@ export default function ManageUsers() {
           role: form.role,
           country: adminCountry,
         },
-        headers: { Authorization: `Bearer ${session.access_token}` },
+        headers: { Authorization: `Bearer ${token}` },
       })
 
       // fnError means non-2xx (network error or relay error).
@@ -132,10 +196,15 @@ export default function ManageUsers() {
         throw new Error(data.error)
       }
 
+      const createdName = form.name || form.email
       setForm({ name: "", email: "", password: "", role: "standard_user", country: adminCountry, department: "" })
       setShowForm(false)
-      showSuccess(`✅ Account created for ${form.name || form.email}! Welcome email sent.`)
+      showSuccess(`✅ Account created for ${createdName}! Welcome email sent.`)
       fetchUsers()
+      // Notify admin
+      if (userProfile?.id) {
+        createNotification(userProfile.id, "✅ User Created", `New user "${createdName}" was created`, "success")
+      }
     } catch (err) {
       showError(err.message)
     } finally {
@@ -321,8 +390,13 @@ export default function ManageUsers() {
         throw new Error(data?.error || fnErr?.message || "Failed to delete user")
       }
 
+      const deletedLabel = deleteTarget.name || deleteTarget.email
       setUsers(users.filter(x => x.id !== deleteTarget.id))
-      showSuccess(`${deleteTarget.name || deleteTarget.email} has been permanently deleted.`)
+      showSuccess(`${deletedLabel} has been permanently deleted.`)
+      // Notify admin
+      if (userProfile?.id) {
+        createNotification(userProfile.id, "🗑️ User Deleted", `User "${deletedLabel}" was deleted`, "info")
+      }
     } catch (err) {
       alert(`Delete failed: ${err.message}`)
     } finally {
@@ -344,37 +418,11 @@ export default function ManageUsers() {
   return (
     <div className="p-3 md:p-8" style={{ width: "100%", maxWidth: "100vw", overflowX: "hidden" }}>
 
-      {/* Success toast */}
-      <AnimatePresence>
-        {success && (
-          <motion.div
-            key="success-toast"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-4 bg-green-500/10 border border-green-500/40 rounded-xl p-3 flex items-center gap-2"
-          >
-            <span>✅</span>
-            <p className="text-green-400 text-sm font-medium">{success}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Success toast — fixed bottom-right */}
+      <SuccessToast message={success} />
 
-      {/* Error toast */}
-      <AnimatePresence>
-        {error && (
-          <motion.div
-            key="error-toast"
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-4 bg-red-500/10 border border-red-500/40 rounded-xl p-3 flex items-center gap-2"
-          >
-            <span>❌</span>
-            <p className="text-red-400 text-sm font-medium">{error}</p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Error toast — animated slide-in */}
+      <AnimatedError message={error} onDismiss={() => setError("")} />
 
       {/* ── Delete confirmation modal ─────────────────────────────────────── */}
       <AnimatePresence>
@@ -745,21 +793,15 @@ export default function ManageUsers() {
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">{t("password")}</label>
                 <div className="flex gap-2">
-                  <div className="relative flex-1">
-                    <input
-                      type={showPassword ? "text" : "password"}
-                      value={form.password}
-                      onChange={e => setForm({ ...form, password: e.target.value })}
-                      placeholder="Min 6 characters"
-                      minLength={6}
-                      required
-                      className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 pr-10 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                    />
-                    <button type="button" onClick={() => setShowPassword(v => !v)}
-                      className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-gray-300 text-sm">
-                      {showPassword ? "🙈" : "👁"}
-                    </button>
-                  </div>
+                  <input
+                    type="password"
+                    value={form.password}
+                    onChange={e => setForm({ ...form, password: e.target.value })}
+                    placeholder="Min 6 characters"
+                    minLength={6}
+                    required
+                    className="flex-1 bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                  />
                   <button type="button" onClick={generatePassword}
                     className="px-3 py-2 rounded-lg text-sm font-medium border border-blue-500/40 text-blue-400 hover:bg-blue-500/10 transition-all whitespace-nowrap">
                     🔑 Generate
@@ -836,7 +878,9 @@ export default function ManageUsers() {
 
       {/* Users List */}
       {loading ? (
-        <p className="text-gray-500 text-sm">Loading...</p>
+        <LoadingSkeleton rows={4} cols={2} />
+      ) : users.length === 0 ? (
+        <EmptyState preset="users" />
       ) : (
         <div className="space-y-2 md:space-y-3">
           {users.map((u) => (
@@ -862,6 +906,14 @@ export default function ManageUsers() {
                   {u.country && (
                     <p className="text-gray-600 text-xs mt-0.5">🌏 {u.country}</p>
                   )}
+                  <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                    <p className="text-gray-600 text-xs">
+                      🕐 {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
+                    </p>
+                    <p className="text-gray-600 text-xs">
+                      📦 {u.assetsCount ?? 0} asset{(u.assetsCount ?? 0) !== 1 ? "s" : ""}
+                    </p>
+                  </div>
                 </div>
               </div>
 

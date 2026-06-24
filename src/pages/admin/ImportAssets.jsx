@@ -3,6 +3,7 @@ import { supabase } from "../../lib/supabase"
 import * as XLSX from "xlsx"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import { LoadingSkeleton, EmptyState } from "../../components/EmptyState"
 
 export default function ImportAssets() {
   const { userCountry, userProfile } = useAuth()
@@ -14,18 +15,22 @@ export default function ImportAssets() {
   const [updatedCount, setUpdatedCount] = useState(0)
   const [importMode, setImportMode] = useState("add") // "add" | "update"
   const [importHistory, setImportHistory] = useState([])
+  const [historyLoading, setHistoryLoading] = useState(true)
+  const [importSummary, setImportSummary] = useState(null)
 
   useEffect(() => {
     loadHistory()
   }, [])
 
   const loadHistory = async () => {
+    setHistoryLoading(true)
     const { data } = await supabase
       .from("import_history")
       .select("*")
       .order("created_at", { ascending: false })
       .limit(10)
     setImportHistory(data || [])
+    setHistoryLoading(false)
   }
 
   const handleFile = (e) => {
@@ -88,6 +93,13 @@ export default function ImportAssets() {
     reader.readAsBinaryString(file)
   }
 
+  const downloadErrorReport = (errors) => {
+    const ws = XLSX.utils.json_to_sheet(errors)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Errors")
+    XLSX.writeFile(wb, `import_errors_${new Date().toISOString().split("T")[0]}.xlsx`)
+  }
+
   const handleImport = async () => {
     if (!window._importData || window._importData.length === 0) return
     setLoading(true)
@@ -95,6 +107,9 @@ export default function ImportAssets() {
     const data = window._importData
     let successCount = 0
     let updateCount = 0
+    let skipCount = 0
+    let failCount = 0
+    const errors = []
     const fileName = `Import_${new Date().toISOString().split("T")[0]}`
 
     for (let i = 0; i < data.length; i++) {
@@ -110,13 +125,27 @@ export default function ImportAssets() {
         if (existing?.id) {
           const { error } = await supabase.from("assets").update(item).eq("id", existing.id)
           if (!error) updateCount++
+          else { failCount++; errors.push({ Row: i + 2, Name: item.name, Serial: item.serial_number || "", Reason: error.message }) }
           setUpdatedCount(updateCount)
+          continue
+        }
+      } else if (importMode === "add" && item.serial_number) {
+        // Check for duplicate serial
+        const { data: existing } = await supabase
+          .from("assets")
+          .select("id")
+          .eq("serial_number", item.serial_number)
+          .maybeSingle()
+        if (existing) {
+          skipCount++
+          errors.push({ Row: i + 2, Name: item.name, Serial: item.serial_number || "", Reason: "Duplicate serial number" })
           continue
         }
       }
 
       const { error } = await supabase.from("assets").insert([item])
       if (!error) successCount++
+      else { failCount++; errors.push({ Row: i + 2, Name: item.name, Serial: item.serial_number || "", Reason: error.message }) }
       setImportedCount(successCount)
     }
 
@@ -132,6 +161,14 @@ export default function ImportAssets() {
 
     setImported(true)
     setLoading(false)
+    setImportSummary({
+      total: data.length,
+      success: successCount,
+      updated: updateCount,
+      skipped: skipCount,
+      failed: failCount,
+      errors,
+    })
     loadHistory()
   }
 
@@ -234,8 +271,10 @@ export default function ImportAssets() {
       {/* Import History */}
       <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <h2 className="text-white font-semibold mb-4">Import History</h2>
-        {importHistory.length === 0 ? (
-          <p className="text-gray-500 text-sm">No import history yet.</p>
+        {historyLoading ? (
+          <LoadingSkeleton rows={3} cols={2} />
+        ) : importHistory.length === 0 ? (
+          <EmptyState preset="imports" />
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full text-sm">
@@ -276,6 +315,65 @@ export default function ImportAssets() {
         )}
         <p className="text-gray-600 text-xs mt-3">Showing last 10 imports</p>
       </div>
+
+      {/* Import Summary Modal */}
+      <AnimatePresence>
+        {importSummary && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/50 flex items-center justify-center z-50 p-4"
+          >
+            <motion.div
+              initial={{ opacity: 0, y: -20, scale: 0.95 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              className="bg-gray-900 rounded-xl border border-gray-800 p-6 max-w-md w-full"
+            >
+              <h3 className="text-white font-semibold text-lg mb-4">📊 Import Summary</h3>
+              <div className="space-y-2 mb-4">
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-800">
+                  <span className="text-gray-400">Total rows processed</span>
+                  <span className="text-white font-medium">{importSummary.total}</span>
+                </div>
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-800">
+                  <span className="text-gray-400">✅ Imported (new)</span>
+                  <span className="text-green-400 font-medium">{importSummary.success}</span>
+                </div>
+                {importSummary.updated > 0 && (
+                  <div className="flex justify-between text-sm py-1.5 border-b border-gray-800">
+                    <span className="text-gray-400">✏️ Updated (existing)</span>
+                    <span className="text-blue-400 font-medium">{importSummary.updated}</span>
+                  </div>
+                )}
+                <div className="flex justify-between text-sm py-1.5 border-b border-gray-800">
+                  <span className="text-gray-400">⏭️ Skipped (duplicates)</span>
+                  <span className="text-yellow-400 font-medium">{importSummary.skipped}</span>
+                </div>
+                <div className="flex justify-between text-sm py-1.5">
+                  <span className="text-gray-400">❌ Failed (errors)</span>
+                  <span className="text-red-400 font-medium">{importSummary.failed}</span>
+                </div>
+              </div>
+              {importSummary.errors?.length > 0 && (
+                <button
+                  onClick={() => downloadErrorReport(importSummary.errors)}
+                  className="w-full py-2 rounded-lg border border-red-500/30 bg-red-500/10 text-red-400 text-sm mb-3 hover:bg-red-500/20 transition-all"
+                >
+                  📥 Download Error Report ({importSummary.errors.length} rows)
+                </button>
+              )}
+              <button
+                onClick={() => setImportSummary(null)}
+                className="w-full py-2.5 rounded-lg bg-blue-600 hover:bg-blue-700 text-white text-sm font-medium transition-all"
+              >
+                Close
+              </button>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

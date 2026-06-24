@@ -9,6 +9,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
 
 const CATEGORIES = ["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"]
+const PAGE_SIZE = 20
 
 const STATUS_OPTIONS = ["available", "assigned", "maintenance", "retired"]
 
@@ -87,6 +88,7 @@ export default function Assets() {
   const [filterCategory, setFilterCategory] = useState("")
   const [sortCol, setSortCol] = useState("")
   const [sortDir, setSortDir] = useState("asc")
+  const [currentPage, setCurrentPage] = useState(1)
   const [loading, setLoading] = useState(true)
   const [deleteModal, setDeleteModal] = useState(null)
   const navigate = useNavigate()
@@ -99,6 +101,7 @@ export default function Assets() {
   const [showLabelModal, setShowLabelModal] = useState(false)
 
   useEffect(() => { if (!profileLoading) fetchAssets() }, [profileLoading, userCountry])
+  useEffect(() => setCurrentPage(1), [search, filterStatus, filterCategory, sortCol])
 
   const fetchAssets = async () => {
     let assetQuery = supabase.from("assets").select("*").order("created_at", { ascending: false })
@@ -198,7 +201,9 @@ export default function Assets() {
     const matchStatus = !filterStatus || a.status === filterStatus
     const matchCat = !filterCategory || a.category === filterCategory
     return matchSearch && matchStatus && matchCat
-  }).sort((a, b) => {
+  })
+
+  const sorted = [...filtered].sort((a, b) => {
     if (!sortCol) return 0
     let va = "", vb = ""
     if (sortCol === "name")     { va = a.name || ""; vb = b.name || "" }
@@ -207,6 +212,9 @@ export default function Assets() {
     if (sortCol === "warranty") { va = a.warranty_expiry || ""; vb = b.warranty_expiry || "" }
     return sortDir === "asc" ? va.localeCompare(vb) : vb.localeCompare(va)
   })
+
+  const totalPages = Math.ceil(sorted.length / PAGE_SIZE)
+  const paginated = sorted.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE)
 
   const allSelected = filtered.length > 0 && selected.size === filtered.length
   const someSelected = selected.size > 0
@@ -363,6 +371,14 @@ export default function Assets() {
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
         </select>
+        {sortCol && (
+          <button
+            onClick={() => { setSortCol(""); setSortDir("asc") }}
+            className="px-3 py-2 rounded-lg text-sm font-medium border border-gray-700 text-gray-400 hover:text-white hover:border-gray-500 transition-all"
+          >
+            ↺ Reset Sort
+          </button>
+        )}
       </div>
 
       {/* Bulk action bar */}
@@ -404,10 +420,10 @@ export default function Assets() {
       <div className="block md:hidden space-y-3">
         {loading ? (
           <LoadingSkeleton rows={4} cols={2} />
-        ) : filtered.length === 0 ? (
+        ) : sorted.length === 0 ? (
           <EmptyState preset={search ? "search" : "assets"} />
         ) : (
-          filtered.map((asset) => {
+          paginated.map((asset) => {
             const isChecked = selected.has(asset.id)
             const cardWarrantyExpiry = asset.warranty_expiry ? new Date(asset.warranty_expiry) : null
             const cardWarrantyValid = cardWarrantyExpiry && cardWarrantyExpiry >= new Date()
@@ -505,10 +521,10 @@ export default function Assets() {
           <tbody>
             {loading ? (
               <tr><td colSpan={8}><LoadingSkeleton rows={4} cols={2} /></td></tr>
-            ) : filtered.length === 0 ? (
+            ) : sorted.length === 0 ? (
               <tr><td colSpan={8}><EmptyState preset={search ? "search" : "assets"} /></td></tr>
             ) : (
-              filtered.map((asset) => {
+              paginated.map((asset) => {
                 const isChecked = selected.has(asset.id)
                 const warrantyExpiry = asset.warranty_expiry ? new Date(asset.warranty_expiry) : null
                 const warrantyValid = warrantyExpiry && warrantyExpiry >= new Date()
@@ -577,6 +593,27 @@ export default function Assets() {
           </tbody>
         </table>
       </div>
+
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between px-4 py-3 border-t border-gray-800">
+          <p className="text-gray-500 text-sm">{sorted.length} assets — Page {currentPage} of {totalPages}</p>
+          <div className="flex gap-1">
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(1)} className="px-2 py-1 rounded text-xs text-gray-400 hover:text-white disabled:opacity-30 border border-gray-700">«</button>
+            <button disabled={currentPage === 1} onClick={() => setCurrentPage(p => p - 1)} className="px-3 py-1 rounded text-xs text-gray-400 hover:text-white disabled:opacity-30 border border-gray-700">‹ Prev</button>
+            {Array.from({length: Math.min(5, totalPages)}, (_, i) => {
+              const page = Math.max(1, Math.min(currentPage - 2, totalPages - 4)) + i
+              return page <= totalPages ? (
+                <button key={page} onClick={() => setCurrentPage(page)}
+                  className={`px-3 py-1 rounded text-xs border ${currentPage === page ? "bg-blue-600 text-white border-blue-500" : "text-gray-400 hover:text-white border-gray-700"}`}
+                >{page}</button>
+              ) : null
+            })}
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(p => p + 1)} className="px-3 py-1 rounded text-xs text-gray-400 hover:text-white disabled:opacity-30 border border-gray-700">Next ›</button>
+            <button disabled={currentPage === totalPages} onClick={() => setCurrentPage(totalPages)} className="px-2 py-1 rounded text-xs text-gray-400 hover:text-white disabled:opacity-30 border border-gray-700">»</button>
+          </div>
+        </div>
+      )}
 
       {/* QR Label bulk print modal */}
       <AnimatePresence>

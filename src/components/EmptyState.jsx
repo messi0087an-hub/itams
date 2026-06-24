@@ -8,6 +8,11 @@ const PRESETS = {
   maintenance: { emoji: "🔧", title: "No maintenance tasks", sub: "Schedule your first maintenance" },
   requests: { emoji: "📋", title: "No requests", sub: "Asset requests will appear here" },
   generic: { emoji: "📭", title: "Nothing here", sub: "" },
+  borrows: { emoji: "📤", title: "No active borrows", sub: "All assets are currently available" },
+  users: { emoji: "👥", title: "No users found", sub: "Add team members to get started" },
+  reports: { emoji: "📊", title: "No data for this report", sub: "Try adjusting your filters or date range" },
+  scanner: { emoji: "🔍", title: "No asset found", sub: "Try a different serial number or name" },
+  imports: { emoji: "📥", title: "No import history", sub: "Import your first asset file to get started" },
 }
 
 export function EmptyState({ preset = "generic", title, sub, emoji }) {

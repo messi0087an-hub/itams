@@ -1,4 +1,4 @@
-import { useState } from "react"
+import { useState, useEffect } from "react"
 import { NavLink, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
@@ -32,16 +32,39 @@ const roleLabels = {
 
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
+  const [counts, setCounts] = useState({ assets: 0, openIssues: 0, pendingRequests: 0, activeBorrows: 0 })
   const { t, i18n } = useTranslation()
   const { userProfile, role, isAdmin, isStandardUser, isMarketing } = useAuth()
   const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!userProfile) return
+    const fetchCounts = async () => {
+      const country = userProfile.country
+      const [assetsRes, issuesRes, requestsRes, borrowsRes] = await Promise.all([
+        supabase.from("assets").select("id", { count: "exact", head: true }).eq("country", country),
+        supabase.from("issues").select("id", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("asset_requests").select("id", { count: "exact", head: true }).eq("status", "pending"),
+        supabase.from("borrows").select("id", { count: "exact", head: true }).eq("status", "active"),
+      ])
+      setCounts({
+        assets: assetsRes.count || 0,
+        openIssues: issuesRes.count || 0,
+        pendingRequests: requestsRes.count || 0,
+        activeBorrows: borrowsRes.count || 0,
+      })
+    }
+    fetchCounts()
+    const interval = setInterval(fetchCounts, 30000)
+    return () => clearInterval(interval)
+  }, [userProfile])
 
   const handleLogout = async () => {
     await supabase.auth.signOut()
   }
 
   const dashItem    = { label: t("dashboard"), path: "/admin" }
-  const assetsItem  = { label: t("allAssets"), path: "/admin/assets" }
+  const assetsItem  = { label: t("allAssets"), path: "/admin/assets", count: counts.assets }
   const reportsItem = { label: t("reports"), path: "/admin/reports" }
   const historyItem = { label: t("history"), path: "/admin/history" }
   const guideItem   = { label: "📖 " + t("guide"), path: "/admin/guide" }
@@ -50,9 +73,9 @@ export default function Sidebar() {
 
   // Standard User items
   const standardItems = [
-    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests" },
-    { label: t("borrowReturn"), path: "/admin/borrow" },
-    { label: t("issues"), path: "/admin/issues" },
+    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests", count: counts.pendingRequests },
+    { label: t("borrowReturn"), path: "/admin/borrow", count: counts.activeBorrows },
+    { label: t("issues"), path: "/admin/issues", count: counts.openIssues },
     { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
   ]
 
@@ -207,7 +230,12 @@ export default function Sidebar() {
                 }`
               }
             >
-              <span className="text-sm font-medium">{item.label}</span>
+              <span className="text-sm font-medium flex-1">{item.label}</span>
+              {item.count > 0 && (
+                <span className="ml-auto min-w-[20px] h-5 bg-blue-600/80 rounded-full text-white text-[10px] flex items-center justify-center font-bold px-1">
+                  {item.count > 99 ? "99+" : item.count}
+                </span>
+              )}
             </NavLink>
           ))}
 

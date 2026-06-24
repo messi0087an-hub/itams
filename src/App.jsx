@@ -131,6 +131,29 @@ const ParticlesBackground = memo(function ParticlesBackground({ particlesReady }
 
 // ---------------------------------------------------------------------------
 
+function AnimatedError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div style={{
+      animation: "slideInFromTop 0.3s ease-out",
+      background: "rgba(239,68,68,0.1)",
+      border: "1px solid rgba(239,68,68,0.4)",
+      borderRadius: "12px",
+      padding: "12px 16px",
+      marginBottom: "16px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      boxShadow: "0 0 20px rgba(239,68,68,0.15)"
+    }}>
+      <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <span style={{fontSize:"18px"}}>⚠️</span>
+      <span style={{color:"#fca5a5",fontSize:"14px",flex:1}}>{message}</span>
+      <button onClick={onDismiss} style={{color:"#9ca3af",background:"none",border:"none",cursor:"pointer",fontSize:"16px"}}>✕</button>
+    </div>
+  )
+}
+
 function LoginPage({ onVerified }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -182,6 +205,13 @@ function LoginPage({ onVerified }) {
     const t = setTimeout(() => setShowFailedPopup(false), 5000)
     return () => clearTimeout(t)
   }, [showFailedPopup])
+
+  // Auto-dismiss login error after 5 s
+  useEffect(() => {
+    if (!error) return
+    const t = setTimeout(() => setError(""), 5000)
+    return () => clearTimeout(t)
+  }, [error])
 
   const handleLogin = async (e) => {
     e.preventDefault()
@@ -442,8 +472,156 @@ function LoginPage({ onVerified }) {
     )
   }
 
+  // The form card + forgot-password section — shared between mobile and desktop right side
+  const FormSection = (
+    <motion.div
+      initial={{ opacity: 0, y: 20 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.5 }}
+      className="w-full max-w-md relative z-10"
+    >
+      {/* Brand shown only on mobile (hidden on desktop where left panel shows it) */}
+      <div className="md:hidden">
+        <Brand />
+      </div>
+
+      {/* ── Main login card ── */}
+      <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
+        <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
+        <AnimatedError message={error} onDismiss={() => setError("")} />
+        <form onSubmit={handleLogin} className="space-y-4">
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Email address</label>
+            <input
+              type="email"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              placeholder="you@trainocate.com"
+              required
+            />
+          </div>
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Password</label>
+            <input
+              type="password"
+              value={password}
+              onChange={(e) => setPassword(e.target.value)}
+              className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
+              placeholder="••••••••"
+              required
+            />
+            {/* Forgot Password link — glows when popup is visible */}
+            <div className="flex justify-end mt-2">
+              <button
+                type="button"
+                onClick={() => {
+                  setShowForgotForm(f => !f)
+                  setForgotSent(false)
+                  setForgotError("")
+                  setForgotEmail(email)
+                }}
+                className={`text-xs transition-all duration-200 ${
+                  showFailedPopup
+                    ? "text-cyan-300 underline drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]"
+                    : "text-cyan-500 hover:text-cyan-300 hover:underline hover:drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]"
+                }`}
+              >
+                Forgot Password?
+              </button>
+            </div>
+          </div>
+          <button
+            type="submit"
+            disabled={loading || otpSending}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 mt-2"
+          >
+            {loading ? "Signing in..." : otpSending ? "Sending 2FA code..." : "Sign In →"}
+          </button>
+        </form>
+      </div>
+
+      {/* ── Forgot-password inline form (slides down) ── */}
+      <AnimatePresence>
+        {showForgotForm && (
+          <motion.div
+            key="forgot-form"
+            initial={{ opacity: 0, height: 0, marginTop: 0 }}
+            animate={{ opacity: 1, height: "auto", marginTop: 12 }}
+            exit={{ opacity: 0, height: 0, marginTop: 0 }}
+            transition={{ duration: 0.35, ease: "easeInOut" }}
+            style={{ overflow: "hidden" }}
+          >
+            <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 shadow-2xl">
+              {forgotSent ? (
+                <motion.div
+                  initial={{ opacity: 0, scale: 0.95 }}
+                  animate={{ opacity: 1, scale: 1 }}
+                  className="text-center py-2"
+                >
+                  <div className="text-4xl mb-3">📧</div>
+                  <h3 className="text-white font-semibold mb-1">Email Sent!</h3>
+                  <p className="text-gray-400 text-sm mt-1">
+                    Reset link sent! Check your email inbox! 📧
+                  </p>
+                </motion.div>
+              ) : (
+                <>
+                  <h3 className="text-white font-semibold mb-1">Reset Your Password</h3>
+                  <p className="text-gray-500 text-sm mb-4">
+                    Enter your email and we'll send you a reset link!
+                  </p>
+                  {forgotError && (
+                    <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-3 py-2 mb-3 text-sm">
+                      {forgotError}
+                    </div>
+                  )}
+                  <form onSubmit={handleForgotPassword} className="space-y-3">
+                    <input
+                      type="email"
+                      value={forgotEmail}
+                      onChange={e => setForgotEmail(e.target.value)}
+                      className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
+                      placeholder="you@trainocate.com"
+                      required
+                    />
+                    <div className="flex gap-2">
+                      <button
+                        type="submit"
+                        disabled={forgotLoading}
+                        className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
+                      >
+                        {forgotLoading ? (
+                          <>
+                            <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
+                            Sending...
+                          </>
+                        ) : "Send Reset Link"}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setShowForgotForm(false)}
+                        className="px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all text-sm"
+                      >
+                        Cancel
+                      </button>
+                    </div>
+                  </form>
+                </>
+              )}
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <p className="text-center text-gray-600 text-xs mt-6">
+        © 2026 Trainocate Singapore · Trainocate Asset Portal v1.0
+      </p>
+    </motion.div>
+  )
+
   return (
-    <div className="min-h-screen bg-black flex items-center justify-center p-4 relative overflow-hidden">
+    <div className="min-h-screen bg-gray-950 flex flex-col md:flex-row relative overflow-hidden">
       <ParticlesBackground particlesReady={particlesReady} />
 
       {/* ── Failed-attempts popup (slides in from top, shakes) ── */}
@@ -489,151 +667,20 @@ function LoginPage({ onVerified }) {
         )}
       </AnimatePresence>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.5 }}
-        className="w-full max-w-md relative z-10"
-      >
-        <Brand />
-
-        {/* ── Main login card ── */}
-        <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
-          <h2 className="text-white text-xl font-semibold mb-6">Sign in to your account</h2>
-          {error && (
-            <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-4 py-3 mb-4 text-sm">
-              {error}
-            </div>
-          )}
-          <form onSubmit={handleLogin} className="space-y-4">
-            <div>
-              <label className="text-gray-400 text-sm mb-2 block">Email address</label>
-              <input
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-                placeholder="you@trainocate.com"
-                required
-              />
-            </div>
-            <div>
-              <label className="text-gray-400 text-sm mb-2 block">Password</label>
-              <input
-                type="password"
-                value={password}
-                onChange={(e) => setPassword(e.target.value)}
-                className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all"
-                placeholder="••••••••"
-                required
-              />
-              {/* Forgot Password link — glows when popup is visible */}
-              <div className="flex justify-end mt-2">
-                <button
-                  type="button"
-                  onClick={() => {
-                    setShowForgotForm(f => !f)
-                    setForgotSent(false)
-                    setForgotError("")
-                    setForgotEmail(email)
-                  }}
-                  className={`text-xs transition-all duration-200 ${
-                    showFailedPopup
-                      ? "text-cyan-300 underline drop-shadow-[0_0_8px_rgba(34,211,238,0.9)]"
-                      : "text-cyan-500 hover:text-cyan-300 hover:underline hover:drop-shadow-[0_0_6px_rgba(34,211,238,0.6)]"
-                  }`}
-                >
-                  Forgot Password?
-                </button>
-              </div>
-            </div>
-            <button
-              type="submit"
-              disabled={loading || otpSending}
-              className="w-full bg-blue-600 hover:bg-blue-500 text-white font-semibold py-3 rounded-xl transition-all duration-200 shadow-lg shadow-blue-500/20 mt-2"
-            >
-              {loading ? "Signing in..." : otpSending ? "Sending 2FA code..." : "Sign In →"}
-            </button>
-          </form>
+      {/* ── Desktop LEFT panel (hidden on mobile) ── */}
+      <div className="hidden md:flex flex-col items-center justify-center w-2/5 bg-gray-950 border-r border-gray-800 p-12 relative z-10">
+        <div style={{width:120,height:120,background:"rgba(59,130,246,0.15)",border:"2px solid rgba(59,130,246,0.3)",borderRadius:24,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:24}}>
+          <span style={{color:"#3b82f6",fontSize:40,fontWeight:800}}>IT</span>
         </div>
+        <h1 style={{color:"white",fontSize:28,fontWeight:700,textAlign:"center",marginBottom:8}}>Trainocate Asset Portal</h1>
+        <p style={{color:"#6b7280",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
+        <p style={{color:"#374151",fontSize:12,textAlign:"center",marginTop:32,maxWidth:280}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
+      </div>
 
-        {/* ── Forgot-password inline form (slides down) ── */}
-        <AnimatePresence>
-          {showForgotForm && (
-            <motion.div
-              key="forgot-form"
-              initial={{ opacity: 0, height: 0, marginTop: 0 }}
-              animate={{ opacity: 1, height: "auto", marginTop: 12 }}
-              exit={{ opacity: 0, height: 0, marginTop: 0 }}
-              transition={{ duration: 0.35, ease: "easeInOut" }}
-              style={{ overflow: "hidden" }}
-            >
-              <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-6 border border-gray-800 shadow-2xl">
-                {forgotSent ? (
-                  <motion.div
-                    initial={{ opacity: 0, scale: 0.95 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    className="text-center py-2"
-                  >
-                    <div className="text-4xl mb-3">📧</div>
-                    <h3 className="text-white font-semibold mb-1">Email Sent!</h3>
-                    <p className="text-gray-400 text-sm mt-1">
-                      Reset link sent! Check your email inbox! 📧
-                    </p>
-                  </motion.div>
-                ) : (
-                  <>
-                    <h3 className="text-white font-semibold mb-1">Reset Your Password</h3>
-                    <p className="text-gray-500 text-sm mb-4">
-                      Enter your email and we'll send you a reset link!
-                    </p>
-                    {forgotError && (
-                      <div className="bg-red-500/10 border border-red-500/30 text-red-400 rounded-lg px-3 py-2 mb-3 text-sm">
-                        {forgotError}
-                      </div>
-                    )}
-                    <form onSubmit={handleForgotPassword} className="space-y-3">
-                      <input
-                        type="email"
-                        value={forgotEmail}
-                        onChange={e => setForgotEmail(e.target.value)}
-                        className="w-full bg-gray-800 text-white rounded-xl px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none focus:ring-1 focus:ring-blue-500 transition-all text-sm"
-                        placeholder="you@trainocate.com"
-                        required
-                      />
-                      <div className="flex gap-2">
-                        <button
-                          type="submit"
-                          disabled={forgotLoading}
-                          className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white font-semibold py-2.5 rounded-xl transition-all text-sm flex items-center justify-center gap-2"
-                        >
-                          {forgotLoading ? (
-                            <>
-                              <span className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin inline-block" />
-                              Sending...
-                            </>
-                          ) : "Send Reset Link"}
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => setShowForgotForm(false)}
-                          className="px-4 py-2.5 rounded-xl border border-gray-700 text-gray-400 hover:text-gray-200 hover:border-gray-600 transition-all text-sm"
-                        >
-                          Cancel
-                        </button>
-                      </div>
-                    </form>
-                  </>
-                )}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-
-        <p className="text-center text-gray-600 text-xs mt-6">
-          © 2026 Trainocate Singapore · Trainocate Asset Portal v1.0
-        </p>
-      </motion.div>
+      {/* ── Mobile: centered layout / Desktop: right 60% ── */}
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10 md:w-3/5">
+        {FormSection}
+      </div>
     </div>
   )
 }
@@ -947,6 +994,14 @@ export default function App() {
   const [loading, setLoading] = useState(true)
   const [mfaVerified, setMfaVerified] = useState(false)
 
+  // Issue 23 — Session Isolation: force sign out on fresh page load if no active session flag
+  useEffect(() => {
+    const isActive = sessionStorage.getItem("itams_session_active")
+    if (!isActive) {
+      supabase.auth.signOut()
+    }
+  }, [])
+
   useEffect(() => {
     supabase.auth.getSession().then(({ data: { session } }) => {
       setUser(session?.user ?? null)
@@ -968,7 +1023,7 @@ export default function App() {
   return (
     <ThemeProvider>
       <BrowserRouter>
-        <AppRouter user={user} mfaVerified={mfaVerified} onVerified={() => setMfaVerified(true)} />
+        <AppRouter user={user} mfaVerified={mfaVerified} onVerified={() => { sessionStorage.setItem("itams_session_active", "1"); setMfaVerified(true) }} />
       </BrowserRouter>
     </ThemeProvider>
   )

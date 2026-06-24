@@ -44,9 +44,7 @@ function LabelPreview({ asset, assetUrl, qrRef }) {
           <p style={{ fontWeight: 800, fontSize: 11, color: "#111", lineHeight: 1.2, wordBreak: "break-word" }}>
             {asset.name}
           </p>
-          {asset.serial_number && (
-            <p style={{ fontSize: 8.5, color: "#374151" }}>S/N: {asset.serial_number}</p>
-          )}
+          <p style={{ fontSize: 8.5, color: "#374151" }}>S/N: {asset.serial_number || "Not assigned"}</p>
           {asset.category && (
             <p style={{ fontSize: 8.5, color: "#374151" }}>Category: {asset.category}</p>
           )}
@@ -81,7 +79,7 @@ function buildPrintHtml(assets, assetUrlBase, qty, svgMap) {
         <div class="body-row">
           <div class="asset-info">
             <div class="asset-name">${asset.name}</div>
-            ${asset.serial_number ? `<div class="detail">S/N: ${asset.serial_number}</div>` : ""}
+            <div class="detail">S/N: ${asset.serial_number || "Not assigned"}</div>
             ${asset.category ? `<div class="detail">Category: ${asset.category}</div>` : ""}
             ${asset.location ? `<div class="detail">Location: ${asset.location}</div>` : ""}
           </div>

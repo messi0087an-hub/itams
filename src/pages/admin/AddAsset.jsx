@@ -5,17 +5,42 @@ import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
+import { createNotification } from "../../lib/notifications"
 
 const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
 
+function AnimatedError({ message, onDismiss }) {
+  if (!message) return null
+  return (
+    <div style={{
+      animation: "slideInFromTop 0.3s ease-out",
+      background: "rgba(239,68,68,0.1)",
+      border: "1px solid rgba(239,68,68,0.4)",
+      borderRadius: "12px",
+      padding: "12px 16px",
+      marginBottom: "16px",
+      display: "flex",
+      alignItems: "center",
+      gap: "10px",
+      boxShadow: "0 0 20px rgba(239,68,68,0.15)"
+    }}>
+      <style>{`@keyframes slideInFromTop { from { opacity: 0; transform: translateY(-12px); } to { opacity: 1; transform: translateY(0); } }`}</style>
+      <span style={{fontSize:"18px"}}>⚠️</span>
+      <span style={{color:"#fca5a5",fontSize:"14px",flex:1}}>{message}</span>
+      <button onClick={onDismiss} style={{color:"#9ca3af",background:"none",border:"none",cursor:"pointer",fontSize:"16px"}}>✕</button>
+    </div>
+  )
+}
+
 export default function AddAsset() {
   const { t } = useTranslation()
-  const { userCountry } = useAuth()
+  const { userCountry, userProfile } = useAuth()
   const navigate = useNavigate()
   const [loading, setLoading] = useState(false)
   const [success, setSuccess] = useState(false)
   const [assetName, setAssetName] = useState("")
   const [serialError, setSerialError] = useState("")
+  const [formError, setFormError] = useState("")
   const [form, setForm] = useState({
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
@@ -60,6 +85,7 @@ export default function AddAsset() {
     const { data, error } = await supabase.from("assets").insert([cleanForm]).select().single()
     if (!error && data) {
       await logHistory(data.id, "Created", `Asset "${data.name}" was added to Trainocate Asset Portal`)
+      createNotification(userProfile?.id, "✅ Asset Added", `Asset "${data.name}" was added to ITAMS`, "success", data.id)
       setAssetName(data.name)
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 3000)
@@ -69,9 +95,11 @@ export default function AddAsset() {
         setSerialError(`Serial number "${form.serial_number}" already exists!`)
         setTimeout(() => setSerialError(""), 5000)
       } else if (msg.includes("asset_tag")) {
-        alert(`Asset tag "${form.asset_tag}" already exists. Please use a different asset tag or leave it blank.`)
+        setFormError(`Asset tag "${form.asset_tag}" already exists. Please use a different asset tag or leave it blank.`)
+        setTimeout(() => setFormError(""), 5000)
       } else {
-        alert(msg || "Failed to save asset")
+        setFormError(msg || "Failed to save asset")
+        setTimeout(() => setFormError(""), 5000)
       }
     }
     setLoading(false)
@@ -208,6 +236,8 @@ export default function AddAsset() {
 
       <h1 className="text-2xl md:text-3xl font-bold text-white mb-2">Add New Asset</h1>
       <p className="text-gray-400 mb-8">Fill in the details to register a new asset</p>
+
+      <AnimatedError message={formError} onDismiss={() => setFormError("")} />
 
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">

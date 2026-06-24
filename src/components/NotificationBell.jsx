@@ -46,18 +46,36 @@ export default function NotificationBell() {
 
   const handleToggle = () => {
     if (!open && buttonRef.current) {
-      const rect          = buttonRef.current.getBoundingClientRect()
-      const dropdownWidth = 320
-      // Align left edge to bell's left edge, clamp so it never leaves the viewport
-      let left = rect.left
+      const rect = buttonRef.current.getBoundingClientRect()
+      const dropdownWidth = 380
+      // Try to align right edge to bell's right edge
+      let left = rect.right - dropdownWidth
+      // If goes off left edge, clamp
+      if (left < 8) left = 8
+      // If still goes off right edge (very narrow viewport), clamp
       if (left + dropdownWidth > window.innerWidth - 8) {
         left = window.innerWidth - dropdownWidth - 8
       }
-      if (left < 8) left = 8
       setDropdownPos({ top: rect.bottom + 8, left })
     }
     setOpen(o => !o)
   }
+
+  useEffect(() => {
+    if (!open) return
+    const handleResize = () => {
+      if (buttonRef.current) {
+        const rect = buttonRef.current.getBoundingClientRect()
+        const dropdownWidth = 380
+        let left = rect.right - dropdownWidth
+        if (left < 8) left = 8
+        if (left + dropdownWidth > window.innerWidth - 8) left = window.innerWidth - dropdownWidth - 8
+        setDropdownPos({ top: rect.bottom + 8, left })
+      }
+    }
+    window.addEventListener("resize", handleResize)
+    return () => window.removeEventListener("resize", handleResize)
+  }, [open])
 
   const handleClick = async (n) => {
     if (!n.is_read) {
@@ -100,12 +118,13 @@ export default function NotificationBell() {
           ref={panelRef}
           className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
           style={{
-            position:  "fixed",
-            top:       dropdownPos.top,
-            left:      dropdownPos.left,
-            width:     "320px",
-            maxWidth:  "calc(100vw - 16px)",
-            zIndex:    9999,
+            position: "fixed",
+            top: dropdownPos.top,
+            left: dropdownPos.left,
+            width: "380px",
+            maxWidth: "calc(100vw - 16px)",
+            zIndex: 9999,
+            animation: "slideInFromTop 0.2s ease-out",
           }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-gray-800">
