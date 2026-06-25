@@ -182,7 +182,7 @@ export default function Borrow() {
         (a.assigned_user && userProfile?.name &&
           a.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
       )
-      setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
+      setAssets(mine)
     } else {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").eq("status", "available").order("name")
       if (userCountry) q = q.eq("country", userCountry)
@@ -571,7 +571,7 @@ export default function Borrow() {
                 const filtered = form.category === "Others"
                   ? assets.filter(a => !knownCats.includes(a.category))
                   : assets.filter(a => (a.category || "").toLowerCase() === form.category.toLowerCase())
-                const listToShow = filtered.length > 0 ? filtered : assets
+                const listToShow = filtered
                 const noMatch = filtered.length === 0
                 return (
                   <div>
