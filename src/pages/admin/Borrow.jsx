@@ -176,6 +176,8 @@ export default function Borrow() {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
       if (userCountry) q = q.eq("country", userCountry)
       const { data } = await q
+      console.log("DEBUG userProfile:", userProfile)
+      console.log("DEBUG all assets assigned_user values:", (data || []).map(a => a.assigned_user))
       const mine = (data || []).filter(a =>
         a.assigned_user === userProfile?.email ||
         a.assigned_user === userProfile?.name ||
