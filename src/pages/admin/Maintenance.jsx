@@ -1,9 +1,10 @@
-import { useEffect, useState, useCallback } from "react"
+import { useEffect, useState, useCallback, useRef } from "react"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import { createNotification } from "../../lib/notifications"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -115,6 +116,16 @@ export default function Maintenance() {
   }
   const [assetSearch, setAssetSearch] = useState("")
   const [assetDropdown, setAssetDropdown] = useState(false)
+  const assetDropdownRef = useRef(null)
+
+  useEffect(() => {
+    if (!assetDropdown) return
+    const handler = (e) => {
+      if (assetDropdownRef.current && !assetDropdownRef.current.contains(e.target)) setAssetDropdown(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [assetDropdown])
   const [form, setForm] = useState({
     asset_id: "", asset_name: "",
     maintenance_type: "service",
@@ -145,10 +156,12 @@ export default function Maintenance() {
     setSchedules(s || [])
     const all = a || []
     if (isStandardUser && userProfile) {
-      const mine = all.filter(x =>
-        x.assigned_user === userProfile.email ||
-        x.assigned_user === userProfile.name
-      )
+      const email = (userProfile.email || "").toLowerCase().trim()
+      const name  = (userProfile.name  || "").toLowerCase().trim()
+      const mine = all.filter(x => {
+        const au = (x.assigned_user || "").toLowerCase().trim()
+        return au && (au === email || au === name)
+      })
       setAssets(mine.length > 0 ? mine : all)
     } else {
       setAssets(all)
@@ -178,6 +191,7 @@ export default function Maintenance() {
       created_by: userProfile?.name || userProfile?.email,
     }])
     if (!error) {
+      createNotification(userProfile?.id, "🔧 Maintenance Scheduled", `Maintenance scheduled for "${form.asset_name}"`, "info")
       setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
       setAssetSearch("")
       setShowForm(false)
@@ -411,7 +425,7 @@ export default function Maintenance() {
             <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
 
               {/* Asset picker */}
-              <div className="md:col-span-2 relative">
+              <div className="md:col-span-2 relative" ref={assetDropdownRef}>
                 <label className="text-gray-400 text-sm mb-2 block">Asset *</label>
                 <input type="text" value={form.asset_id ? form.asset_name : assetSearch}
                   onChange={e => {

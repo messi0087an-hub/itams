@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders } from "../../lib/emailService"
+import { createNotification } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 function SuccessToast({ message }) {
@@ -170,10 +171,12 @@ export default function Borrow() {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
       if (userCountry) q = q.eq("country", userCountry)
       const { data } = await q
-      const mine = (data || []).filter(a =>
-        a.assigned_user === userProfile.email ||
-        a.assigned_user === userProfile.name
-      )
+      const email = (userProfile.email || "").toLowerCase().trim()
+      const name  = (userProfile.name  || "").toLowerCase().trim()
+      const mine = (data || []).filter(a => {
+        const au = (a.assigned_user || "").toLowerCase().trim()
+        return au && (au === email || au === name)
+      })
       setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
     } else {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").eq("status", "available").order("name")
@@ -220,6 +223,7 @@ export default function Borrow() {
         assigned_user: borrowerName,
       }).eq("id", form.asset_id)
 
+      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info")
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })

@@ -158,8 +158,11 @@ export default function ManageUsers() {
 
   const handleCreateUser = async (e) => {
     e.preventDefault()
-    setCreating(true)
     setError("")
+    if (!form.email?.trim()) { showError("Please enter an email address."); return }
+    if (!form.name?.trim())  { showError("Please enter the user's name."); return }
+    if (!form.password || form.password.length < 8) { showError("Password must be at least 8 characters."); return }
+    setCreating(true)
 
     try {
       // Force a session refresh to avoid "Invalid or expired session" errors
@@ -398,7 +401,7 @@ export default function ManageUsers() {
         createNotification(userProfile.id, "🗑️ User Deleted", `User "${deletedLabel}" was deleted`, "info")
       }
     } catch (err) {
-      alert(`Delete failed: ${err.message}`)
+      setError(`Delete failed: ${err.message}`)
     } finally {
       setDeleting(false)
       setDeleteTarget(null)

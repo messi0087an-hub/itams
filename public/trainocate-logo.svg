@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
+  <!-- Orange flame/fire icon -->
+  <circle cx="40" cy="40" r="32" fill="#F15A22"/>
+  <!-- Arrow/flame shape inside circle -->
+  <polygon points="40,14 56,52 40,44 24,52" fill="white" opacity="0.95"/>
+  <!-- TRAINOCATE text -->
+  <text x="84" y="48" font-family="'Helvetica Neue',Arial,sans-serif" font-size="26" font-weight="700" fill="#6B6B6B" letter-spacing="1">TRAINOCATE</text>
+</svg>

@@ -95,10 +95,12 @@ export default function Issues() {
     const { data } = await q
     const all = data || []
     if (isStandardUser && userProfile) {
-      const mine = all.filter(a =>
-        a.assigned_user === userProfile.email ||
-        a.assigned_user === userProfile.name
-      )
+      const email = (userProfile.email || "").toLowerCase().trim()
+      const name  = (userProfile.name  || "").toLowerCase().trim()
+      const mine = all.filter(a => {
+        const au = (a.assigned_user || "").toLowerCase().trim()
+        return au && (au === email || au === name)
+      })
       setAssets(mine.length > 0 ? mine : all)
     } else {
       setAssets(all)

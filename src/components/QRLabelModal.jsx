@@ -23,15 +23,11 @@ function LabelPreview({ asset, assetUrl, qrRef }) {
         borderBottom: "1px solid #e5e7eb", padding: "8px 12px",
         display: "flex", alignItems: "center", gap: 8,
       }}>
-        <div style={{
-          width: 90, height: 28,
-          background: "rgba(0,0,0,0.06)", border: "1px dashed #9ca3af",
-          borderRadius: 3, display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span style={{ fontSize: 7, color: "#9ca3af", fontWeight: 700, letterSpacing: "0.06em" }}>
-            TRAINOCATE LOGO
-          </span>
-        </div>
+        <img
+          src="/trainocate-logo.svg"
+          alt="Trainocate"
+          style={{ width: 90, height: 28, objectFit: "contain" }}
+        />
         <span style={{ fontSize: 8, fontWeight: 700, color: "#374151", letterSpacing: "0.05em" }}>
           TRAINOCATE Property
         </span>
@@ -73,7 +69,7 @@ function buildPrintHtml(assets, assetUrlBase, qty, svgMap) {
     const single = `
       <div class="label">
         <div class="logo-row">
-          <div class="logo-box">TRAINOCATE LOGO</div>
+          <img src="/trainocate-logo.svg" alt="Trainocate" class="logo-img" />
           <span class="prop-label">TRAINOCATE Property</span>
         </div>
         <div class="body-row">
@@ -107,10 +103,8 @@ function buildPrintHtml(assets, assetUrlBase, qty, svgMap) {
     border-bottom:1px solid #e5e7eb; padding:2.5mm 3mm;
     display:flex; align-items:center; gap:3mm; flex-shrink:0;
   }
-  .logo-box {
-    width:28mm; height:9mm; border:1px dashed #9ca3af; border-radius:1mm;
-    background:rgba(0,0,0,0.04); display:flex; align-items:center; justify-content:center;
-    font-size:5pt; color:#9ca3af; font-weight:700; letter-spacing:0.05em;
+  .logo-img {
+    width:28mm; height:9mm; object-fit:contain;
   }
   .prop-label { font-size:6pt; font-weight:700; color:#374151; letter-spacing:0.05em; }
   .body-row { flex:1; display:flex; padding:2.5mm 3mm; gap:3mm; }

@@ -244,6 +244,9 @@ function LoginPage({ onVerified }) {
       .eq("id", data.user.id)
       .single()
 
+    // Record last login time
+    await supabase.from("user_profiles").update({ last_login: new Date().toISOString() }).eq("id", data.user.id)
+
     if (profile?.two_factor_enabled) {
       // Sign out temporarily — user must complete OTP first
       await supabase.auth.signOut()
@@ -312,7 +315,9 @@ function LoginPage({ onVerified }) {
       setLoading(false)
       return
     }
-    // Supabase has now signed the user in — notify parent
+    // Supabase has now signed the user in — record last login and notify parent
+    const { data: { user: otpUser } } = await supabase.auth.getUser()
+    if (otpUser?.id) await supabase.from("user_profiles").update({ last_login: new Date().toISOString() }).eq("id", otpUser.id)
     onVerified()
     setLoading(false)
   }
@@ -668,13 +673,26 @@ function LoginPage({ onVerified }) {
       </AnimatePresence>
 
       {/* ── Desktop LEFT panel (hidden on mobile) ── */}
-      <div className="hidden md:flex flex-col items-center justify-center w-2/5 bg-gray-950 border-r border-gray-800 p-12 relative z-10">
-        <div style={{width:120,height:120,background:"rgba(59,130,246,0.15)",border:"2px solid rgba(59,130,246,0.3)",borderRadius:24,display:"flex",alignItems:"center",justifyContent:"center",marginBottom:24}}>
-          <span style={{color:"#3b82f6",fontSize:40,fontWeight:800}}>IT</span>
+      <div
+        className="hidden md:flex flex-col items-center justify-center w-2/5 p-12 relative z-10 overflow-hidden"
+        style={{
+          backgroundImage: "url('/login-bg.svg')",
+          backgroundSize: "cover",
+          backgroundPosition: "center",
+        }}
+      >
+        {/* Subtle overlay to ensure text readability */}
+        <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(2px)" }} />
+        <div className="relative z-10 flex flex-col items-center">
+          <img
+            src="/trainocate-logo.svg"
+            alt="Trainocate"
+            style={{ width: 200, height: "auto", marginBottom: 28, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.15))" }}
+          />
+          <h1 style={{color:"#1a1a2e",fontSize:26,fontWeight:800,textAlign:"center",marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
+          <p style={{color:"#555",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
+          <p style={{color:"#777",fontSize:12,textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
         </div>
-        <h1 style={{color:"white",fontSize:28,fontWeight:700,textAlign:"center",marginBottom:8}}>Trainocate Asset Portal</h1>
-        <p style={{color:"#6b7280",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
-        <p style={{color:"#374151",fontSize:12,textAlign:"center",marginTop:32,maxWidth:280}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
       </div>
 
       {/* ── Mobile: centered layout / Desktop: right 60% ── */}

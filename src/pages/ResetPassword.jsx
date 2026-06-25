@@ -2,8 +2,6 @@ import { useState, useEffect, memo } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
-import Particles, { initParticlesEngine } from "@tsparticles/react"
-import { loadSlim } from "@tsparticles/slim"
 
 // ─── Background (re-uses same design as LoginPage) ──────────────────────────
 
@@ -83,10 +81,8 @@ export default function ResetPassword() {
   const [loading, setLoading]             = useState(false)
   const [success, setSuccess]             = useState(false)
   const [error, setError]                 = useState("")
-  const [particlesReady, setParticlesReady] = useState(false)
   // true once Supabase fires the PASSWORD_RECOVERY event (token in URL exchanged)
   const [ready, setReady]                 = useState(false)
-  const isMobile = typeof window !== "undefined" && window.innerWidth < 768
 
   // ── Requirements ────────────────────────────────────────────────────────────
   const reqs = [
@@ -110,14 +106,6 @@ export default function ResetPassword() {
     })
     return () => subscription.unsubscribe()
   }, [])
-
-  // ── Particles (desktop only) ─────────────────────────────────────────────────
-  useEffect(() => {
-    if (!isMobile) {
-      initParticlesEngine(async (engine) => { await loadSlim(engine) })
-        .then(() => setParticlesReady(true))
-    }
-  }, [isMobile])
 
   // ── Submit ────────────────────────────────────────────────────────────────────
   const handleSubmit = async (e) => {
@@ -147,31 +135,9 @@ export default function ResetPassword() {
       style={{ background: "#0a0f1e" }}
     >
       {/* Background */}
-      {isMobile ? (
-        <MobileBackground />
-      ) : (
-        <>
-          {particlesReady && (
-            <Particles
-              options={{
-                background: { color: { value: "transparent" } },
-                particles: {
-                  number: { value: 70 },
-                  color: { value: "#3b82f6" },
-                  opacity: { value: 0.28 },
-                  size: { value: { min: 1, max: 3 } },
-                  move: { enable: true, speed: 0.9 },
-                  links: { enable: true, color: "#3b82f6", opacity: 0.18, distance: 150 },
-                },
-                interactivity: { events: { onHover: { enable: true, mode: "repulse" } } },
-              }}
-              className="absolute inset-0"
-            />
-          )}
-          <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
-          <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
-        </>
-      )}
+      <MobileBackground />
+      <div className="absolute top-1/4 left-1/4 w-96 h-96 bg-blue-500/10 rounded-full blur-3xl pointer-events-none" />
+      <div className="absolute bottom-1/4 right-1/4 w-96 h-96 bg-purple-500/10 rounded-full blur-3xl pointer-events-none" />
 
       {/* Card */}
       <motion.div
@@ -183,16 +149,15 @@ export default function ResetPassword() {
         {/* Logo */}
         <div className="text-center mb-8">
           <motion.div
-            initial={{ scale: 0 }}
-            animate={{ scale: 1 }}
-            transition={{ delay: 0.15, type: "spring", stiffness: 200 }}
-            className="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4 shadow-lg shadow-blue-500/30"
+            initial={{ scale: 0.8, opacity: 0 }}
+            animate={{ scale: 1, opacity: 1 }}
+            transition={{ delay: 0.1, duration: 0.4 }}
+            className="inline-flex items-center justify-center mb-4"
           >
-            <span className="text-white text-2xl font-bold">IT</span>
+            <img src="/trainocate-logo.svg" alt="Trainocate" style={{ width: 180, height: "auto", filter: "brightness(0) invert(1)" }} />
           </motion.div>
-          <h1 className="text-4xl font-bold text-white mb-2 tracking-tight">ITAMS</h1>
-          <p className="text-gray-400 text-sm">IT Asset Management System</p>
-          <p className="text-gray-600 text-sm mt-1">Trainocate Singapore</p>
+          <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
+          <p className="text-gray-500 text-sm mt-1">Trainocate Singapore</p>
         </div>
 
         <div className="bg-gray-900/80 backdrop-blur-sm rounded-2xl p-8 border border-gray-800 shadow-2xl">
@@ -358,7 +323,7 @@ export default function ResetPassword() {
         </div>
 
         <p className="text-center text-gray-600 text-xs mt-6">
-          © 2026 Trainocate Singapore · ITAMS v1.0
+          © 2026 Trainocate Singapore · Trainocate Asset Portal v1.0
         </p>
       </motion.div>
     </div>
