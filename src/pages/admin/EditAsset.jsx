@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useParams } from "react-router-dom"
 import { motion } from "framer-motion"
@@ -17,6 +17,29 @@ export default function EditAsset() {
   const [loading, setLoading] = useState(false)
   const [fetching, setFetching] = useState(true)
   const [success, setSuccess] = useState(false)
+  const [users, setUsers] = useState([])
+  const [userSearch, setUserSearch] = useState("")
+  const [showUserDropdown, setShowUserDropdown] = useState(false)
+  const userDropdownRef = useRef(null)
+
+  useEffect(() => {
+    fetchUsers()
+  }, [])
+
+  const fetchUsers = async () => {
+    const { data } = await supabase.from("user_profiles").select("id, name, email").order("name")
+    setUsers(data || [])
+  }
+
+  useEffect(() => {
+    if (!showUserDropdown) return
+    const handler = (e) => {
+      if (userDropdownRef.current && !userDropdownRef.current.contains(e.target))
+        setShowUserDropdown(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [showUserDropdown])
   const [form, setForm] = useState({
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
@@ -104,7 +127,6 @@ export default function EditAsset() {
     { name: "serial_number", label: "Serial Number", placeholder: "e.g. ABC123XYZ" },
     { name: "asset_tag", label: "Asset Tag", placeholder: "e.g. COM/2024/0001" },
     { name: "location", label: "Location", placeholder: "e.g. Level 19, Singapore" },
-    { name: "assigned_user", label: "Assigned To", placeholder: "e.g. John Doe" },
     { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
@@ -161,6 +183,58 @@ export default function EditAsset() {
               />
             </div>
           ))}
+
+          {/* Assigned To — searchable user dropdown */}
+          <div className="relative" ref={userDropdownRef}>
+            <label className="text-gray-400 text-sm mb-2 block">Assigned To</label>
+            <input
+              type="text"
+              value={showUserDropdown ? userSearch : form.assigned_user}
+              onChange={(e) => { setUserSearch(e.target.value); setShowUserDropdown(true) }}
+              onFocus={() => { setUserSearch(""); setShowUserDropdown(true) }}
+              placeholder="Search user..."
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            />
+            {form.assigned_user && !showUserDropdown && (
+              <button
+                type="button"
+                onClick={() => { setForm({ ...form, assigned_user: "" }); setUserSearch("") }}
+                className="absolute right-3 top-10 text-gray-500 hover:text-white text-xs"
+              >✕</button>
+            )}
+            {showUserDropdown && (
+              <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                {users
+                  .filter(u => {
+                    const q = userSearch.toLowerCase()
+                    return !q || (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+                  })
+                  .map(u => (
+                    <button
+                      key={u.id}
+                      type="button"
+                      onClick={() => {
+                        setForm({ ...form, assigned_user: u.name || u.email })
+                        setShowUserDropdown(false)
+                        setUserSearch("")
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-gray-700 text-sm"
+                    >
+                      <span className="text-white">{u.name}</span>
+                      {u.email && <span className="text-gray-400 ml-2 text-xs">{u.email}</span>}
+                    </button>
+                  ))
+                }
+                {users.filter(u => {
+                  const q = userSearch.toLowerCase()
+                  return !q || (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+                }).length === 0 && (
+                  <div className="px-4 py-3 text-gray-500 text-sm">No users found</div>
+                )}
+              </div>
+            )}
+          </div>
+
           <div>
             <label className="text-gray-400 text-sm mb-2 block">Status</label>
             <select

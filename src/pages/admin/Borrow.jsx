@@ -171,13 +171,13 @@ export default function Borrow() {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
       if (userCountry) q = q.eq("country", userCountry)
       const { data } = await q
-      const userAssets = (data || []).filter(a =>
-        a.assigned_user === userProfile?.name ||
+      const mine = (data || []).filter(a =>
         a.assigned_user === userProfile?.email ||
+        a.assigned_user === userProfile?.name ||
         (a.assigned_user && userProfile?.name &&
           a.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
       )
-      setAssets(userAssets)
+      setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
     } else {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").eq("status", "available").order("name")
       if (userCountry) q = q.eq("country", userCountry)

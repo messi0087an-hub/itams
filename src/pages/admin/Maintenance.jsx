@@ -156,13 +156,13 @@ export default function Maintenance() {
     setSchedules(s || [])
     const all = a || []
     if (isStandardUser && userProfile) {
-      const userAssets = all.filter(x =>
-        x.assigned_user === userProfile?.name ||
+      const mine = all.filter(x =>
         x.assigned_user === userProfile?.email ||
+        x.assigned_user === userProfile?.name ||
         (x.assigned_user && userProfile?.name &&
           x.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
       )
-      setAssets(userAssets)
+      setAssets(mine.length > 0 ? mine : all.filter(x => x.status === "available"))
     } else {
       setAssets(all)
     }
