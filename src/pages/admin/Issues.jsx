@@ -56,8 +56,13 @@ export default function Issues() {
 
   useEffect(() => {
     fetchIssues()
-    fetchAssets()
   }, [showArchived])
+
+  useEffect(() => {
+    if (userProfile !== null && userProfile !== undefined) {
+      fetchAssets()
+    }
+  }, [userProfile])
 
   const fetchIssues = async () => {
     let q = supabase

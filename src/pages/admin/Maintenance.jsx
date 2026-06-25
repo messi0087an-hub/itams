@@ -137,8 +137,8 @@ export default function Maintenance() {
   })
 
   useEffect(() => {
-    if (!profileLoading) fetchAll()
-  }, [profileLoading, userCountry, showArchived])
+    if (!profileLoading && userProfile !== null && userProfile !== undefined) fetchAll()
+  }, [profileLoading, userProfile, userCountry, showArchived])
 
   const fetchAll = async () => {
     let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })

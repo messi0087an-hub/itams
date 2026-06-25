@@ -133,9 +133,14 @@ export default function Borrow() {
 
   useEffect(() => {
     fetchBorrows()
-    fetchAssets()
     checkBorrowReminders()
   }, [showArchived])
+
+  useEffect(() => {
+    if (userProfile !== null && userProfile !== undefined) {
+      fetchAssets()
+    }
+  }, [userProfile, userCountry])
 
   const fetchBorrows = async () => {
     let q = supabase
