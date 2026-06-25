@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react"
+import { useEffect, useState, useRef } from "react"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useSearchParams } from "react-router-dom"
@@ -98,10 +98,25 @@ export default function Assets() {
   const [bulkModal, setBulkModal] = useState(null) // "assign" | "status" | "delete"
   const [bulkInput, setBulkInput] = useState("")
   const [bulkWorking, setBulkWorking] = useState(false)
+  const [assignUsers, setAssignUsers] = useState([])
+  const [assignSearch, setAssignSearch] = useState("")
+  const [showAssignDropdown, setShowAssignDropdown] = useState(false)
+  const assignDropdownRef = useRef(null)
   const [showLabelModal, setShowLabelModal] = useState(false)
 
   useEffect(() => { if (!profileLoading) fetchAssets() }, [profileLoading, userCountry])
   useEffect(() => setCurrentPage(1), [search, filterStatus, filterCategory, sortCol])
+  useEffect(() => {
+    supabase.from("user_profiles").select("id, name, email").order("name").then(({ data }) => setAssignUsers(data || []))
+  }, [])
+  useEffect(() => {
+    if (!showAssignDropdown) return
+    const handler = (e) => {
+      if (assignDropdownRef.current && !assignDropdownRef.current.contains(e.target)) setShowAssignDropdown(false)
+    }
+    document.addEventListener("mousedown", handler)
+    return () => document.removeEventListener("mousedown", handler)
+  }, [showAssignDropdown])
 
   const fetchAssets = async () => {
     let assetQuery = supabase.from("assets").select("*").order("created_at", { ascending: false })
@@ -290,11 +305,52 @@ export default function Assets() {
                 <>
                   <h3 className="text-white font-bold text-lg mb-1">Assign {selected.size} Asset{selected.size !== 1 ? "s" : ""}</h3>
                   <p className="text-gray-500 text-sm mb-4">All selected assets will be assigned and set to "assigned" status.</p>
-                  <input type="text" value={bulkInput} onChange={e => setBulkInput(e.target.value)}
-                    placeholder="Employee name..."
-                    className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-4" />
+                  <div className="relative mb-4" ref={assignDropdownRef}>
+                    <input
+                      type="text"
+                      value={showAssignDropdown ? assignSearch : bulkInput}
+                      onChange={e => { setAssignSearch(e.target.value); setShowAssignDropdown(true) }}
+                      onFocus={() => { setAssignSearch(""); setShowAssignDropdown(true) }}
+                      placeholder="Search employee..."
+                      className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                    />
+                    {bulkInput && !showAssignDropdown && (
+                      <button
+                        type="button"
+                        onClick={() => { setBulkInput(""); setAssignSearch("") }}
+                        className="absolute right-3 top-3.5 text-gray-500 hover:text-white text-xs"
+                      >✕</button>
+                    )}
+                    {showAssignDropdown && (
+                      <div className="absolute z-50 top-full left-0 right-0 mt-1 bg-gray-800 border border-gray-700 rounded-lg shadow-xl max-h-52 overflow-y-auto">
+                        {assignUsers
+                          .filter(u => {
+                            const q = assignSearch.toLowerCase()
+                            return !q || (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+                          })
+                          .map(u => (
+                            <button
+                              key={u.id}
+                              type="button"
+                              onClick={() => { setBulkInput(u.name || u.email); setShowAssignDropdown(false); setAssignSearch("") }}
+                              className="w-full text-left px-4 py-2.5 hover:bg-gray-700 text-sm"
+                            >
+                              <span className="text-white">{u.name}</span>
+                              {u.email && <span className="text-gray-400 ml-2 text-xs">{u.email}</span>}
+                            </button>
+                          ))
+                        }
+                        {assignUsers.filter(u => {
+                          const q = assignSearch.toLowerCase()
+                          return !q || (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+                        }).length === 0 && (
+                          <div className="px-4 py-3 text-gray-500 text-sm">No users found</div>
+                        )}
+                      </div>
+                    )}
+                  </div>
                   <div className="flex gap-3">
-                    <button onClick={() => { setBulkModal(null); setBulkInput("") }}
+                    <button onClick={() => { setBulkModal(null); setBulkInput(""); setAssignSearch(""); setShowAssignDropdown(false) }}
                       className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all">Cancel</button>
                     <button onClick={handleBulkAssign} disabled={bulkWorking || !bulkInput.trim()}
                       className="flex-1 bg-blue-600 hover:bg-blue-500 disabled:opacity-50 text-white py-2.5 rounded-xl text-sm font-medium transition-all">
