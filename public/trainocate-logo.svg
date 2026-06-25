@@ -1,20 +1,18 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" width="340" height="96">
-  <!-- Orange circle -->
-  <circle cx="48" cy="48" r="46" fill="#E85C2C"/>
-  <!--
-    White upward chevron.
-    Outer shape goes:  left-bottom → peak → right-bottom
-    Inner notch cuts back up to centre forming the chevron gap.
-    Coordinates tuned to match the logo image proportions.
-  -->
-  <polygon
-    points="13,66 48,20 83,66 69,66 48,42 27,66"
-    fill="white"
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 100" width="340" height="100">
+  <!-- Icon: orange circle + white stroke chevron -->
+  <circle cx="50" cy="50" r="47" fill="#FF4A1C"/>
+  <polyline
+    points="25,55 50,25 75,55"
+    fill="none"
+    stroke="#FFFFFF"
+    stroke-width="13"
+    stroke-linecap="round"
+    stroke-linejoin="round"
   />
   <!-- TRAINOCATE wordmark -->
   <text
-    x="108"
-    y="62"
+    x="112"
+    y="63"
     font-family="'Helvetica Neue', Arial, Helvetica, sans-serif"
     font-size="28"
     font-weight="700"

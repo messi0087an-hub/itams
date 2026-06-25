@@ -171,20 +171,13 @@ export default function Borrow() {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
       if (userCountry) q = q.eq("country", userCountry)
       const { data } = await q
-      const email = (userProfile.email || "").toLowerCase().trim()
-      const name  = (userProfile.name  || "").toLowerCase().trim()
-      const uid   = (userProfile.id   || "").toLowerCase().trim()
-      const mine = (data || []).filter(a => {
-        const au = (a.assigned_user || "").toLowerCase().trim()
-        if (!au) return false
-        // Exact match on email, name, or UUID
-        if (au === email || au === name || au === uid) return true
-        // Partial/contains match — handles "John" matching "John Smith" or vice versa
-        if (email && (au.includes(email) || email.includes(au))) return true
-        if (name  && (au.includes(name)  || name.includes(au)))  return true
-        return false
-      })
-      setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
+      const userAssets = (data || []).filter(a =>
+        a.assigned_user === userProfile?.name ||
+        a.assigned_user === userProfile?.email ||
+        (a.assigned_user && userProfile?.name &&
+          a.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
+      )
+      setAssets(userAssets)
     } else {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").eq("status", "available").order("name")
       if (userCountry) q = q.eq("country", userCountry)
