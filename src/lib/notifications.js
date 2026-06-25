@@ -1,30 +1,33 @@
 import { supabase } from "./supabase"
 
-export async function createNotification(userId, title, body, type = "info", referenceId = null) {
+export async function createNotification(userId, title, body, type = "info", companyId = null) {
   if (!userId) return
   try {
-    await supabase.from("notifications").insert({
+    const payload = {
       user_id: userId,
       title,
       body,
       type,
-      reference_id: referenceId ? String(referenceId) : null,
       is_read: false,
-    })
+    }
+    if (companyId) payload.company_id = companyId
+    const { error } = await supabase.from("notifications").insert(payload)
+    if (error) console.error("[notifications] insert failed:", error.message, error.details)
   } catch (e) {
-    console.error("[ITAMS notifications] create failed:", e)
+    console.error("[notifications] create failed:", e)
   }
 }
 
 export async function fetchNotifications(userId) {
   if (!userId) return []
   try {
-    const { data } = await supabase
+    const { data, error } = await supabase
       .from("notifications")
       .select("*")
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(15)
+      .limit(20)
+    if (error) console.error("[notifications] fetch failed:", error.message, error.details)
     return data || []
   } catch {
     return []

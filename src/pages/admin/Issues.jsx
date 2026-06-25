@@ -97,9 +97,14 @@ export default function Issues() {
     if (isStandardUser && userProfile) {
       const email = (userProfile.email || "").toLowerCase().trim()
       const name  = (userProfile.name  || "").toLowerCase().trim()
+      const uid   = (userProfile.id   || "").toLowerCase().trim()
       const mine = all.filter(a => {
         const au = (a.assigned_user || "").toLowerCase().trim()
-        return au && (au === email || au === name)
+        if (!au) return false
+        if (au === email || au === name || au === uid) return true
+        if (email && (au.includes(email) || email.includes(au))) return true
+        if (name  && (au.includes(name)  || name.includes(au)))  return true
+        return false
       })
       setAssets(mine.length > 0 ? mine : all)
     } else {
@@ -123,7 +128,7 @@ export default function Issues() {
       reported_by: userProfile?.email || userProfile?.id || null,
     }])
     if (!error) {
-      createNotification(userProfile?.id, "⚠️ Issue Reported", "A new issue has been reported", "warning")
+      createNotification(userProfile?.id, "⚠️ Issue Reported", "A new issue has been reported", "warning", userProfile?.country)
       setShowForm(false)
       setForm({ asset_id: "", issue_type: "", description: "", priority: "medium" })
       setSubmitSuccess(true)
@@ -141,7 +146,7 @@ export default function Issues() {
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
-    createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success")
+    createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
     setResolveSuccess(true)
     setTimeout(() => {
       setResolveSuccess(false)

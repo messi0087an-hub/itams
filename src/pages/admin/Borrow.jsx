@@ -173,9 +173,16 @@ export default function Borrow() {
       const { data } = await q
       const email = (userProfile.email || "").toLowerCase().trim()
       const name  = (userProfile.name  || "").toLowerCase().trim()
+      const uid   = (userProfile.id   || "").toLowerCase().trim()
       const mine = (data || []).filter(a => {
         const au = (a.assigned_user || "").toLowerCase().trim()
-        return au && (au === email || au === name)
+        if (!au) return false
+        // Exact match on email, name, or UUID
+        if (au === email || au === name || au === uid) return true
+        // Partial/contains match — handles "John" matching "John Smith" or vice versa
+        if (email && (au.includes(email) || email.includes(au))) return true
+        if (name  && (au.includes(name)  || name.includes(au)))  return true
+        return false
       })
       setAssets(mine.length > 0 ? mine : (data || []).filter(a => a.status === "available"))
     } else {
@@ -223,7 +230,7 @@ export default function Borrow() {
         assigned_user: borrowerName,
       }).eq("id", form.asset_id)
 
-      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info")
+      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info", userProfile?.country)
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })

@@ -1,8 +1,24 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 300 80" width="300" height="80">
-  <!-- Orange flame/fire icon -->
-  <circle cx="40" cy="40" r="32" fill="#F15A22"/>
-  <!-- Arrow/flame shape inside circle -->
-  <polygon points="40,14 56,52 40,44 24,52" fill="white" opacity="0.95"/>
-  <!-- TRAINOCATE text -->
-  <text x="84" y="48" font-family="'Helvetica Neue',Arial,sans-serif" font-size="26" font-weight="700" fill="#6B6B6B" letter-spacing="1">TRAINOCATE</text>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 340 96" width="340" height="96">
+  <!-- Orange circle -->
+  <circle cx="48" cy="48" r="46" fill="#E85C2C"/>
+  <!--
+    White upward chevron.
+    Outer shape goes:  left-bottom → peak → right-bottom
+    Inner notch cuts back up to centre forming the chevron gap.
+    Coordinates tuned to match the logo image proportions.
+  -->
+  <polygon
+    points="13,66 48,20 83,66 69,66 48,42 27,66"
+    fill="white"
+  />
+  <!-- TRAINOCATE wordmark -->
+  <text
+    x="108"
+    y="62"
+    font-family="'Helvetica Neue', Arial, Helvetica, sans-serif"
+    font-size="28"
+    font-weight="700"
+    letter-spacing="1"
+    fill="#636363"
+  >TRAINOCATE</text>
 </svg>

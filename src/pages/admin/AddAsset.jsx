@@ -85,7 +85,7 @@ export default function AddAsset() {
     const { data, error } = await supabase.from("assets").insert([cleanForm]).select().single()
     if (!error && data) {
       await logHistory(data.id, "Created", `Asset "${data.name}" was added to Trainocate Asset Portal`)
-      createNotification(userProfile?.id, "✅ Asset Added", `Asset "${data.name}" was added to ITAMS`, "success", data.id)
+      createNotification(userProfile?.id, "✅ Asset Added", `Asset "${data.name}" was added`, "success", userProfile?.country)
       setAssetName(data.name)
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 3000)

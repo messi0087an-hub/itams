@@ -158,9 +158,14 @@ export default function Maintenance() {
     if (isStandardUser && userProfile) {
       const email = (userProfile.email || "").toLowerCase().trim()
       const name  = (userProfile.name  || "").toLowerCase().trim()
+      const uid   = (userProfile.id   || "").toLowerCase().trim()
       const mine = all.filter(x => {
         const au = (x.assigned_user || "").toLowerCase().trim()
-        return au && (au === email || au === name)
+        if (!au) return false
+        if (au === email || au === name || au === uid) return true
+        if (email && (au.includes(email) || email.includes(au))) return true
+        if (name  && (au.includes(name)  || name.includes(au)))  return true
+        return false
       })
       setAssets(mine.length > 0 ? mine : all)
     } else {
@@ -191,7 +196,7 @@ export default function Maintenance() {
       created_by: userProfile?.name || userProfile?.email,
     }])
     if (!error) {
-      createNotification(userProfile?.id, "🔧 Maintenance Scheduled", `Maintenance scheduled for "${form.asset_name}"`, "info")
+      createNotification(userProfile?.id, "🔧 Maintenance Scheduled", `Maintenance scheduled for "${form.asset_name}"`, "info", userProfile?.country)
       setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
       setAssetSearch("")
       setShowForm(false)

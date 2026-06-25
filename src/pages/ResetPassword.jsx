@@ -154,7 +154,7 @@ export default function ResetPassword() {
             transition={{ delay: 0.1, duration: 0.4 }}
             className="inline-flex items-center justify-center mb-4"
           >
-            <img src="/trainocate-logo.svg" alt="Trainocate" style={{ width: 180, height: "auto", filter: "brightness(0) invert(1)" }} />
+            <img src="/trainocate-icon.svg" alt="Trainocate" style={{ width: 64, height: 64 }} />
           </motion.div>
           <h1 className="text-2xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
           <p className="text-gray-500 text-sm mt-1">Trainocate Singapore</p>

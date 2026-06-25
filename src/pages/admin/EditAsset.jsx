@@ -81,7 +81,7 @@ export default function EditAsset() {
     const { error } = await supabase.from("assets").update(cleanForm).eq("id", id)
     if (!error) {
       await logHistory(id, "Updated", `Asset "${form.name}" details were updated`)
-      createNotification(userProfile?.id, "✏️ Asset Updated", `Asset "${form.name}" was updated`, "info", id)
+      createNotification(userProfile?.id, "✏️ Asset Updated", `Asset "${form.name}" was updated`, "info", userProfile?.country)
       setSuccess(true)
       setTimeout(() => navigate("/admin/assets"), 2000)
     } else {

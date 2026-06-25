@@ -206,7 +206,7 @@ export default function ManageUsers() {
       fetchUsers()
       // Notify admin
       if (userProfile?.id) {
-        createNotification(userProfile.id, "✅ User Created", `New user "${createdName}" was created`, "success")
+        createNotification(userProfile.id, "✅ User Created", `New user "${createdName}" was created`, "success", userProfile?.country)
       }
     } catch (err) {
       showError(err.message)
@@ -398,7 +398,7 @@ export default function ManageUsers() {
       showSuccess(`${deletedLabel} has been permanently deleted.`)
       // Notify admin
       if (userProfile?.id) {
-        createNotification(userProfile.id, "🗑️ User Deleted", `User "${deletedLabel}" was deleted`, "info")
+        createNotification(userProfile.id, "🗑️ User Deleted", `User "${deletedLabel}" was deleted`, "info", userProfile?.country)
       }
     } catch (err) {
       setError(`Delete failed: ${err.message}`)

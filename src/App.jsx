@@ -368,17 +368,11 @@ function LoginPage({ onVerified }) {
         transition={{ delay: 0.1 }}
         className="flex items-center justify-center mb-5"
       >
-        <div style={{
-          width: 200, height: 60,
-          background: "rgba(255,255,255,0.1)",
-          border: "1px dashed rgba(255,255,255,0.3)",
-          borderRadius: 8,
-          display: "flex", alignItems: "center", justifyContent: "center",
-        }}>
-          <span style={{ color: "rgba(255,255,255,0.5)", fontSize: 11, fontWeight: 700, letterSpacing: "0.12em" }}>
-            TRAINOCATE LOGO
-          </span>
-        </div>
+        <img
+          src="/trainocate-icon.svg"
+          alt="Trainocate"
+          style={{ width: 64, height: 64 }}
+        />
       </motion.div>
       <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
       <p className="text-gray-500 text-sm">Trainocate Singapore</p>
