@@ -369,9 +369,9 @@ function LoginPage({ onVerified }) {
         className="flex items-center justify-center mb-5"
       >
         <img
-          src="/trainocate-icon.svg"
+          src="/trainocate-logo.svg"
           alt="Trainocate"
-          style={{ width: 64, height: 64 }}
+          style={{ width: 180 }}
         />
       </motion.div>
       <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
