@@ -844,18 +844,25 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">License Status Overview</p>
-                    <ResponsiveContainer width="100%" height={200}>
+                    <ResponsiveContainer width="100%" height={180}>
                       <PieChart>
-                        <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}
+                        <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={70}
                           label={false} labelLine={false}>
                           {reportData.chartData.map((_, i) => (
                             <Cell key={i} fill={["#ef4444","#f59e0b","#22c55e"][i]} />
                           ))}
                         </Pie>
                         <Tooltip content={<DarkTooltip />} />
-                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
                       </PieChart>
                     </ResponsiveContainer>
+                    <div className="flex justify-center gap-4 mt-3 flex-wrap">
+                      {reportData.chartData.map((entry, i) => (
+                        <div key={entry.name} className="flex items-center gap-1.5">
+                          <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: ["#ef4444","#f59e0b","#22c55e"][i] }} />
+                          <span className="text-gray-400 text-xs">{entry.name} ({entry.value})</span>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                   <ReportTable headers={["Asset Name","License Expiry","Status"]}
                     rows={reportData.rows.map(a => {

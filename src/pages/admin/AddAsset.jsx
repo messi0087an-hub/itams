@@ -301,7 +301,7 @@ export default function AddAsset() {
           </div>
 
           {/* Assigned To — searchable dropdown, shown when status is assigned */}
-          <div className="relative" ref={userDropdownRef}>
+          {form.status === "assigned" && <div className="relative" ref={userDropdownRef}>
             <label className="text-gray-400 text-sm mb-2 block">Assigned To{form.status === "assigned" ? " *" : ""}</label>
             <input
               type="text"
@@ -331,7 +331,7 @@ export default function AddAsset() {
                 )}
               </div>
             )}
-          </div>
+          </div>}
 
           {/* Dynamic fields based on category */}
           <AnimatePresence mode="wait">

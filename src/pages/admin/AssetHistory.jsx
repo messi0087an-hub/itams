@@ -228,7 +228,21 @@ export default function AssetHistory() {
                   </p>
                 </div>
                 {item.details && (
-                  <p className="text-gray-400 text-sm mt-1">{(item.details || "").replace(/added to ITAMS/gi, "added to Trainocate Asset Portal")}</p>
+                  <p className="text-gray-400 text-sm mt-1">
+                    {(() => {
+                      let d = (item.details || "").replace(/added to ITAMS/gi, "added to Trainocate Asset Portal")
+                      // Normalise "Bulk assigned to" entries — strip surrounding quotes from username
+                      const bulkMatch = d.match(/^Bulk assigned to ["']?(.+?)["']?$/)
+                      if (bulkMatch) {
+                        return <span>Bulk assigned to <span className="text-white font-medium">{bulkMatch[1]}</span></span>
+                      }
+                      // Old-format entries where only the username was stored and action is "Updated"
+                      if (item.action === "Updated" && !d.includes(" ") && d.length > 0 && d.length < 60 && /^[A-Z]/.test(d)) {
+                        return <span>Bulk assigned to <span className="text-white font-medium">{d}</span></span>
+                      }
+                      return d
+                    })()}
+                  </p>
                 )}
                 <div className="flex items-center gap-3 mt-2">
                   {item.changed_by && (

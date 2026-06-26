@@ -347,6 +347,17 @@ export default function ManageUsers() {
           continue
         }
 
+        // Pre-check: skip only if email truly exists in user_profiles
+        const { data: existing } = await supabase
+          .from("user_profiles")
+          .select("id")
+          .eq("email", email)
+          .maybeSingle()
+        if (existing) {
+          failed.push({ row: i + 2, email, reason: "Account already exists (skipped)" })
+          continue
+        }
+
         const tempPassword = Math.random().toString(36).slice(2, 10) + "A1!"
 
         try {
@@ -358,11 +369,7 @@ export default function ManageUsers() {
           // Edge fn always returns 200; errors are in fnData.error
           const errMsg = fnData?.error || (fnError ? "Edge function unreachable" : null)
           if (errMsg) {
-            if (errMsg.toLowerCase().includes("already") || errMsg.toLowerCase().includes("exists")) {
-              failed.push({ row: i + 2, email, reason: "Account already exists (skipped)" })
-            } else {
-              failed.push({ row: i + 2, email, reason: errMsg })
-            }
+            failed.push({ row: i + 2, email, reason: errMsg })
             continue
           }
           ok++
