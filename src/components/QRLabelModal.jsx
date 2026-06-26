@@ -23,11 +23,7 @@ function LabelPreview({ asset, assetUrl, qrRef }) {
         borderBottom: "1px solid #e5e7eb", padding: "8px 12px",
         display: "flex", alignItems: "center", gap: 8,
       }}>
-        <img
-          src="/trainocate-logo.svg"
-          alt="Trainocate"
-          style={{ width: 90, height: 28, objectFit: "contain" }}
-        />
+        <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"80px"}} />
         <span style={{ fontSize: 8, fontWeight: 700, color: "#374151", letterSpacing: "0.05em" }}>
           TRAINOCATE Property
         </span>
@@ -69,7 +65,7 @@ function buildPrintHtml(assets, assetUrlBase, qty, svgMap) {
     const single = `
       <div class="label">
         <div class="logo-row">
-          <img src="/trainocate-logo.svg" alt="Trainocate" class="logo-img" />
+          <img src="/trainocate-logo.png" alt="Trainocate" class="logo-img" />
           <span class="prop-label">TRAINOCATE Property</span>
         </div>
         <div class="body-row">
