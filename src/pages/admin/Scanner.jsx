@@ -31,6 +31,7 @@ export default function Scanner() {
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState("")
   const [manualInput, setManualInput] = useState("")
+  const [isManualSearch, setIsManualSearch] = useState(false)
   const scannerRef = useRef(null)
 
   // --- Asset cache for fast QR lookup ---
@@ -168,6 +169,7 @@ export default function Scanner() {
     setError("")
     setAsset(null)
     setResult(manualInput)
+    setIsManualSearch(true)
 
     // Check cache first
     const key = manualInput.trim().toLowerCase()
@@ -314,7 +316,7 @@ export default function Scanner() {
     retired: "bg-red-500/20 text-red-400 border-red-500/30",
   }
 
-  const AssetCard = ({ a, onReset }) => (
+  const AssetCard = ({ a, onReset, isManual }) => (
     <motion.div
       initial={{ opacity: 0, y: 20, scale: 0.95 }}
       animate={{ opacity: 1, y: 0, scale: 1 }}
@@ -352,9 +354,9 @@ export default function Scanner() {
         ) : null)}
       </div>
       <div className="flex flex-wrap gap-2 mb-3">
-        <button onClick={() => navigate(`/admin/issues?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 hover:bg-orange-600/30 transition-all text-sm font-medium">⚠️ Report Issue</button>
-        <button onClick={() => navigate(`/admin/maintenance?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 transition-all text-sm font-medium">🔧 Request Maintenance</button>
-        <button onClick={() => navigate(`/admin/borrow?assetId=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 hover:bg-purple-600/30 transition-all text-sm font-medium">🔄 Borrow This Asset</button>
+        <button onClick={() => navigate(`/admin/issues?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 hover:bg-orange-600/30 transition-all text-sm font-medium">⚠️ Report Issue</button>
+        <button onClick={() => navigate(`/admin/maintenance?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 transition-all text-sm font-medium">🔧 Request Maintenance</button>
+        <button onClick={() => navigate(`/admin/borrow?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 hover:bg-purple-600/30 transition-all text-sm font-medium">🔄 Borrow This Asset</button>
       </div>
       <div className="flex gap-3">
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
@@ -365,7 +367,7 @@ export default function Scanner() {
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}
           onClick={onReset}
           className="bg-gray-800 hover:bg-gray-700 text-white py-3 px-4 rounded-xl text-sm">
-          Scan Again
+          {isManual ? "Search Again" : "Scan Again"}
         </motion.button>
       </div>
     </motion.div>
@@ -477,7 +479,7 @@ export default function Scanner() {
 
           <AnimatePresence>
             {asset && !loading && (
-              <AssetCard a={asset} onReset={() => { setAsset(null); setResult(null); setError(""); setManualInput("") }} />
+              <AssetCard a={asset} isManual={isManualSearch} onReset={() => { setAsset(null); setResult(null); setError(""); setManualInput(""); setIsManualSearch(false) }} />
             )}
           </AnimatePresence>
         </>

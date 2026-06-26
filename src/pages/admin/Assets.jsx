@@ -540,8 +540,8 @@ export default function Assets() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-hidden">
-        <table className="w-full">
+      <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
+        <table className="w-full min-w-[700px]">
           <thead>
             <tr className="border-b border-gray-800">
               <th className="px-4 py-4 w-10">

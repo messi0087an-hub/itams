@@ -12,7 +12,7 @@ const t = {
 
     // Dashboard
     totalAssets: "Total Assets", available: "Available", assigned: "Assigned",
-    openIssues: "Open Issues", welcomeMessage: "Welcome to ITAMS — Trainocate",
+    openIssues: "Open Issues", welcomeMessage: "Welcome to Trainocate Asset Portal",
     recentAssets: "Recently Added Assets", warrantyExpiring: "Warranty Expiring Soon",
     daysLeft: "days left", fleetHealthScore: "Fleet Health Score",
     overallAssetCondition: "Overall asset condition across",

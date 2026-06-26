@@ -228,13 +228,6 @@ export default function Settings() {
         )}
       </div>
 
-      <div className="bg-gray-900/40 rounded-xl border border-gray-800/50 p-4">
-        <p className="text-gray-600 text-xs break-words">
-          <span className="text-gray-500 font-medium">Note:</span> Run{" "}
-          <code className="text-gray-400 break-all">supabase/migrations/001_add_country_and_settings.sql</code> and{" "}
-          <code className="text-gray-400 break-all">004_notifications.sql</code> in your Supabase SQL Editor if you haven't already.
-        </p>
-      </div>
     </div>
   )
 }

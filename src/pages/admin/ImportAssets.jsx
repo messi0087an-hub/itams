@@ -40,9 +40,10 @@ export default function ImportAssets() {
     const reader = new FileReader()
     reader.onload = (evt) => {
       const workbook = XLSX.read(evt.target.result, { type: "binary" })
-      const sheet = workbook.Sheets["Laptop & Desktop"]
+      const firstSheetName = workbook.SheetNames[0]
+      const sheet = workbook.Sheets[firstSheetName]
       if (!sheet) {
-        alert("Could not find 'Laptop & Desktop' sheet!")
+        alert("Could not read the Excel file — no sheets found.")
         return
       }
       const rows = XLSX.utils.sheet_to_json(sheet, { header: 1 })

@@ -701,17 +701,18 @@ export default function Reports() {
                     <div className="bg-gray-900 rounded-xl border border-gray-800 p-2 md:p-4" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                       <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-1 md:mb-3">Status</p>
                       <div style={{ width: "90%", maxWidth: "90%", overflowX: "hidden", margin: "0 auto" }}>
-                        <ResponsiveContainer width="90%" height={mob ? 120 : 180}>
+                        <ResponsiveContainer width="90%" height={mob ? 140 : 200}>
                           <PieChart>
                             <Pie data={reportData.byStatus} dataKey="value" nameKey="name" cx="50%" cy="50%"
                               outerRadius={mob ? 40 : 65}
-                              label={mob ? false : ({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`}
+                              label={false}
                               labelLine={false}>
                               {reportData.byStatus.map((_, i) => (
                                 <Cell key={i} fill={Object.values(STATUS_COLORS)[i] || CHART_COLORS[i]} />
                               ))}
                             </Pie>
                             <Tooltip content={<DarkTooltip />} />
+                            <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: mob ? 9 : 11, color: "#9ca3af" }} />
                           </PieChart>
                         </ResponsiveContainer>
                       </div>
@@ -843,15 +844,16 @@ export default function Reports() {
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
                     <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">License Status Overview</p>
-                    <ResponsiveContainer width="100%" height={180}>
+                    <ResponsiveContainer width="100%" height={200}>
                       <PieChart>
                         <Pie data={reportData.chartData} dataKey="value" nameKey="name" cx="50%" cy="50%" outerRadius={60}
-                          label={({ name, percent }) => `${name} ${(percent*100).toFixed(0)}%`} labelLine={false}>
+                          label={false} labelLine={false}>
                           {reportData.chartData.map((_, i) => (
                             <Cell key={i} fill={["#ef4444","#f59e0b","#22c55e"][i]} />
                           ))}
                         </Pie>
                         <Tooltip content={<DarkTooltip />} />
+                        <Legend iconType="circle" iconSize={8} wrapperStyle={{ fontSize: 11, color: "#9ca3af" }} />
                       </PieChart>
                     </ResponsiveContainer>
                   </div>

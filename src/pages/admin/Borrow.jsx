@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -103,6 +104,7 @@ function isOverdueBorrow(borrow) {
 
 export default function Borrow() {
   const { userProfile, canBorrow, userCountry, isAdmin, isStandardUser } = useAuth()
+  const location = useLocation()
   const [borrows, setBorrows] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -141,6 +143,18 @@ export default function Borrow() {
       fetchAssets()
     }
   }, [userProfile, userCountry])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const assetId = params.get("asset_id")
+    if (assetId && assets.length > 0) {
+      const a = assets.find(x => x.id === assetId)
+      if (a) {
+        setForm(f => ({ ...f, category: a.category || "", asset_id: assetId }))
+        setShowForm(true)
+      }
+    }
+  }, [assets, location.search])
 
   const fetchBorrows = async () => {
     let q = supabase
@@ -233,11 +247,9 @@ export default function Borrow() {
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })
       setBorrowSuccess(true)
-      setTimeout(() => {
-        setBorrowSuccess(false)
-        fetchBorrows()
-        fetchAssets()
-      }, 2500)
+      fetchBorrows()
+      fetchAssets()
+      setTimeout(() => setBorrowSuccess(false), 2500)
     } else {
       setFormError(error.message)
     }

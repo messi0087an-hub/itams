@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react"
+import { useLocation } from "react-router-dom"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
@@ -40,6 +41,7 @@ function exportIssuesToExcel(issues) {
 export default function Issues() {
   const { t } = useTranslation()
   const { isAdmin, isStandardUser, userProfile } = useAuth()
+  const location = useLocation()
   const [issues, setIssues] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -63,6 +65,15 @@ export default function Issues() {
       fetchAssets()
     }
   }, [userProfile])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const assetId = params.get("asset_id")
+    if (assetId && assets.length > 0) {
+      setForm(f => ({ ...f, asset_id: assetId }))
+      setShowForm(true)
+    }
+  }, [assets, location.search])
 
   const fetchIssues = async () => {
     let q = supabase

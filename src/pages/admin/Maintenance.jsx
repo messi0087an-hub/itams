@@ -1,4 +1,5 @@
 import { useEffect, useState, useCallback, useRef } from "react"
+import { useLocation } from "react-router-dom"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
@@ -95,6 +96,7 @@ function daysUntil(dateStr) {
 
 export default function Maintenance() {
   const { userProfile, canEdit, canSubmitMaintenance, userCountry, profileLoading, isStandardUser } = useAuth()
+  const location = useLocation()
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
@@ -139,6 +141,18 @@ export default function Maintenance() {
   useEffect(() => {
     if (!profileLoading && userProfile !== null && userProfile !== undefined) fetchAll()
   }, [profileLoading, userProfile, userCountry, showArchived])
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const assetId = params.get("asset_id")
+    if (assetId && assets.length > 0) {
+      const a = assets.find(x => x.id === assetId)
+      if (a) {
+        setForm(f => ({ ...f, asset_id: a.id, asset_name: a.name }))
+        setShowForm(true)
+      }
+    }
+  }, [assets, location.search])
 
   const fetchAll = async () => {
     let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
