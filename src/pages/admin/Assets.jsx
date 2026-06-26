@@ -242,7 +242,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="p-4 md:p-8 w-full min-w-0">
+    <div className="p-4 md:p-8 w-full max-w-full overflow-x-hidden">
 
       {/* Single delete modal */}
       <AnimatePresence>
