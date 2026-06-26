@@ -489,7 +489,7 @@ export default function Assets() {
                 className={`bg-gray-900 rounded-xl border p-4 cursor-pointer transition-all ${
                   isChecked ? "border-blue-500/50 bg-blue-500/5" : "border-gray-800"
                 }`}>
-                <div className="flex items-start gap-3">
+                <div className="flex items-start gap-3 w-full min-w-0">
                   <div onClick={e => toggleSelect(asset.id, e)} className="mt-1 shrink-0">
                     <div className={`w-4 h-4 rounded border-2 flex items-center justify-center transition-all ${
                       isChecked ? "bg-blue-600 border-blue-600" : "border-gray-600 hover:border-gray-400"
@@ -498,7 +498,7 @@ export default function Assets() {
                     </div>
                   </div>
                   <div className="flex-1 min-w-0">
-                    <p className="text-white font-medium">{asset.name}</p>
+                    <p className="text-white font-medium truncate">{asset.name}</p>
                     <p className="text-gray-500 text-xs mt-1">{asset.category}</p>
                     <p className="text-gray-400 text-sm mt-1">{asset.serial_number || "No serial"}</p>
                     <p className="text-gray-400 text-sm">{asset.assigned_user || "Unassigned"}</p>
@@ -518,12 +518,10 @@ export default function Assets() {
                         </>
                       )}
                     </div>
-                  </div>
-                  <div className="flex flex-col items-end gap-2 shrink-0">
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                      {asset.status}
-                    </span>
-                    <div className="flex gap-1">
+                    <div className="mt-2 flex items-center gap-2 flex-wrap">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+                        {asset.status}
+                      </span>
                       {canEdit && (
                         <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
                           className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30">Edit</button>
