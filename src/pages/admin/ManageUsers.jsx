@@ -100,7 +100,11 @@ export default function ManageUsers() {
       supabase.from("assets").select("assigned_user"),
     ])
     const emailMap = {}
-    authData?.forEach(u => { emailMap[u.id] = u.email })
+    const lastSignInMap = {}
+    authData?.forEach(u => {
+      emailMap[u.id] = u.email
+      lastSignInMap[u.id] = u.last_sign_in_at || null
+    })
 
     // Build asset count map keyed by lowercase name or email
     const assetCountMap = {}
@@ -120,6 +124,7 @@ export default function ManageUsers() {
         ...u,
         email,
         assetsCount,
+        last_login: lastSignInMap[u.id] || u.last_login || null,
       }
     })
     setUsers(merged)
@@ -370,6 +375,9 @@ export default function ManageUsers() {
       if (ok > 0) {
         showSuccess(`${ok} user${ok !== 1 ? "s" : ""} imported!`)
         fetchUsers()
+        if (userProfile?.id) {
+          createNotification(userProfile.id, "📥 Users Imported", `${ok} user${ok !== 1 ? "s" : ""} imported successfully via Excel`, "success", userProfile?.country)
+        }
       }
     } catch (err) {
       setImportResult({ ok: 0, failed: [{ row: "—", email: "—", reason: err.message }] })
@@ -921,7 +929,7 @@ export default function ManageUsers() {
                   )}
                   <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
                     <p className="text-gray-600 text-xs">
-                      🕐 {u.last_login ? new Date(u.last_login).toLocaleDateString() : "Never"}
+                      🕐 {u.last_login ? new Date(u.last_login).toLocaleString("en-GB", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "Never"}
                     </p>
                     <p className="text-gray-600 text-xs">
                       📦 {u.assetsCount ?? 0} asset{(u.assetsCount ?? 0) !== 1 ? "s" : ""}
@@ -1047,7 +1055,7 @@ export default function ManageUsers() {
                 <div className="flex justify-between py-2 border-b border-gray-800">
                   <span className="text-gray-500 text-sm">Last Login</span>
                   <span className="text-white text-sm font-medium">
-                    {detailUser.last_login ? new Date(detailUser.last_login).toLocaleString() : "Never"}
+                    {detailUser.last_login ? new Date(detailUser.last_login).toLocaleString("en-GB", { day:"2-digit", month:"2-digit", year:"numeric", hour:"2-digit", minute:"2-digit" }) : "Never"}
                   </span>
                 </div>
               </div>

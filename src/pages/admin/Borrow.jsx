@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders } from "../../lib/emailService"
-import { createNotification } from "../../lib/notifications"
+import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 
 function SuccessToast({ message }) {
@@ -163,7 +163,7 @@ export default function Borrow() {
       .order("borrowed_at", { ascending: false })
 
     if (showArchived) {
-      q = q.eq("archived", true)
+      q = q.eq("archived", true).not("returned_at", "is", null)
     } else {
       q = q.or("archived.is.null,archived.eq.false")
     }
@@ -243,6 +243,7 @@ export default function Borrow() {
       }).eq("id", form.asset_id)
 
       createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info", userProfile?.country)
+      notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${selectedAsset?.name || "an asset"}"`, "info")
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })

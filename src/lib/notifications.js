@@ -54,6 +54,35 @@ export async function clearAllNotifications(userId) {
   } catch {}
 }
 
+// Notify all admin users in a given country
+export async function notifyAdmins(country, title, body, type = "info") {
+  try {
+    let q = supabase.from("user_profiles").select("id").eq("role", "admin")
+    if (country) q = q.eq("country", country)
+    const { data } = await q
+    if (!data?.length) return
+    await Promise.all(data.map(admin =>
+      createNotification(admin.id, title, body, type, country)
+    ))
+  } catch (e) {
+    console.error("[notifications] notifyAdmins failed:", e)
+  }
+}
+
+// Notify a user identified by email or name stored in reported_by / created_by
+export async function notifyUserByIdentifier(identifier, title, body, type = "info") {
+  if (!identifier) return
+  try {
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("id, country")
+      .or(`email.eq.${identifier},name.eq.${identifier}`)
+      .limit(1)
+      .single()
+    if (data?.id) createNotification(data.id, title, body, type, data.country)
+  } catch {}
+}
+
 // Find a user profile by email — used to get the user_id for in-app notifications
 export async function getUserIdByEmail(email) {
   if (!email) return null

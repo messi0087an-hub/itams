@@ -6,7 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
-import { createNotification } from "../../lib/notifications"
+import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
 
 const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
 
@@ -139,7 +139,8 @@ export default function Issues() {
       reported_by: userProfile?.email || userProfile?.id || null,
     }])
     if (!error) {
-      createNotification(userProfile?.id, "⚠️ Issue Reported", "A new issue has been reported", "warning", userProfile?.country)
+      createNotification(userProfile?.id, "⚠️ Issue Reported", "Your issue has been submitted", "warning", userProfile?.country)
+      notifyAdmins(userProfile?.country, "⚠️ New Issue Reported", `${userProfile?.name || userProfile?.email || "A user"} reported a new issue`, "warning")
       setShowForm(false)
       setForm({ asset_id: "", issue_type: "", description: "", priority: "medium" })
       setSubmitSuccess(true)
@@ -152,12 +153,13 @@ export default function Issues() {
     }
   }
 
-  const handleResolve = async (id) => {
+  const handleResolve = async (id, reportedBy) => {
     await supabase.from("issues").update({
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
     createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
+    if (reportedBy) notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", "Your reported issue has been resolved by an admin", "success")
     setResolveSuccess(true)
     setTimeout(() => {
       setResolveSuccess(false)
@@ -441,7 +443,7 @@ export default function Issues() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleResolve(issue.id)}
+                    onClick={() => handleResolve(issue.id, issue.reported_by)}
                     className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                   >
                     Resolve
@@ -506,7 +508,7 @@ export default function Issues() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleResolve(issue.id)}
+                          onClick={() => handleResolve(issue.id, issue.reported_by)}
                           className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                         >
                           Resolve

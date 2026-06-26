@@ -44,7 +44,8 @@ export default function EditAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
-    warranty_expiry: "", license_expiry: "", remarks: "", country: "Singapore",
+    warranty_expiry: "", license_key: "", license_seats: "", license_expiry: "", licensed_to: "",
+    remarks: "", country: "Singapore",
   })
 
   useEffect(() => {
@@ -67,7 +68,10 @@ export default function EditAsset() {
         purchase_date: data.purchase_date || "",
         purchase_price: data.purchase_price || "",
         warranty_expiry: data.warranty_expiry || "",
+        license_key: data.license_key || "",
+        license_seats: data.license_seats || "",
         license_expiry: data.license_expiry || "",
+        licensed_to: data.licensed_to || "",
         remarks: data.remarks || "",
         country: data.country || "Singapore",
       })
@@ -97,8 +101,17 @@ export default function EditAsset() {
     if (form.department) cleanForm.department = form.department
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
-    if (form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
-    if (form.license_expiry) cleanForm.license_expiry = form.license_expiry
+    const isSoftware = form.category === "Software License"
+    if (!isSoftware && form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
+    if (isSoftware) {
+      cleanForm.warranty_expiry = null
+      if (form.license_key) cleanForm.license_key = form.license_key
+      if (form.license_seats) cleanForm.license_seats = parseInt(form.license_seats)
+      if (form.license_expiry) cleanForm.license_expiry = form.license_expiry
+      if (form.licensed_to) cleanForm.licensed_to = form.licensed_to
+    } else {
+      if (form.license_expiry) cleanForm.license_expiry = form.license_expiry
+    }
     if (form.remarks) cleanForm.remarks = form.remarks
 
     const { error } = await supabase.from("assets").update(cleanForm).eq("id", id)
@@ -120,7 +133,9 @@ export default function EditAsset() {
     setLoading(false)
   }
 
-  const fields = [
+  const isSoftwareEdit = form.category === "Software License"
+
+  const baseFields = [
     { name: "name", label: "Asset Name *", placeholder: "e.g. Dell XPS 13", required: true },
     { name: "category", label: "Category", placeholder: "e.g. Laptop, Monitor" },
     { name: "brand_model", label: "Brand / Model", placeholder: "e.g. Dell XPS 13 9310" },
@@ -130,8 +145,13 @@ export default function EditAsset() {
     { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
-    { name: "warranty_expiry", label: "Warranty Expiry", type: "date" },
-    { name: "license_expiry", label: "License Expiry", type: "date" },
+    ...(!isSoftwareEdit ? [{ name: "warranty_expiry", label: "Warranty Expiry", type: "date" }] : []),
+    ...(isSoftwareEdit ? [
+      { name: "license_key", label: "License Key", placeholder: "e.g. XXXXX-XXXXX-XXXXX" },
+      { name: "license_seats", label: "Number of Seats", placeholder: "e.g. 10", type: "number" },
+      { name: "license_expiry", label: "License Expiry Date", type: "date" },
+      { name: "licensed_to", label: "Licensed To", placeholder: "e.g. Trainocate Singapore" },
+    ] : []),
   ]
 
   if (fetching) return <div className="p-8 text-white">Loading asset...</div>
@@ -169,7 +189,7 @@ export default function EditAsset() {
 
       <form onSubmit={handleSubmit} className="bg-gray-900 rounded-xl border border-gray-800 p-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {fields.map((field) => (
+          {baseFields.map((field) => (
             <div key={field.name}>
               <label className="text-gray-400 text-sm mb-2 block">{field.label}</label>
               <input

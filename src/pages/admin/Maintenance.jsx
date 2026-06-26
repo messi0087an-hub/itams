@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { createNotification } from "../../lib/notifications"
+import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -206,6 +206,7 @@ export default function Maintenance() {
     }])
     if (!error) {
       createNotification(userProfile?.id, "🔧 Maintenance Scheduled", `Maintenance scheduled for "${form.asset_name}"`, "info", userProfile?.country)
+      notifyAdmins(userProfile?.country, "🔧 New Maintenance Request", `${userProfile?.name || userProfile?.email || "A user"} scheduled maintenance for "${form.asset_name}"`, "info")
       setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
       setAssetSearch("")
       setShowForm(false)
@@ -246,6 +247,9 @@ export default function Maintenance() {
       }])
     }
 
+    if (schedule.created_by && schedule.created_by !== "Auto (recurring)") {
+      notifyUserByIdentifier(schedule.created_by, "✅ Maintenance Completed", `Maintenance for "${schedule.asset_name}" has been completed`, "success")
+    }
     setCompleteModal(null)
     setCompletingNote("")
     setCompleting(false)

@@ -181,7 +181,10 @@ export default function Assets() {
     if (!bulkInput) return
     setBulkWorking(true)
     const ids = [...selected]
-    await supabase.from("assets").update({ status: bulkInput }).in("id", ids)
+    const update = bulkInput === "available"
+      ? { status: bulkInput, assigned_user: null }
+      : { status: bulkInput }
+    await supabase.from("assets").update(update).in("id", ids)
     await Promise.all(ids.map(id => logHistory(id, "Updated", `Bulk status changed to "${bulkInput}"`)))
     await fetchAssets()
     setBulkModal(null); setBulkInput(""); clearSelected(); setBulkWorking(false)
