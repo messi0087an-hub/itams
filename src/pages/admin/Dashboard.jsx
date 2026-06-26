@@ -612,14 +612,18 @@ export default function Dashboard() {
               className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
               <h2 className="text-white font-semibold mb-1">Asset Condition</h2>
               <p className="text-gray-500 text-xs mb-4">Based on warranty status</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={conditionData} cx="50%" cy="50%" outerRadius={80} paddingAngle={2} dataKey="value">
-                    {conditionData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                  </Pie>
-                  <Tooltip {...CHART_TOOLTIP} />
-                </PieChart>
-              </ResponsiveContainer>
+              {conditionData.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-16">No warranty data yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={conditionData} cx="50%" cy="50%" outerRadius={80} paddingAngle={2} dataKey="value">
+                      {conditionData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                    </Pie>
+                    <Tooltip {...CHART_TOOLTIP} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
               <div className="flex flex-wrap gap-3 mt-2">
                 {conditionData.map((d) => (
                   <div key={d.name} className="flex items-center gap-1">
@@ -634,14 +638,18 @@ export default function Dashboard() {
               className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
               <h2 className="text-white font-semibold mb-1">Category Distribution</h2>
               <p className="text-gray-500 text-xs mb-4">Asset count by type</p>
-              <ResponsiveContainer width="100%" height={200}>
-                <PieChart>
-                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="value">
-                    {categoryData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
-                  </Pie>
-                  <Tooltip {...CHART_TOOLTIP} />
-                </PieChart>
-              </ResponsiveContainer>
+              {categoryData.length === 0 ? (
+                <p className="text-gray-600 text-sm text-center py-16">No asset data yet</p>
+              ) : (
+                <ResponsiveContainer width="100%" height={200}>
+                  <PieChart>
+                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="value">
+                      {categoryData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                    </Pie>
+                    <Tooltip {...CHART_TOOLTIP} />
+                  </PieChart>
+                </ResponsiveContainer>
+              )}
               <div className="flex flex-wrap gap-3 mt-2">
                 {categoryData.map((d, i) => (
                   <div key={d.name} className="flex items-center gap-1">

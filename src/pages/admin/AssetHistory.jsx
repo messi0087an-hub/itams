@@ -228,7 +228,7 @@ export default function AssetHistory() {
                   </p>
                 </div>
                 {item.details && (
-                  <p className="text-gray-400 text-sm mt-1">{item.details}</p>
+                  <p className="text-gray-400 text-sm mt-1">{(item.details || "").replace(/added to ITAMS/gi, "added to Trainocate Asset Portal")}</p>
                 )}
                 <div className="flex items-center gap-3 mt-2">
                   {item.changed_by && (

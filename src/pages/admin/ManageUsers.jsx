@@ -82,14 +82,12 @@ export default function ManageUsers() {
   const [editTarget, setEditTarget] = useState(null)
   const [editForm, setEditForm] = useState({ name: "", role: "standard_user", country: "Singapore", marketing_access: false, marketing_role: "" })
   const [saving, setSaving] = useState(false)
+  const [detailUser, setDetailUser] = useState(null)
+  const [detailAssets, setDetailAssets] = useState([])
+  const [detailLoading, setDetailLoading] = useState(false)
   const fileInputRef = useRef()
 
-  // Keep form country in sync with admin's country
-  useEffect(() => {
-    if (userProfile?.country) {
-      setForm(prev => ({ ...prev, country: userProfile.country }))
-    }
-  }, [userProfile?.country])
+  // Country defaults to Singapore for all new users
 
   useEffect(() => {
     fetchUsers()
@@ -176,7 +174,7 @@ export default function ManageUsers() {
           password: form.password,
           name: form.name,
           role: form.role,
-          country: adminCountry,
+          country: form.country || "Singapore",
         },
         headers: { Authorization: `Bearer ${token}` },
       })
@@ -200,7 +198,7 @@ export default function ManageUsers() {
       }
 
       const createdName = form.name || form.email
-      setForm({ name: "", email: "", password: "", role: "standard_user", country: adminCountry, department: "" })
+      setForm({ name: "", email: "", password: "", role: "standard_user", country: "Singapore", department: "" })
       setShowForm(false)
       showSuccess(`✅ Account created for ${createdName}! Welcome email sent.`)
       fetchUsers()
@@ -213,6 +211,18 @@ export default function ManageUsers() {
     } finally {
       setCreating(false)
     }
+  }
+
+  const handleViewUser = async (u) => {
+    setDetailUser(u)
+    setDetailAssets([])
+    setDetailLoading(true)
+    const { data } = await supabase
+      .from("assets")
+      .select("id, name, asset_tag, category, status")
+      .eq("assigned_user", u.name || u.email)
+    setDetailAssets(data || [])
+    setDetailLoading(false)
   }
 
   const handleToggle2FA = async (u) => {
@@ -706,7 +716,7 @@ export default function ManageUsers() {
             whileHover={{ scale: 1.05 }}
             whileTap={{ scale: 0.95 }}
             onClick={() => {
-              setForm({ name: "", email: "", password: "", role: "standard_user", country: adminCountry, department: "" })
+              setForm({ name: "", email: "", password: "", role: "standard_user", country: "Singapore", department: "" })
               setShowForm(v => !v)
             }}
             className="bg-blue-600 hover:bg-blue-700 text-white px-3 md:px-4 py-1.5 md:py-2 rounded-lg text-xs md:text-sm font-medium"
@@ -894,7 +904,7 @@ export default function ManageUsers() {
               className="bg-gray-900/80 rounded-xl border border-gray-800 p-2.5 md:p-4 flex items-center justify-between gap-2 md:gap-4"
             >
               {/* Avatar + name */}
-              <div className="flex items-center gap-2 md:gap-3 min-w-0">
+              <div className="flex items-center gap-2 md:gap-3 min-w-0 cursor-pointer" onClick={() => handleViewUser(u)}>
                 <div className="w-7 h-7 md:w-10 md:h-10 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs md:text-sm shrink-0">
                   {(u.name || u.email)[0].toUpperCase()}
                 </div>
@@ -993,6 +1003,87 @@ export default function ManageUsers() {
           ))}
         </div>
       )}
+
+      {/* User Detail Modal */}
+      <AnimatePresence>
+        {detailUser && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 z-50 flex items-center justify-center p-4"
+            style={{ background: "rgba(0,0,0,0.7)", backdropFilter: "blur(4px)" }}
+            onClick={() => setDetailUser(null)}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              className="bg-gray-900 border border-gray-800 rounded-2xl p-6 w-full max-w-md shadow-2xl"
+              onClick={e => e.stopPropagation()}
+            >
+              <div className="flex items-center justify-between mb-5">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-lg">
+                    {(detailUser.name || detailUser.email)[0].toUpperCase()}
+                  </div>
+                  <div>
+                    <h2 className="text-white font-bold text-lg">{detailUser.name || "—"}</h2>
+                    <p className="text-gray-400 text-sm">{detailUser.email}</p>
+                  </div>
+                </div>
+                <button onClick={() => setDetailUser(null)} className="text-gray-500 hover:text-white text-xl transition-colors">✕</button>
+              </div>
+
+              <div className="space-y-3 mb-5">
+                <div className="flex justify-between py-2 border-b border-gray-800">
+                  <span className="text-gray-500 text-sm">Role</span>
+                  <span className="text-white text-sm font-medium capitalize">{detailUser.role?.replace("_", " ") || "—"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-800">
+                  <span className="text-gray-500 text-sm">Country</span>
+                  <span className="text-white text-sm font-medium">🌏 {detailUser.country || "—"}</span>
+                </div>
+                <div className="flex justify-between py-2 border-b border-gray-800">
+                  <span className="text-gray-500 text-sm">Last Login</span>
+                  <span className="text-white text-sm font-medium">
+                    {detailUser.last_login ? new Date(detailUser.last_login).toLocaleString() : "Never"}
+                  </span>
+                </div>
+              </div>
+
+              <div>
+                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">
+                  Assigned Assets ({detailLoading ? "…" : detailAssets.length})
+                </p>
+                {detailLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[0,1,2].map(i => <div key={i} className="h-10 bg-gray-800 rounded-lg" />)}
+                  </div>
+                ) : detailAssets.length === 0 ? (
+                  <p className="text-gray-600 text-sm text-center py-4">No assets assigned to this user.</p>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {detailAssets.map(a => (
+                      <div key={a.id} className="flex items-center justify-between bg-gray-800/60 rounded-lg px-3 py-2">
+                        <div className="min-w-0 mr-2">
+                          <p className="text-white text-sm font-medium truncate">{a.name}</p>
+                          <p className="text-gray-500 text-xs">{a.category}{a.asset_tag ? ` · ${a.asset_tag}` : ""}</p>
+                        </div>
+                        <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
+                          a.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
+                          a.status === "available" ? "bg-green-500/20 text-green-400" :
+                          "bg-gray-500/20 text-gray-400"
+                        }`}>{a.status}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }

@@ -129,7 +129,7 @@ export default function Reports() {
     const todayStr = new Date().toISOString().split("T")[0]
     const [{ data: a }, { data: b }, { data: m }, { data: od }] = await Promise.all([
       assetQuery,
-      supabase.from("borrow_requests").select("*, assets(name,serial_number)").order("created_at", { ascending: false }),
+      supabase.from("borrows").select("*, assets(name,serial_number,asset_tag)").order("created_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
       supabase.from("borrows").select("*, assets(name,serial_number,asset_tag)").eq("status", "active").lt("expected_return_date", todayStr).order("expected_return_date", { ascending: true }),
     ])
@@ -247,7 +247,7 @@ export default function Reports() {
       let rows = [...borrows]
       if (dateFrom) rows = rows.filter(b => (b.created_at || "") >= dateFrom)
       if (dateTo)   rows = rows.filter(b => (b.created_at || "") <= dateTo)
-      const active = rows.filter(b => b.status === "borrowed" || b.status === "approved").length
+      const active = rows.filter(b => b.status === "active" || b.status === "borrowed" || b.status === "approved").length
       const returned = rows.filter(b => b.status === "returned").length
       const byMonth = rows.reduce((acc, b) => {
         const m = (b.created_at || "").slice(0, 7)
@@ -393,8 +393,8 @@ export default function Reports() {
       autoTable(doc, {
         startY: y, head: [["Asset","Borrower","Borrow Date","Due Date","Return Date","Status"]],
         body: rows.map(b => [
-          b.assets?.name||"—", b.requester_name||b.user_email||"—",
-          (b.created_at||"").slice(0,10), b.due_date||"—", b.return_date||"—", b.status||"—",
+          b.assets?.name||"—", b.borrowed_by||b.requester_name||b.user_email||"—",
+          (b.created_at||"").slice(0,10), b.expected_return_date||b.due_date||"—", b.return_date||"—", b.status||"—",
         ]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
@@ -483,8 +483,8 @@ export default function Reports() {
       }))
     } else if (reportType === "borrow") {
       rows = (reportData.rows || []).map(b => ({
-        "Asset": b.assets?.name||"", "Borrower": b.requester_name||b.user_email||"",
-        "Borrow Date": (b.created_at||"").slice(0,10), "Due Date": b.due_date||"",
+        "Asset": b.assets?.name||"", "Borrower": b.borrowed_by||b.requester_name||b.user_email||"",
+        "Borrow Date": (b.created_at||"").slice(0,10), "Due Date": b.expected_return_date||b.due_date||"",
         "Return Date": b.return_date||"", "Status": b.status||"",
       }))
     } else if (reportType === "overdue_borrows") {
@@ -1005,8 +1005,8 @@ export default function Reports() {
                   )}
                   <ReportTable headers={["Asset","Borrower","Due Date","Status"]}
                     rows={(reportData.rows||[]).map(b => [
-                      b.assets?.name||"—", b.requester_name||b.user_email||"—",
-                      b.due_date||"—",
+                      b.assets?.name||"—", b.borrowed_by||b.requester_name||b.user_email||"—",
+                      b.expected_return_date||b.due_date||"—",
                       <StatusBadge key="s" status={b.status} />,
                     ])} />
                 </>
