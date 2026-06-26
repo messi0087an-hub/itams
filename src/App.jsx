@@ -368,11 +368,7 @@ function LoginPage({ onVerified }) {
         transition={{ delay: 0.1 }}
         className="flex items-center justify-center mb-5"
       >
-        <img
-          src="/trainocate-logo.svg"
-          alt="Trainocate"
-          style={{ width: 180 }}
-        />
+        <img src="/trainocate-logo.png" width="200" alt="Trainocate" />
       </motion.div>
       <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
       <p className="text-gray-500 text-sm">Trainocate Singapore</p>
