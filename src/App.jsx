@@ -666,18 +666,16 @@ function LoginPage({ onVerified }) {
       <div
         className="hidden md:flex flex-col items-center justify-center w-2/5 p-12 relative z-10 overflow-hidden"
         style={{
-          backgroundImage: "url('/login-bg.svg')",
+          backgroundImage: "url('/login-bg.png')",
           backgroundSize: "cover",
           backgroundPosition: "center",
         }}
       >
-        {/* Subtle overlay to ensure text readability */}
-        <div style={{ position:"absolute", inset:0, background:"rgba(255,255,255,0.35)", backdropFilter:"blur(2px)" }} />
         <div className="relative z-10 flex flex-col items-center">
-          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: 200, height: "auto", marginBottom: 28, filter: "drop-shadow(0 2px 8px rgba(0,0,0,0.15))" }} />
-          <h1 style={{color:"#1a1a2e",fontSize:26,fontWeight:800,textAlign:"center",marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
-          <p style={{color:"#555",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
-          <p style={{color:"#777",fontSize:12,textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
+          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: 200, height: "auto", marginBottom: 28, background: "transparent", mixBlendMode: "multiply" }} />
+          <h1 style={{color:"#333",fontSize:26,fontWeight:800,textAlign:"center",marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
+          <p style={{color:"#444",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
+          <p style={{color:"#555",fontSize:12,textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
         </div>
       </div>
 
