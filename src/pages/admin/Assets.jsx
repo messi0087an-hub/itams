@@ -242,7 +242,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="p-4 md:p-8 overflow-x-hidden">
+    <div className="p-4 md:p-8 w-full min-w-0">
 
       {/* Single delete modal */}
       <AnimatePresence>
@@ -386,7 +386,7 @@ export default function Assets() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between mb-4">
+      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">All Assets</h1>
           <p className="text-gray-400 mt-1 text-sm">{assets.length} total assets</p>
@@ -473,7 +473,7 @@ export default function Assets() {
       </AnimatePresence>
 
       {/* Mobile Cards */}
-      <div className="block md:hidden space-y-3">
+      <div className="block md:hidden space-y-3 w-full min-w-0">
         {loading ? (
           <LoadingSkeleton rows={4} cols={2} />
         ) : sorted.length === 0 ? (
