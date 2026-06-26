@@ -242,7 +242,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="p-4 md:p-8 w-full max-w-full overflow-x-hidden">
+    <div className="w-screen max-w-full overflow-x-hidden px-4 md:px-8 py-4 md:py-8">
 
       {/* Single delete modal */}
       <AnimatePresence>
@@ -386,7 +386,7 @@ export default function Assets() {
       </AnimatePresence>
 
       {/* Header */}
-      <div className="flex items-center justify-between gap-2 mb-4 flex-wrap">
+      <div className="flex flex-col gap-2 mb-4 w-full">
         <div>
           <h1 className="text-2xl md:text-3xl font-bold text-white">All Assets</h1>
           <p className="text-gray-400 mt-1 text-sm">{assets.length} total assets</p>

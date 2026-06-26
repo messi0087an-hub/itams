@@ -154,6 +154,10 @@ function AnimatedError({ message, onDismiss }) {
   )
 }
 
+const BrandLogo = memo(() => (
+  <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"180px", borderRadius:"16px", display:"block", margin:"0 auto", boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}} />
+))
+
 function LoginPage({ onVerified }) {
   const [email, setEmail] = useState("")
   const [password, setPassword] = useState("")
@@ -368,7 +372,7 @@ function LoginPage({ onVerified }) {
         transition={{ delay: 0.1 }}
         className="mb-5"
       >
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"180px", borderRadius:"16px", display:"block", margin:"0 auto", boxShadow:"0 4px 20px rgba(0,0,0,0.3)"}} />
+        <BrandLogo />
       </motion.div>
       <h1 className="text-3xl font-bold text-white mb-2 tracking-tight">Trainocate Asset Portal</h1>
       <p className="text-gray-500 text-sm">Trainocate Singapore</p>
