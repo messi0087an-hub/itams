@@ -853,7 +853,7 @@ function InactivityLogout() {
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
-    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "hidden" }}>
+    <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "visible" }}>
 
       <motion.div
         animate={{ x: [0, 60, -40, 0], y: [0, -60, 40, 0], scale: [1, 1.2, 0.8, 1] }}
