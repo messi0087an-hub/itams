@@ -99,6 +99,7 @@ export default function ManageUsers() {
       supabase.rpc("get_auth_users"),
       supabase.from("assets").select("assigned_user"),
     ])
+    console.log("AUTH USERS RPC RESULT:", authData)
     const emailMap = {}
     const lastSignInMap = {}
     authData?.forEach(u => {
@@ -348,10 +349,11 @@ export default function ManageUsers() {
         }
 
         // Pre-check: skip only if email truly exists in user_profiles
+        const normalizedEmail = email.trim().toLowerCase()
         const { data: existing } = await supabase
           .from("user_profiles")
-          .select("id")
-          .eq("email", email)
+          .select("id, email")
+          .ilike("email", normalizedEmail)
           .maybeSingle()
         if (existing) {
           failed.push({ row: i + 2, email, reason: "Account already exists (skipped)" })

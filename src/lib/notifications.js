@@ -1,6 +1,6 @@
 import { supabase } from "./supabase"
 
-export async function createNotification(userId, title, body, type = "info", companyId = null) {
+export async function createNotification(userId, title, body, type = "info", companyId = null, targetUserId = null) {
   if (!userId) return
   try {
     const payload = {
@@ -11,6 +11,8 @@ export async function createNotification(userId, title, body, type = "info", com
       is_read: false,
     }
     if (companyId) payload.company_id = companyId
+    // target_user_id scopes the notification to a specific recipient
+    if (targetUserId) payload.target_user_id = targetUserId
     const { error } = await supabase.from("notifications").insert(payload)
     if (error) console.error("[notifications] insert failed:", error.message, error.details)
   } catch (e) {
@@ -24,6 +26,7 @@ export async function fetchNotifications(userId) {
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
+      .or(`target_user_id.eq.${userId},target_user_id.is.null`)
       .eq("user_id", userId)
       .order("created_at", { ascending: false })
       .limit(20)
@@ -54,7 +57,7 @@ export async function clearAllNotifications(userId) {
   } catch {}
 }
 
-// Notify all admin users in a given country
+// Notify all admin users in a given country — one targeted notification per admin
 export async function notifyAdmins(country, title, body, type = "info") {
   try {
     let q = supabase.from("user_profiles").select("id").eq("role", "admin")
@@ -62,7 +65,7 @@ export async function notifyAdmins(country, title, body, type = "info") {
     const { data } = await q
     if (!data?.length) return
     await Promise.all(data.map(admin =>
-      createNotification(admin.id, title, body, type, country)
+      createNotification(admin.id, title, body, type, country, admin.id)
     ))
   } catch (e) {
     console.error("[notifications] notifyAdmins failed:", e)
@@ -79,7 +82,7 @@ export async function notifyUserByIdentifier(identifier, title, body, type = "in
       .or(`email.eq.${identifier},name.eq.${identifier}`)
       .limit(1)
       .single()
-    if (data?.id) createNotification(data.id, title, body, type, data.country)
+    if (data?.id) createNotification(data.id, title, body, type, data.country, data.id)
   } catch {}
 }
 

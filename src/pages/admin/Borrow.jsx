@@ -163,9 +163,9 @@ export default function Borrow() {
       .order("borrowed_at", { ascending: false })
 
     if (showArchived) {
-      q = q.eq("archived", true).not("returned_at", "is", null)
+      q = q.not("returned_at", "is", null)
     } else {
-      q = q.or("archived.is.null,archived.eq.false")
+      q = q.is("returned_at", null)
     }
 
     const { data } = await q
