@@ -245,7 +245,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="w-screen max-w-full overflow-x-hidden px-4 md:px-8 py-4 md:py-8">
+    <div className="w-screen max-w-full overflow-x-auto px-4 md:px-8 py-4 md:py-8">
 
       {/* Single delete modal */}
       <AnimatePresence>
@@ -544,7 +544,7 @@ export default function Assets() {
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
-        <table className="w-full min-w-[700px]">
+        <table className="w-full min-w-[900px]">
           <thead>
             <tr className="border-b border-gray-800">
               <th className="px-4 py-4 w-10">
