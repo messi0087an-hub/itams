@@ -245,7 +245,7 @@ export default function Assets() {
   }
 
   return (
-    <div className="w-screen max-w-full overflow-x-auto px-4 md:px-8 py-4 md:py-8">
+    <div className="w-screen max-w-full overflow-x-hidden px-4 md:px-8 py-4 md:py-8">
 
       {/* Single delete modal */}
       <AnimatePresence>
@@ -543,11 +543,11 @@ export default function Assets() {
       </div>
 
       {/* Desktop Table */}
-      <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
+      <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800">
         <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
-              <th className="px-4 py-4 w-10">
+              <th className="px-2 py-4 w-10">
                 <div onClick={toggleAll}
                   className={`w-4 h-4 rounded border-2 cursor-pointer flex items-center justify-center transition-all ${
                     allSelected ? "bg-blue-600 border-blue-600" : someSelected ? "bg-blue-600/40 border-blue-500" : "border-gray-600 hover:border-gray-400"
@@ -555,24 +555,21 @@ export default function Assets() {
                   {(allSelected || someSelected) && <span className="text-white text-xs leading-none">{allSelected ? "✓" : "–"}</span>}
                 </div>
               </th>
-              {[
-                { key: "name",     label: "Asset" },
-                { key: "",         label: "Serial No." },
-                { key: "",         label: "Assigned To" },
-                { key: "status",   label: "Status" },
-                { key: "warranty", label: "Warranty" },
-                { key: "category", label: "Category", hide: true },
-                { key: "",         label: "Actions" },
-              ].map(({ key, label, hide }) => (
-                <th key={label} className={`text-left text-gray-400 text-sm font-medium px-4 py-4${hide ? " hidden lg:table-cell" : ""}`}>
-                  {key ? (
-                    <button onClick={() => handleSort(key)} className="flex items-center gap-1 hover:text-white transition-colors">
-                      {label}
-                      <span className="text-xs">{sortCol === key ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span>
-                    </button>
-                  ) : label}
-                </th>
-              ))}
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 150 }}>
+                <button onClick={() => handleSort("name")} className="flex items-center gap-1 hover:text-white transition-colors">Asset<span className="text-xs">{sortCol === "name" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span></button>
+              </th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 100 }}>Serial No.</th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 120 }}>Assigned To</th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 90 }}>
+                <button onClick={() => handleSort("status")} className="flex items-center gap-1 hover:text-white transition-colors">Status<span className="text-xs">{sortCol === "status" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span></button>
+              </th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 110 }}>
+                <button onClick={() => handleSort("warranty")} className="flex items-center gap-1 hover:text-white transition-colors">Warranty<span className="text-xs">{sortCol === "warranty" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span></button>
+              </th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 90 }}>
+                <button onClick={() => handleSort("category")} className="flex items-center gap-1 hover:text-white transition-colors">Category<span className="text-xs">{sortCol === "category" ? (sortDir === "asc" ? "↑" : "↓") : "↕"}</span></button>
+              </th>
+              <th className="text-left text-gray-400 text-sm font-medium px-3 py-4" style={{ maxWidth: 100 }}>Actions</th>
             </tr>
           </thead>
           <tbody>
@@ -597,25 +594,25 @@ export default function Assets() {
                         {isChecked && <span className="text-white text-xs leading-none">✓</span>}
                       </div>
                     </td>
-                    <td className="px-4 py-4">
-                      <p className="text-white font-medium">{asset.name}</p>
-                      <p className="text-gray-500 text-sm">{asset.category}</p>
+                    <td className="px-3 py-4" style={{ maxWidth: 150 }}>
+                      <p className="text-white font-medium truncate">{asset.name}</p>
+                      <p className="text-gray-500 text-sm truncate">{asset.category}</p>
                     </td>
-                    <td className="px-4 py-4 text-gray-400 text-sm">{asset.serial_number || "—"}</td>
-                    <td className="px-4 py-4 text-gray-400 text-sm">{asset.assigned_user || "—"}</td>
-                    <td className="px-4 py-4">
-                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
+                    <td className="px-3 py-4 text-gray-400 text-sm truncate" style={{ maxWidth: 100 }}>{asset.serial_number || "—"}</td>
+                    <td className="px-3 py-4 text-gray-400 text-sm truncate" style={{ maxWidth: 120 }}>{asset.assigned_user || "—"}</td>
+                    <td className="px-3 py-4" style={{ maxWidth: 90 }}>
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
                         {asset.status}
                       </span>
                     </td>
-                    <td className="px-4 py-4">
+                    <td className="px-3 py-4" style={{ maxWidth: 110 }}>
                       {!asset.warranty_expiry ? (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <span className="text-sm">⚪</span>
-                          <span className="text-gray-500 text-xs">No Warranty</span>
+                          <span className="text-gray-500 text-xs">None</span>
                         </div>
                       ) : (
-                        <div className="flex items-center gap-1.5">
+                        <div className="flex items-center gap-1">
                           <span className="text-sm">{warrantyValid ? "🟢" : "🔴"}</span>
                           <div>
                             <span className={`text-xs font-medium ${warrantyValid ? "text-green-400" : "text-red-400"}`}>
@@ -626,9 +623,9 @@ export default function Assets() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-gray-400 text-sm hidden lg:table-cell">{asset.category || "—"}</td>
-                    <td className="px-4 py-4">
-                      <div className="flex gap-2">
+                    <td className="px-3 py-4 text-gray-400 text-sm truncate" style={{ maxWidth: 90 }}>{asset.category || "—"}</td>
+                    <td className="px-3 py-4" style={{ maxWidth: 100 }}>
+                      <div className="flex gap-1.5">
                         {canEdit && (
                           <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
                             className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all">
