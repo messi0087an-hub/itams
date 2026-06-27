@@ -70,7 +70,7 @@ function baseTemplate(accentColor, inner) {
       <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#3b82f6;border-radius:12px;margin-bottom:10px;">
         <span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-1px;">IT</span>
       </div>
-      <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">ITAMS</div>
+      <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Trainocate Asset Portal</div>
       <div style="color:#4b5563;font-size:11px;margin-top:2px;">IT Asset Management · Trainocate Singapore</div>
     </div>
 
@@ -84,7 +84,7 @@ function baseTemplate(accentColor, inner) {
 
     <!-- Footer -->
     <div style="text-align:center;margin-top:20px;">
-      <p style="color:#374151;font-size:11px;margin:0;">Automated notification from ITAMS &nbsp;·&nbsp; © 2026 Trainocate Singapore</p>
+      <p style="color:#374151;font-size:11px;margin:0;">Automated notification from Trainocate Asset Portal &nbsp;·&nbsp; © 2026 Trainocate Singapore</p>
     </div>
   </div>
 </body>
@@ -240,7 +240,7 @@ function assetRequestHtml({ requestedBy, assetType, reason, priority, dateSubmit
         ${detailRow("Date submitted", dateSubmitted)}
       </table>
     </div>
-    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to Trainocate Asset Portal to approve or reject this request.</p>
   `)
 }
 
@@ -325,7 +325,7 @@ function approvalReminderHtml({ requestedBy, assetType, dateSubmitted, daysPendi
         ${detailRow("Days pending", String(daysPending), accentColor)}
       </table>
     </div>
-    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to Trainocate Asset Portal to approve or reject this request.</p>
   `)
 }
 
@@ -387,7 +387,7 @@ export async function sendWelcomeEmail(toEmail, name, role, tempPassword) {
   const html = baseTemplate("#3b82f6", `
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">👋</div>
-      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to ITAMS!</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to Trainocate Asset Portal!</div>
       <p style="color:#9ca3af;font-size:14px;margin:0;">Your account has been created, ${name || toEmail}.</p>
     </div>
     <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
@@ -399,11 +399,11 @@ export async function sendWelcomeEmail(toEmail, name, role, tempPassword) {
       </table>
     </div>
     <div style="text-align:center;margin-bottom:20px;">
-      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Login to ITAMS →</a>
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Login to Trainocate Asset Portal →</a>
     </div>
     <p style="color:#6b7280;font-size:12px;text-align:center;margin:0;">Please change your password after first login. If you did not expect this email, please contact your IT administrator.</p>
   `)
-  await sendEmail(toEmail, "Welcome to ITAMS — Your account is ready", html)
+  await sendEmail(toEmail, "Welcome to Trainocate Asset Portal — Your account is ready", html)
 }
 
 // ---------------------------------------------------------------------------
@@ -600,7 +600,7 @@ export async function sendMarketingDistributionNotification({
         ${detailRow("Submitted", fmtDate(createdAt || new Date().toISOString()))}
       </table>
     </div>
-    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this distribution request.</p>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to Trainocate Asset Portal to approve or reject this distribution request.</p>
   `)
   await sendEmail(officerEmail, `📦 Marketing Distribution Request: ${quantity} ${unit} of ${itemName}`, html)
 }
@@ -686,7 +686,7 @@ export async function checkMarketingReminders() {
               ${detailRow("Submitted", fmtDate(dist.created_at))}
             </table>
           </div>
-          <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to ITAMS to approve or reject this request.</p>
+          <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">Please log in to Trainocate Asset Portal to approve or reject this request.</p>
         `)
         await sendEmail(officerEmail, `${days >= 7 ? "🚨" : "⏰"} Distribution Reminder (${label}): ${dist.quantity} ${unit} of ${itemName}`, html)
         await logEmail(key, dist.id)

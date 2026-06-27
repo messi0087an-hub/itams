@@ -129,9 +129,9 @@ export default function Reports() {
     const todayStr = new Date().toISOString().split("T")[0]
     const [{ data: a }, { data: b }, { data: m }, { data: od }] = await Promise.all([
       assetQuery,
-      supabase.from("borrows").select("*, assets(name,serial_number,asset_tag)").order("created_at", { ascending: false }),
+      supabase.from("borrow_history").select("*, assets(name,serial_number,asset_tag)").order("borrowed_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
-      supabase.from("borrows").select("*, assets(name,serial_number,asset_tag)").eq("status", "active").lt("expected_return_date", todayStr).order("expected_return_date", { ascending: true }),
+      supabase.from("borrow_history").select("*, assets(name,serial_number,asset_tag)").is("returned_at", null).not("due_date", "is", null).lt("due_date", todayStr).order("due_date", { ascending: true }),
     ])
     setAssets(a || [])
     setBorrows(b || [])
@@ -245,12 +245,12 @@ export default function Reports() {
 
     if (reportType === "borrow") {
       let rows = [...borrows]
-      if (dateFrom) rows = rows.filter(b => (b.created_at || "") >= dateFrom)
-      if (dateTo)   rows = rows.filter(b => (b.created_at || "") <= dateTo)
-      const active = rows.filter(b => b.status === "active" || b.status === "borrowed" || b.status === "approved").length
-      const returned = rows.filter(b => b.status === "returned").length
+      if (dateFrom) rows = rows.filter(b => (b.borrowed_at || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(b => (b.borrowed_at || "") <= dateTo)
+      const active = rows.filter(b => !b.returned_at).length
+      const returned = rows.filter(b => !!b.returned_at).length
       const byMonth = rows.reduce((acc, b) => {
-        const m = (b.created_at || "").slice(0, 7)
+        const m = (b.borrowed_at || "").slice(0, 7)
         if (m) acc[m] = (acc[m] || 0) + 1
         return acc
       }, {})
@@ -260,10 +260,10 @@ export default function Reports() {
 
     if (reportType === "overdue_borrows") {
       let rows = [...overdueBorrowsData]
-      if (dateFrom) rows = rows.filter(b => (b.expected_return_date || "") >= dateFrom)
-      if (dateTo)   rows = rows.filter(b => (b.expected_return_date || "") <= dateTo)
+      if (dateFrom) rows = rows.filter(b => (b.due_date || "") >= dateFrom)
+      if (dateTo)   rows = rows.filter(b => (b.due_date || "") <= dateTo)
       const overdueDays = rows.map(b => {
-        const diff = Math.ceil((new Date() - new Date(b.expected_return_date)) / 86400000)
+        const diff = Math.ceil((new Date() - new Date(b.due_date)) / 86400000)
         return { ...b, _overdue_days: diff }
       })
       return {
@@ -391,10 +391,10 @@ export default function Reports() {
     if (reportType === "borrow") {
       const { rows } = reportData
       autoTable(doc, {
-        startY: y, head: [["Asset","Borrower","Borrow Date","Due Date","Return Date","Status"]],
+        startY: y, head: [["Asset","Borrower","Borrow Date","Due Date","Return Date"]],
         body: rows.map(b => [
-          b.assets?.name||"—", b.borrowed_by||b.requester_name||b.user_email||"—",
-          (b.created_at||"").slice(0,10), b.expected_return_date||b.due_date||"—", b.return_date||"—", b.status||"—",
+          b.assets?.name||"—", b.borrower_name||"—",
+          (b.borrowed_at||"").slice(0,10), b.due_date||"—", b.returned_at ? b.returned_at.slice(0,10) : "Active",
         ]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
@@ -406,8 +406,8 @@ export default function Reports() {
         startY: y, head: [["Asset","Borrower","Expected Return","Days Overdue"]],
         body: rows.map(b => [
           b.assets?.name||b.asset_id||"—",
-          b.borrowed_by||b.user_email||b.requester_name||"—",
-          b.expected_return_date||"—",
+          b.borrower_name||"—",
+          b.due_date||"—",
           `${b._overdue_days}d`,
         ]),
         theme: "striped", headStyles: { fillColor: [220,38,38] }, styles: { fontSize: 7 }, margin: { left: 14 },
@@ -483,17 +483,16 @@ export default function Reports() {
       }))
     } else if (reportType === "borrow") {
       rows = (reportData.rows || []).map(b => ({
-        "Asset": b.assets?.name||"", "Borrower": b.borrowed_by||b.requester_name||b.user_email||"",
-        "Borrow Date": (b.created_at||"").slice(0,10), "Due Date": b.expected_return_date||b.due_date||"",
-        "Return Date": b.return_date||"", "Status": b.status||"",
+        "Asset": b.assets?.name||"", "Borrower": b.borrower_name||"",
+        "Borrow Date": (b.borrowed_at||"").slice(0,10), "Due Date": b.due_date||"",
+        "Return Date": b.returned_at ? b.returned_at.slice(0,10) : "Active",
       }))
     } else if (reportType === "overdue_borrows") {
       rows = (reportData.rows || []).map(b => ({
         "Asset": b.assets?.name||b.asset_id||"",
-        "Borrower": b.borrowed_by||b.user_email||b.requester_name||"",
-        "Expected Return": b.expected_return_date||"",
+        "Borrower": b.borrower_name||"",
+        "Due Date": b.due_date||"",
         "Days Overdue": b._overdue_days,
-        "Status": b.status||"",
       }))
     } else if (reportType === "dept_count") {
       rows = (reportData.rows || []).map(([dept, v]) => ({
@@ -925,8 +924,8 @@ export default function Reports() {
                     <ReportTable headers={["Asset","Borrower","Expected Return","Days Overdue"]}
                       rows={reportData.rows.map(b => [
                         b.assets?.name || b.asset_id || "—",
-                        b.borrowed_by || b.user_email || b.requester_name || "—",
-                        b.expected_return_date || "—",
+                        b.borrower_name || "—",
+                        b.due_date || "—",
                         <span key="d" className={b._overdue_days > 14 ? "text-red-400 font-bold" : b._overdue_days >= 7 ? "text-yellow-400 font-semibold" : "text-orange-400"}>
                           {b._overdue_days}d overdue
                         </span>,
@@ -1010,11 +1009,11 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  <ReportTable headers={["Asset","Borrower","Due Date","Status"]}
+                  <ReportTable headers={["Asset","Borrower","Due Date","Returned"]}
                     rows={(reportData.rows||[]).map(b => [
-                      b.assets?.name||"—", b.borrowed_by||b.requester_name||b.user_email||"—",
-                      b.expected_return_date||b.due_date||"—",
-                      <StatusBadge key="s" status={b.status} />,
+                      b.assets?.name||"—", b.borrower_name||"—",
+                      b.due_date||"—",
+                      b.returned_at ? b.returned_at.slice(0,10) : <span key="a" className="text-yellow-400 text-xs">Active</span>,
                     ])} />
                 </>
               )}

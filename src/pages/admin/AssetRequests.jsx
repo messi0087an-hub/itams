@@ -85,7 +85,10 @@ export default function AssetRequests() {
         .upload(path, file, { contentType: "application/pdf" })
       if (!error) {
         const { data } = supabase.storage.from("asset-request-docs").getPublicUrl(path)
-        urls.push(data.publicUrl)
+        // Store both url and original filename as JSON so we can display the name
+        urls.push(JSON.stringify({ url: data.publicUrl, name: file.name }))
+      } else {
+        console.error("Document upload error:", error.message)
       }
     }
     setUploadingDocs(false)
@@ -599,12 +602,18 @@ export default function AssetRequests() {
                     {/* Documents */}
                     {req.document_urls?.length > 0 && (
                       <div className="flex flex-wrap gap-2 mt-2">
-                        {req.document_urls.map((url, i) => (
-                          <a key={i} href={url} target="_blank" rel="noopener noreferrer"
-                            className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded px-2 py-0.5 transition-colors">
-                            📄 Document {i + 1}
-                          </a>
-                        ))}
+                        {req.document_urls.map((entry, i) => {
+                          let url = entry, name = `Document ${i + 1}`
+                          try { const parsed = JSON.parse(entry); url = parsed.url; name = parsed.name } catch {}
+                          if (!url) return <span key={i} className="text-xs text-gray-500">Document unavailable</span>
+                          return (
+                            <a key={i} href={url} target="_blank" rel="noopener noreferrer"
+                              className="flex items-center gap-1 text-xs text-blue-400 hover:text-blue-300 bg-blue-500/10 border border-blue-500/20 rounded px-2 py-0.5 transition-colors"
+                              onError={e => e.currentTarget.replaceWith(Object.assign(document.createElement("span"), { textContent: "Document unavailable", className: "text-xs text-gray-500" }))}>
+                              📄 {name}
+                            </a>
+                          )
+                        })}
                       </div>
                     )}
 
