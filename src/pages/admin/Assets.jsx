@@ -544,7 +544,7 @@ export default function Assets() {
 
       {/* Desktop Table */}
       <div className="hidden md:block bg-gray-900 rounded-xl border border-gray-800 overflow-x-auto">
-        <table className="w-full min-w-[900px]">
+        <table className="w-full">
           <thead>
             <tr className="border-b border-gray-800">
               <th className="px-4 py-4 w-10">
@@ -561,10 +561,10 @@ export default function Assets() {
                 { key: "",         label: "Assigned To" },
                 { key: "status",   label: "Status" },
                 { key: "warranty", label: "Warranty" },
-                { key: "category", label: "Category" },
+                { key: "category", label: "Category", hide: true },
                 { key: "",         label: "Actions" },
-              ].map(({ key, label }) => (
-                <th key={label} className="text-left text-gray-400 text-sm font-medium px-4 py-4">
+              ].map(({ key, label, hide }) => (
+                <th key={label} className={`text-left text-gray-400 text-sm font-medium px-4 py-4${hide ? " hidden lg:table-cell" : ""}`}>
                   {key ? (
                     <button onClick={() => handleSort(key)} className="flex items-center gap-1 hover:text-white transition-colors">
                       {label}
@@ -626,7 +626,7 @@ export default function Assets() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-4 text-gray-400 text-sm">{asset.category || "—"}</td>
+                    <td className="px-4 py-4 text-gray-400 text-sm hidden lg:table-cell">{asset.category || "—"}</td>
                     <td className="px-4 py-4">
                       <div className="flex gap-2">
                         {canEdit && (
