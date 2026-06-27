@@ -151,14 +151,17 @@ export default function ImportAssets() {
     }
 
     // Save import history
-    await supabase.from("import_history").insert([{
+    const { error: histErr } = await supabase.from("import_history").insert([{
       file_name: fileName,
       imported_by: userProfile?.name || userProfile?.email || "Unknown",
+      imported_at: new Date().toISOString(),
       total_count: data.length,
       success_count: successCount,
+      fail_count: failCount,
       updated_count: updateCount,
       status: "Success",
     }])
+    if (histErr) console.error("import_history insert error:", histErr)
 
     setImported(true)
     setLoading(false)

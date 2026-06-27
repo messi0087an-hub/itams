@@ -99,6 +99,7 @@ export default function Maintenance() {
   const location = useLocation()
   const [schedules, setSchedules] = useState([])
   const [assets, setAssets] = useState([])
+  const [adminUsers, setAdminUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [completeModal, setCompleteModal] = useState(null)
@@ -154,7 +155,13 @@ export default function Maintenance() {
     }
   }, [assets, location.search])
 
+  const fetchAdminUsers = async () => {
+    const { data } = await supabase.from("user_profiles").select("id, name, email").eq("role", "admin").order("name")
+    setAdminUsers(data || [])
+  }
+
   const fetchAll = async () => {
+    fetchAdminUsers()
     let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
 
     if (showArchived) {
@@ -166,7 +173,8 @@ export default function Maintenance() {
     let assetQuery = supabase.from("assets").select("id, name, category, assigned_user").order("name")
     if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
 
-    const [{ data: s }, { data: a }] = await Promise.all([maintenanceQuery, assetQuery])
+    const [{ data: s, error: sErr }, { data: a }] = await Promise.all([maintenanceQuery, assetQuery])
+    if (sErr) console.error("fetchAll maintenance_schedules error:", sErr)
     setSchedules(s || [])
     const all = a || []
     if (isStandardUser && userProfile) {
@@ -192,6 +200,7 @@ export default function Maintenance() {
     e.preventDefault()
     setFormError("")
     if (!form.asset_id) { setFormError("Please select an asset"); return }
+    if (!form.assigned_to) { setFormError("Please assign to an admin"); return }
     const { error } = await supabase.from("maintenance_schedules").insert([{
       asset_id: form.asset_id,
       asset_name: form.asset_name,
@@ -509,11 +518,15 @@ export default function Maintenance() {
               </div>
 
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Assign To <span className="text-gray-600">(optional)</span></label>
-                <input type="text" value={form.assigned_to}
+                <label className="text-gray-400 text-sm mb-2 block">Assign To *</label>
+                <select value={form.assigned_to} required
                   onChange={e => setForm({ ...form, assigned_to: e.target.value })}
-                  placeholder="e.g. John IT"
-                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm" />
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+                  <option value="">Select admin...</option>
+                  {adminUsers.map(u => (
+                    <option key={u.id} value={u.name || u.email}>{u.name || u.email}</option>
+                  ))}
+                </select>
               </div>
 
               <div>

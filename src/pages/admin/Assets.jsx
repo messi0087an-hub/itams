@@ -79,7 +79,7 @@ function exportToPDF(selectedAssets) {
 }
 
 export default function Assets() {
-  const { canEdit, canDelete, userCountry, profileLoading } = useAuth()
+  const { canEdit, canDelete, userCountry, profileLoading, userProfile } = useAuth()
   const [assets, setAssets] = useState([])
   const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
@@ -136,7 +136,7 @@ export default function Assets() {
   }
 
   const handleDelete = async () => {
-    await logHistory(deleteModal.id, "Deleted", `Asset "${deleteModal.name}" was deleted from ITAMS`)
+    await logHistory(deleteModal.id, "Deleted", `Asset "${deleteModal.name}" was deleted from ITAMS`, userProfile?.name || userProfile?.email)
     await supabase.from("assets").delete().eq("id", deleteModal.id)
     setAssets(prev => prev.filter(a => a.id !== deleteModal.id))
     setDeleteModal(null)
@@ -171,7 +171,8 @@ export default function Assets() {
     await supabase.from("assets").update({ assigned_user: bulkInput.trim(), status: "assigned" }).in("id", ids)
     await Promise.all(ids.map(id => {
       const a = assets.find(x => x.id === id)
-      return logHistory(id, "Updated", `Bulk assigned to "${bulkInput.trim()}"`)
+      const label = ids.length === 1 ? "Assigned to" : "Bulk assigned to"
+      return logHistory(id, "Updated", `${label} "${bulkInput.trim()}"`, userProfile?.name || userProfile?.email)
     }))
     await fetchAssets()
     setBulkModal(null); setBulkInput(""); clearSelected(); setBulkWorking(false)
@@ -185,7 +186,7 @@ export default function Assets() {
       ? { status: bulkInput, assigned_user: null }
       : { status: bulkInput }
     await supabase.from("assets").update(update).in("id", ids)
-    await Promise.all(ids.map(id => logHistory(id, "Updated", `Bulk status changed to "${bulkInput}"`)))
+    await Promise.all(ids.map(id => logHistory(id, "Updated", `Bulk status changed to "${bulkInput}"`, userProfile?.name || userProfile?.email)))
     await fetchAssets()
     setBulkModal(null); setBulkInput(""); clearSelected(); setBulkWorking(false)
   }
@@ -195,7 +196,7 @@ export default function Assets() {
     const ids = [...selected]
     await Promise.all(ids.map(id => {
       const a = assets.find(x => x.id === id)
-      return logHistory(id, "Deleted", `Asset "${a?.name}" bulk deleted`)
+      return logHistory(id, "Deleted", `Asset "${a?.name}" bulk deleted`, userProfile?.name || userProfile?.email)
     }))
     await supabase.from("assets").delete().in("id", ids)
     await fetchAssets()
