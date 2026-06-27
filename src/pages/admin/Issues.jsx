@@ -153,13 +153,13 @@ export default function Issues() {
     }
   }
 
-  const handleResolve = async (id, reportedBy) => {
+  const handleResolve = async (id, reportedBy, assetName) => {
     await supabase.from("issues").update({
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
     createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
-    if (reportedBy) notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", "Your reported issue has been resolved by an admin", "success")
+    if (reportedBy) notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", `Your issue for "${assetName || "an asset"}" has been resolved by admin`, "success")
     setResolveSuccess(true)
     setTimeout(() => {
       setResolveSuccess(false)
@@ -167,8 +167,9 @@ export default function Issues() {
     }, 2500)
   }
 
-  const handleArchive = async (id) => {
-    await supabase.from("issues").update({ archived: true }).eq("id", id)
+  const handleArchive = async (issue) => {
+    await supabase.from("issues").update({ archived: true }).eq("id", issue.id)
+    if (issue.reported_by) notifyUserByIdentifier(issue.reported_by, "🔒 Issue Closed", `Your issue for "${issue.assets?.name || "an asset"}" has been closed`, "info")
     fetchIssues()
   }
 
@@ -443,7 +444,7 @@ export default function Issues() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleResolve(issue.id, issue.reported_by)}
+                    onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name)}
                     className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                   >
                     Resolve
@@ -451,7 +452,7 @@ export default function Issues() {
                 )}
                 {isAdmin && issue.status === "resolved" && !issue.archived && (
                   <button
-                    onClick={() => handleArchive(issue.id)}
+                    onClick={() => handleArchive(issue)}
                     className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
                   >
                     Archive
@@ -508,7 +509,7 @@ export default function Issues() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleResolve(issue.id, issue.reported_by)}
+                          onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name)}
                           className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                         >
                           Resolve
@@ -516,7 +517,7 @@ export default function Issues() {
                       )}
                       {isAdmin && issue.status === "resolved" && !issue.archived && (
                         <button
-                          onClick={() => handleArchive(issue.id)}
+                          onClick={() => handleArchive(issue)}
                           className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
                         >
                           Archive

@@ -266,6 +266,7 @@ export default function Borrow() {
       status: "available",
       assigned_user: null
     }).eq("id", borrow.asset_id)
+    notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
 
     setReturnSuccess(true)
     setTimeout(() => {
@@ -291,6 +292,7 @@ export default function Borrow() {
       .eq("id", borrow.id)
 
     if (!error) {
+      notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${borrow.assets?.name || "an asset"}" to ${extendDate}`, "info")
       setExtendingId(null)
       setExtendDate("")
       showToast("Return date extended successfully!")
@@ -308,8 +310,9 @@ export default function Borrow() {
     fetchBorrows()
   }
 
-  const handleArchiveBorrow = async (id) => {
-    await supabase.from("borrow_history").update({ archived: true }).eq("id", id)
+  const handleArchiveBorrow = async (borrow) => {
+    await supabase.from("borrow_history").update({ archived: true }).eq("id", borrow.id)
+    notifyAdmins(userProfile?.country, "🗂️ Borrow Archived", `Borrow record for "${borrow.assets?.name || "an asset"}" was archived`, "info")
     fetchBorrows()
   }
 
@@ -914,7 +917,7 @@ export default function Borrow() {
                   </div>
                   {isAdmin && !borrow.archived && (
                     <button
-                      onClick={() => handleArchiveBorrow(borrow.id)}
+                      onClick={() => handleArchiveBorrow(borrow)}
                       className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all shrink-0"
                     >
                       Archive

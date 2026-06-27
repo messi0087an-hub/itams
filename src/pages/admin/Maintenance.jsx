@@ -266,8 +266,11 @@ export default function Maintenance() {
     fetchAll()
   }
 
-  const handleCancel = async (id) => {
-    await supabase.from("maintenance_schedules").update({ status: "cancelled" }).eq("id", id)
+  const handleCancel = async (schedule) => {
+    await supabase.from("maintenance_schedules").update({ status: "cancelled" }).eq("id", schedule.id)
+    if (schedule.created_by && schedule.created_by !== "Auto (recurring)") {
+      notifyUserByIdentifier(schedule.created_by, "❌ Maintenance Cancelled", `Your maintenance request for "${schedule.asset_name || "an asset"}" was cancelled by admin`, "warning")
+    }
     fetchAll()
   }
 
@@ -657,7 +660,7 @@ export default function Maintenance() {
                           Done
                         </motion.button>
                         <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
-                          onClick={() => handleCancel(s.id)}
+                          onClick={() => handleCancel(s)}
                           className="text-gray-500 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
                           Cancel
                         </motion.button>

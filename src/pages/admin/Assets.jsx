@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase"
 import { useNavigate, useSearchParams } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
+import { notifyUserByIdentifier } from "../../lib/notifications"
 import { useAuth } from "../../context/AuthContext"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
@@ -172,6 +173,7 @@ export default function Assets() {
     await Promise.all(ids.map(id => {
       const a = assets.find(x => x.id === id)
       const label = ids.length === 1 ? "Assigned to" : "Bulk assigned to"
+      if (a) notifyUserByIdentifier(bulkInput.trim(), "📦 Asset Assigned", `An asset "${a.name}" has been assigned to you by admin`, "info")
       return logHistory(id, "Updated", `${label} "${bulkInput.trim()}"`, userProfile?.name || userProfile?.email)
     }))
     await fetchAssets()
