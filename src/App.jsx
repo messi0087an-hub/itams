@@ -3,6 +3,7 @@ import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
 import { AuthProvider } from "./context/AuthContext"
+import { NotificationProvider } from "./context/NotificationContext"
 import Sidebar from "./components/Sidebar"
 import MarketingSidebar from "./components/MarketingSidebar"
 import GlobalSearch from "./components/GlobalSearch"
@@ -853,6 +854,7 @@ function InactivityLogout() {
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
+    <NotificationProvider>
     <div style={{ display: "flex", minHeight: "100vh", backgroundColor: "#050510", position: "relative", overflow: "visible" }}>
 
       <motion.div
@@ -929,6 +931,7 @@ function AdminLayout({ user }) {
       </div>
       <InactivityLogout />
     </div>
+    </NotificationProvider>
     </AuthProvider>
   )
 }

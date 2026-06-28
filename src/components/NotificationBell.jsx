@@ -1,6 +1,5 @@
 import { useState, useEffect, useRef } from "react"
-import { useAuth } from "../context/AuthContext"
-import { fetchNotifications, markNotificationRead, markAllNotificationsRead, clearAllNotifications } from "../lib/notifications"
+import { useNotifications } from "../context/NotificationContext"
 
 function timeAgo(ts) {
   const secs = Math.floor((Date.now() - new Date(ts)) / 1000)
@@ -11,29 +10,47 @@ function timeAgo(ts) {
 }
 
 function NotificationModal({ notification, onClose }) {
+  // Close on Escape key
+  useEffect(() => {
+    if (!notification) return
+    const handler = (e) => { if (e.key === "Escape") onClose() }
+    document.addEventListener("keydown", handler)
+    return () => document.removeEventListener("keydown", handler)
+  }, [notification, onClose])
+
   if (!notification) return null
+
   return (
     <div
-      className="fixed inset-0 flex items-center justify-center z-[10000]"
-      style={{ background: "rgba(0,0,0,0.6)" }}
-      onClick={onClose}
+      className="fixed inset-0 z-[10000] flex items-center justify-center"
+      style={{ background: "rgba(0,0,0,0.65)" }}
+      onMouseDown={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
-        onClick={e => e.stopPropagation()}
+        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 relative"
         style={{ animation: "slideInFromTop 0.2s ease-out" }}
+        onMouseDown={e => e.stopPropagation()}
       >
-        <div className="flex items-start justify-between gap-3 mb-4">
-          <p className="text-white font-semibold text-base">{notification.title}</p>
-          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors text-lg leading-none">✕</button>
-        </div>
+        <button
+          onClick={onClose}
+          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors text-xl leading-none"
+          aria-label="Close"
+        >
+          ✕
+        </button>
+        <p className="text-white font-semibold text-base pr-8 mb-3">{notification.title}</p>
         {notification.body && (
-          <p className="text-gray-300 text-sm mb-4 leading-relaxed">{notification.body}</p>
+          <p className="text-gray-300 text-sm leading-relaxed mb-4">{notification.body}</p>
         )}
         <div className="flex items-center justify-between pt-3 border-t border-gray-800">
-          <span className="text-gray-600 text-xs">{new Date(notification.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+          <span className="text-gray-600 text-xs">
+            {new Date(notification.created_at).toLocaleString("en-GB", {
+              day: "2-digit", month: "short", year: "numeric",
+              hour: "2-digit", minute: "2-digit"
+            })}
+          </span>
           {!notification.is_read && (
-            <span className="text-blue-400 text-xs">Unread</span>
+            <span className="text-blue-400 text-xs font-medium">Unread</span>
           )}
         </div>
       </div>
@@ -42,26 +59,18 @@ function NotificationModal({ notification, onClose }) {
 }
 
 export default function NotificationBell() {
-  const { userProfile } = useAuth()
-  const userId = userProfile?.id
-
-  const [notifications, setNotifications] = useState([])
-  const [open, setOpen]                   = useState(false)
-  const [dropdownPos, setDropdownPos]     = useState({ top: 0, left: 0 })
+  const ctx = useNotifications()
+  const [open, setOpen]             = useState(false)
+  const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
   const [selectedNotif, setSelectedNotif] = useState(null)
   const buttonRef = useRef(null)
   const panelRef  = useRef(null)
 
-  const load = () => fetchNotifications(userId).then(setNotifications)
+  // If context not available (e.g. marketing layout), render nothing
+  if (!ctx) return null
+  const { notifications, unread, markOne, markAll, clearAll } = ctx
 
-  useEffect(() => {
-    if (!userId) return
-    load()
-    const interval = setInterval(load, 30000)
-    return () => clearInterval(interval)
-  }, [userId])
-
-  // Close on outside click
+  // Close dropdown on outside click
   useEffect(() => {
     if (!open) return
     const handler = (e) => {
@@ -74,17 +83,13 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler)
   }, [open])
 
-  const unread = notifications.filter(n => !n.is_read).length
-
   const handleToggle = () => {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
       const dropdownWidth = 380
       let left = rect.right - dropdownWidth
       if (left < 8) left = 8
-      if (left + dropdownWidth > window.innerWidth - 8) {
-        left = window.innerWidth - dropdownWidth - 8
-      }
+      if (left + dropdownWidth > window.innerWidth - 8) left = window.innerWidth - dropdownWidth - 8
       setDropdownPos({ top: rect.bottom + 8, left })
     }
     setOpen(o => !o)
@@ -106,34 +111,16 @@ export default function NotificationBell() {
     return () => window.removeEventListener("resize", handleResize)
   }, [open])
 
-  const handleClick = async (n) => {
-    if (!n.is_read) {
-      await markNotificationRead(n.id)
-      setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
-      setSelectedNotif({ ...n, is_read: true })
-    } else {
-      setSelectedNotif(n)
-    }
+  const handleClickNotif = async (n) => {
+    if (!n.is_read) await markOne(n.id)
     setOpen(false)
+    setSelectedNotif(n.is_read ? n : { ...n, is_read: true })
   }
 
   const handleMarkOne = async (e, n) => {
     e.stopPropagation()
-    await markNotificationRead(n.id)
-    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
+    await markOne(n.id)
   }
-
-  const handleMarkAll = async () => {
-    await markAllNotificationsRead(userId)
-    setNotifications(prev => prev.map(n => ({ ...n, is_read: true })))
-  }
-
-  const handleClearAll = async () => {
-    await clearAllNotifications(userId)
-    setNotifications([])
-  }
-
-  if (!userId) return null
 
   return (
     <>
@@ -169,12 +156,12 @@ export default function NotificationBell() {
             <p className="text-white font-semibold text-sm">Notifications</p>
             <div className="flex items-center gap-2">
               {unread > 0 && (
-                <button onClick={handleMarkAll} className="text-blue-400 hover:text-blue-300 text-xs transition-colors">
+                <button onClick={markAll} className="text-blue-400 hover:text-blue-300 text-xs transition-colors">
                   Mark all read
                 </button>
               )}
               {notifications.length > 0 && (
-                <button onClick={handleClearAll} className="text-gray-500 hover:text-red-400 text-xs transition-colors">
+                <button onClick={clearAll} className="text-gray-500 hover:text-red-400 text-xs transition-colors">
                   Clear all
                 </button>
               )}
@@ -188,7 +175,7 @@ export default function NotificationBell() {
                 <div
                   key={n.id}
                   className={`flex items-start gap-2 px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors cursor-pointer ${!n.is_read ? "bg-blue-500/5" : ""}`}
-                  onClick={() => handleClick(n)}
+                  onClick={() => handleClickNotif(n)}
                 >
                   <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-2">

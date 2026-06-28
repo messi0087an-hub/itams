@@ -106,7 +106,6 @@ export default function Maintenance() {
   const [completingNote, setCompletingNote] = useState("")
   const [completing, setCompleting] = useState(false)
   const [submitSuccess, setSubmitSuccess] = useState(false)
-  const [tab, setTab] = useState("upcoming")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
   const [formError, setFormError] = useState("")
@@ -287,12 +286,9 @@ export default function Maintenance() {
   }))
 
   const filtered = enriched.filter(s => {
-    if (tab === "upcoming") { if (!(s.computedStatus === "pending" || s.computedStatus === "overdue")) return false }
-    else if (tab === "overdue")  { if (s.computedStatus !== "overdue") return false }
-    else if (tab === "done")     { if (s.status !== "completed") return false }
-
     if (filterStatus !== "all") {
       if (filterStatus === "pending" && s.computedStatus !== "pending") return false
+      if (filterStatus === "overdue" && s.computedStatus !== "overdue") return false
       if (filterStatus === "in_progress" && s.status !== "in_progress") return false
       if (filterStatus === "completed" && s.status !== "completed") return false
     }
@@ -427,6 +423,7 @@ export default function Maintenance() {
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectClass}>
           <option value="all">All Statuses</option>
           <option value="pending">Pending</option>
+          <option value="overdue">Overdue</option>
           <option value="in_progress">In Progress</option>
           <option value="completed">Completed</option>
         </select>
@@ -557,23 +554,6 @@ export default function Maintenance() {
           </motion.form>
         )}
       </AnimatePresence>
-
-      {/* Tabs */}
-      <div className="flex gap-2 mb-4 flex-wrap">
-        {[
-          { key: "upcoming", label: "Upcoming" },
-          { key: "overdue",  label: overdueCount > 0 ? `Overdue (${overdueCount})` : "Overdue" },
-          { key: "done",     label: "Completed" },
-          { key: "all",      label: "All" },
-        ].map(t => (
-          <button key={t.key} onClick={() => setTab(t.key)}
-            className={`px-4 py-1.5 rounded-lg text-sm font-medium transition-all ${
-              tab === t.key ? "bg-blue-600 text-white" : "bg-gray-800 text-gray-400 hover:text-white"
-            }`}>
-            {t.label}
-          </button>
-        ))}
-      </div>
 
       <SuccessToast message={toast} />
 
