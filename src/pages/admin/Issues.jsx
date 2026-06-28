@@ -136,7 +136,7 @@ export default function Issues() {
       description: form.description,
       priority: form.priority,
       status: "open",
-      reported_by: userProfile?.id || null,
+      reported_by: userProfile?.name || null,
     }])
     if (!error) {
       createNotification(userProfile?.id, "⚠️ Issue Reported", "Your issue has been submitted", "warning", userProfile?.country)
