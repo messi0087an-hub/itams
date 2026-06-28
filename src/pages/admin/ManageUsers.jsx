@@ -408,24 +408,8 @@ const emailMap = {}
     setDeleting(true)
     const deletedLabel = deleteTarget.name || deleteTarget.email
     try {
-      const { data: { session } } = await supabase.auth.getSession()
-
-      const { data, error: fnErr } = await supabase.functions.invoke("delete-user", {
-        body: { userId: deleteTarget.id },
-        headers: session?.access_token
-          ? { Authorization: `Bearer ${session.access_token}` }
-          : {},
-      })
-
-      const edgeFailed = fnErr || data?.error
-      if (edgeFailed) {
-        // Edge function unavailable — fall back to deleting profile row only
-        const { error: profileErr } = await supabase
-          .from("user_profiles")
-          .delete()
-          .eq("id", deleteTarget.id)
-        if (profileErr) throw new Error(profileErr.message)
-      }
+      const { error } = await supabase.rpc("delete_user", { user_id: deleteTarget.id })
+      if (error) throw new Error(error.message)
 
       setUsers(users.filter(x => x.id !== deleteTarget.id))
       showSuccess(`${deletedLabel} has been permanently deleted.`)

@@ -80,7 +80,7 @@ function exportToPDF(selectedAssets) {
 }
 
 export default function Assets() {
-  const { canEdit, canDelete, userCountry, profileLoading, userProfile } = useAuth()
+  const { canEdit, canDelete, isGuest, userCountry, profileLoading, userProfile } = useAuth()
   const [assets, setAssets] = useState([])
   const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
@@ -406,7 +406,7 @@ export default function Assets() {
           >
             📥 Export Excel
           </button>
-          {canEdit && (
+          {canEdit && !isGuest && (
             <button onClick={() => navigate("/admin/add-asset")}
               className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-2 rounded-lg transition-all text-sm">
               + Add
@@ -450,23 +450,29 @@ export default function Assets() {
             className="mb-4 bg-blue-600/10 border border-blue-500/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
             <span className="text-blue-300 font-semibold text-sm">{selected.size} selected</span>
             <div className="flex flex-wrap gap-2 flex-1">
-              <button onClick={() => { setBulkInput(""); setBulkModal("assign") }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
-                👤 Assign
-              </button>
-              <button onClick={() => { setBulkInput(""); setBulkModal("status") }}
-                className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
-                🔄 Change Status
-              </button>
+              {!isGuest && (
+                <button onClick={() => { setBulkInput(""); setBulkModal("assign") }}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
+                  👤 Assign
+                </button>
+              )}
+              {!isGuest && (
+                <button onClick={() => { setBulkInput(""); setBulkModal("status") }}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
+                  🔄 Change Status
+                </button>
+              )}
               <button onClick={() => exportToPDF(selectedAssets)}
                 className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
                 📄 Export PDF
               </button>
-              <button onClick={() => setShowLabelModal(true)}
-                className="text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 transition-all">
-                🏷️ Print Labels
-              </button>
-              {canDelete && (
+              {!isGuest && (
+                <button onClick={() => setShowLabelModal(true)}
+                  className="text-xs px-3 py-1.5 rounded-lg bg-blue-600/20 hover:bg-blue-600/30 text-blue-400 border border-blue-500/30 transition-all">
+                  🏷️ Print Labels
+                </button>
+              )}
+              {canDelete && !isGuest && (
                 <button onClick={() => setBulkModal("delete")}
                   className="text-xs px-3 py-1.5 rounded-lg bg-red-500/20 hover:bg-red-500/30 text-red-400 border border-red-500/30 transition-all">
                   🗑️ Delete
@@ -528,11 +534,11 @@ export default function Assets() {
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
                         {asset.status}
                       </span>
-                      {canEdit && (
+                      {canEdit && !isGuest && (
                         <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
                           className="text-blue-400 text-xs px-2 py-1 rounded border border-blue-400/30">Edit</button>
                       )}
-                      {canDelete && (
+                      {canDelete && !isGuest && (
                         <button onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
                           className="text-red-400 text-xs px-2 py-1 rounded border border-red-400/30">Del</button>
                       )}
@@ -629,13 +635,13 @@ export default function Assets() {
                     <td className="px-3 py-4 text-gray-400 text-sm truncate" style={{ maxWidth: 90 }}>{asset.category || "—"}</td>
                     <td className="px-3 py-4" style={{ maxWidth: 100 }}>
                       <div className="flex gap-1.5">
-                        {canEdit && (
+                        {canEdit && !isGuest && (
                           <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
                             className="text-blue-400 hover:text-blue-300 text-sm px-3 py-1 rounded border border-blue-400/30 hover:border-blue-300 transition-all">
                             Edit
                           </button>
                         )}
-                        {canDelete && (
+                        {canDelete && !isGuest && (
                           <button onClick={(e) => { e.stopPropagation(); setDeleteModal(asset) }}
                             className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 hover:border-red-300 transition-all">
                             Delete

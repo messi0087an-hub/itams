@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
 import { useAuth } from "./AuthContext"
-import { fetchNotifications, markNotificationRead, markAllNotificationsRead, clearAllNotifications } from "../lib/notifications"
+import { supabase } from "../lib/supabase"
+import { markNotificationRead, markAllNotificationsRead, clearAllNotifications } from "../lib/notifications"
 
 const NotificationContext = createContext(null)
 
@@ -9,9 +10,15 @@ export function NotificationProvider({ children }) {
   const userId = userProfile?.id
   const [notifications, setNotifications] = useState([])
 
-  const load = useCallback(() => {
+  const load = useCallback(async () => {
     if (!userId) return
-    fetchNotifications(userId).then(setNotifications)
+    const { data } = await supabase
+      .from("notifications")
+      .select("*")
+      .eq("target_user_id", userId)
+      .order("created_at", { ascending: false })
+      .limit(20)
+    setNotifications(data || [])
   }, [userId])
 
   useEffect(() => {
