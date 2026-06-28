@@ -25,6 +25,27 @@ function timeAgo(ts) {
   return `${Math.floor(secs / 86400)}d ago`
 }
 
+const TYPE_META = {
+  borrow:      { emoji: "🔄", label: "Borrow",        badge: { bg: "#7c3aed22", border: "#7c3aed66", color: "#a78bfa" } },
+  issue:       { emoji: "⚠️", label: "Issue",         badge: { bg: "#dc262622", border: "#dc262666", color: "#f87171" } },
+  maintenance: { emoji: "🔧", label: "Maintenance",   badge: { bg: "#d9770622", border: "#d9770666", color: "#fb923c" } },
+  request:     { emoji: "📋", label: "Asset Request", badge: { bg: "#0891b222", border: "#0891b266", color: "#22d3ee" } },
+  asset:       { emoji: "📦", label: "Asset",         badge: { bg: "#16a34a22", border: "#16a34a66", color: "#4ade80" } },
+  user:        { emoji: "👤", label: "User",          badge: { bg: "#2563eb22", border: "#2563eb66", color: "#60a5fa" } },
+  default:     { emoji: "🔔", label: "Notification",  badge: { bg: "#37415122", border: "#37415166", color: "#9ca3af" } },
+}
+
+function resolveType(title = "", body = "") {
+  const text = (title + " " + body).toLowerCase()
+  if (/borrow|return|extend|due/.test(text))      return TYPE_META.borrow
+  if (/issue|reported|resolved/.test(text))        return TYPE_META.issue
+  if (/maintenance|scheduled|complet/.test(text))  return TYPE_META.maintenance
+  if (/request|approved|rejected/.test(text))      return TYPE_META.request
+  if (/asset|assign|deleted/.test(text))           return TYPE_META.asset
+  if (/user|account|password/.test(text))          return TYPE_META.user
+  return TYPE_META.default
+}
+
 function NotificationModal({ notification, onClose }) {
   useEffect(() => {
     if (!notification) return
@@ -34,6 +55,12 @@ function NotificationModal({ notification, onClose }) {
   }, [notification, onClose])
 
   if (!notification) return null
+
+  const meta = resolveType(notification.title, notification.body)
+  const formattedTime = new Date(notification.created_at).toLocaleString("en-GB", {
+    day: "2-digit", month: "short", year: "numeric",
+    hour: "2-digit", minute: "2-digit",
+  })
 
   return createPortal(
     <div
@@ -50,22 +77,22 @@ function NotificationModal({ notification, onClose }) {
           border: "1px solid #374151",
           borderRadius: "16px",
           boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
-          padding: "24px",
+          padding: "28px",
           width: "100%",
-          maxWidth: "420px",
+          maxWidth: "480px",
           margin: "0 16px",
           position: "relative",
           animation: "slideInFromTop 0.2s ease-out",
         }}
         onMouseDown={e => e.stopPropagation()}
       >
+        {/* Close button */}
         <button
           onClick={onClose}
           style={{
             position: "absolute", top: "16px", right: "16px",
             background: "none", border: "none", cursor: "pointer",
-            color: "#6b7280", fontSize: "20px", lineHeight: 1,
-            padding: "4px",
+            color: "#6b7280", fontSize: "20px", lineHeight: 1, padding: "4px",
           }}
           onMouseEnter={e => e.currentTarget.style.color = "#fff"}
           onMouseLeave={e => e.currentTarget.style.color = "#6b7280"}
@@ -74,25 +101,35 @@ function NotificationModal({ notification, onClose }) {
           ✕
         </button>
 
-        <p style={{ color: "#fff", fontWeight: 600, fontSize: "15px", paddingRight: "32px", marginBottom: "12px" }}>
+        {/* Emoji + type badge */}
+        <div style={{ display: "flex", alignItems: "center", gap: "12px", marginBottom: "16px" }}>
+          <span style={{ fontSize: "32px", lineHeight: 1 }}>{meta.emoji}</span>
+          <span style={{
+            fontSize: "11px", fontWeight: 600, padding: "3px 10px", borderRadius: "999px",
+            background: meta.badge.bg, border: `1px solid ${meta.badge.border}`, color: meta.badge.color,
+            letterSpacing: "0.04em", textTransform: "uppercase",
+          }}>
+            {meta.label}
+          </span>
+        </div>
+
+        {/* Title */}
+        <p style={{ color: "#fff", fontWeight: 700, fontSize: "17px", paddingRight: "32px", marginBottom: "10px", lineHeight: 1.3 }}>
           {notification.title}
         </p>
 
+        {/* Body */}
         {notification.body && (
-          <p style={{ color: "#d1d5db", fontSize: "14px", lineHeight: 1.6, marginBottom: "16px" }}>
+          <p style={{ color: "#d1d5db", fontSize: "14px", lineHeight: 1.7, marginBottom: "20px" }}>
             {notification.body}
           </p>
         )}
 
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid #1f2937" }}>
-          <span style={{ color: "#4b5563", fontSize: "12px" }}>
-            {new Date(notification.created_at).toLocaleString("en-GB", {
-              day: "2-digit", month: "short", year: "numeric",
-              hour: "2-digit", minute: "2-digit",
-            })}
-          </span>
+        {/* Footer */}
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "14px", borderTop: "1px solid #1f2937" }}>
+          <span style={{ color: "#6b7280", fontSize: "12px" }}>🕐 {formattedTime}</span>
           {!notification.is_read && (
-            <span style={{ color: "#60a5fa", fontSize: "12px", fontWeight: 500 }}>Unread</span>
+            <span style={{ color: "#60a5fa", fontSize: "11px", fontWeight: 600, letterSpacing: "0.04em", textTransform: "uppercase" }}>● Unread</span>
           )}
         </div>
       </div>
