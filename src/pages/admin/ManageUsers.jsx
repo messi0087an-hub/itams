@@ -99,10 +99,7 @@ export default function ManageUsers() {
       supabase.rpc("get_auth_users"),
       supabase.from("assets").select("assigned_user"),
     ])
-    console.log("AUTH USERS RPC RESULT:", authData)
-    console.log("FIRST USER KEYS:", authData?.[0] ? Object.keys(authData[0]) : "no data")
-    console.log("FIRST USER last_sign_in_at:", authData?.[0]?.last_sign_in_at)
-    const emailMap = {}
+const emailMap = {}
     const lastSignInMap = {}
     authData?.forEach(u => {
       emailMap[u.id] = u.email
