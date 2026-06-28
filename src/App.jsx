@@ -2,7 +2,7 @@ import { useState, useEffect, useRef, lazy, Suspense, memo } from "react"
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom"
 import { supabase } from "./lib/supabase"
 import { ThemeProvider } from "./context/ThemeContext"
-import { AuthProvider } from "./context/AuthContext"
+import { AuthProvider, useAuth } from "./context/AuthContext"
 import { NotificationProvider } from "./context/NotificationContext"
 import Sidebar from "./components/Sidebar"
 import MarketingSidebar from "./components/MarketingSidebar"
@@ -851,6 +851,12 @@ function InactivityLogout() {
   )
 }
 
+function TopBarBell() {
+  const { isGuest } = useAuth()
+  if (isGuest) return null
+  return <NotificationBell />
+}
+
 function AdminLayout({ user }) {
   return (
     <AuthProvider user={user}>
@@ -903,7 +909,7 @@ function AdminLayout({ user }) {
         <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
           <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800/50 px-4 py-2 hidden md:flex items-center gap-2">
             <GlobalSearch />
-            <NotificationBell />
+            <TopBarBell />
           </div>
           <Suspense fallback={<PageLoader />}>
             <Routes>

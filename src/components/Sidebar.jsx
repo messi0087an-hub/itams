@@ -34,7 +34,7 @@ export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const [counts, setCounts] = useState({ assets: 0, openIssues: 0, pendingRequests: 0, activeBorrows: 0 })
   const { t, i18n } = useTranslation()
-  const { userProfile, role, isAdmin, isStandardUser, isMarketing } = useAuth()
+  const { userProfile, role, isAdmin, isStandardUser, isMarketing, isGuest } = useAuth()
   const navigate = useNavigate()
 
   useEffect(() => {
@@ -112,7 +112,7 @@ export default function Sidebar() {
       <div className="fixed top-0 left-0 right-0 z-50 md:hidden bg-gray-900/80 backdrop-blur-sm border-b border-gray-800 flex items-center justify-between px-4 py-3">
         <h1 className="text-white font-bold text-lg">Trainocate</h1>
         <div className="flex items-center gap-2">
-          <NotificationBell />
+          {!isGuest && <NotificationBell />}
           <button
             onClick={() => setOpen(!open)}
             className="text-white p-2 rounded-lg bg-gray-800"
