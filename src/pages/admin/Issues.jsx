@@ -139,14 +139,15 @@ export default function Issues() {
       reported_by: userProfile?.name || null,
     }])
     if (!error) {
-      createNotification(userProfile?.id, "⚠️ Issue Reported", "Your issue has been submitted", "warning", userProfile?.country)
-      notifyAdmins(userProfile?.country, "⚠️ New Issue Reported", `${userProfile?.name || userProfile?.email || "A user"} reported a new issue`, "warning")
+      const selectedAssetName = assets.find(a => a.id === form.asset_id)?.name || "an asset"
+      createNotification(userProfile?.id, "⚠️ Issue Submitted", `Your ${form.issue_type} issue for ${selectedAssetName} was submitted successfully`, "warning", userProfile?.country, userProfile?.id)
+      notifyAdmins(userProfile?.country, "⚠️ New Issue Reported", `${userProfile?.name} reported a ${form.issue_type} issue for ${selectedAssetName}`, "warning")
       setShowForm(false)
       setForm({ asset_id: "", issue_type: "", description: "", priority: "medium" })
       setSubmitSuccess(true)
+      fetchIssues()
       setTimeout(() => {
         setSubmitSuccess(false)
-        fetchIssues()
       }, 2500)
     } else {
       setFormError(error.message)
