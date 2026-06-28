@@ -1,5 +1,21 @@
 import { useState, useEffect, useRef } from "react"
+import { createPortal } from "react-dom"
 import { useNotifications } from "../context/NotificationContext"
+
+const bellKeyframes = `
+@keyframes bellShake {
+  0%,100% { transform: rotate(0deg); }
+  10%      { transform: rotate(-18deg); }
+  20%      { transform: rotate(18deg); }
+  30%      { transform: rotate(-14deg); }
+  40%      { transform: rotate(14deg); }
+  50%      { transform: rotate(-10deg); }
+  60%      { transform: rotate(10deg); }
+  70%      { transform: rotate(-6deg); }
+  80%      { transform: rotate(6deg); }
+  90%      { transform: rotate(-2deg); }
+}
+`
 
 function timeAgo(ts) {
   const secs = Math.floor((Date.now() - new Date(ts)) / 1000)
@@ -10,7 +26,6 @@ function timeAgo(ts) {
 }
 
 function NotificationModal({ notification, onClose }) {
-  // Close on Escape key
   useEffect(() => {
     if (!notification) return
     const handler = (e) => { if (e.key === "Escape") onClose() }
@@ -20,55 +35,105 @@ function NotificationModal({ notification, onClose }) {
 
   if (!notification) return null
 
-  return (
+  return createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex items-center justify-center"
-      style={{ background: "rgba(0,0,0,0.65)" }}
+      style={{
+        position: "fixed", inset: 0, zIndex: 99999,
+        background: "rgba(0,0,0,0.7)",
+        display: "flex", alignItems: "center", justifyContent: "center",
+      }}
       onMouseDown={onClose}
     >
       <div
-        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4 relative"
-        style={{ animation: "slideInFromTop 0.2s ease-out" }}
+        style={{
+          background: "#111827",
+          border: "1px solid #374151",
+          borderRadius: "16px",
+          boxShadow: "0 25px 60px rgba(0,0,0,0.6)",
+          padding: "24px",
+          width: "100%",
+          maxWidth: "420px",
+          margin: "0 16px",
+          position: "relative",
+          animation: "slideInFromTop 0.2s ease-out",
+        }}
         onMouseDown={e => e.stopPropagation()}
       >
         <button
           onClick={onClose}
-          className="absolute top-4 right-4 text-gray-500 hover:text-white transition-colors text-xl leading-none"
+          style={{
+            position: "absolute", top: "16px", right: "16px",
+            background: "none", border: "none", cursor: "pointer",
+            color: "#6b7280", fontSize: "20px", lineHeight: 1,
+            padding: "4px",
+          }}
+          onMouseEnter={e => e.currentTarget.style.color = "#fff"}
+          onMouseLeave={e => e.currentTarget.style.color = "#6b7280"}
           aria-label="Close"
         >
           ✕
         </button>
-        <p className="text-white font-semibold text-base pr-8 mb-3">{notification.title}</p>
+
+        <p style={{ color: "#fff", fontWeight: 600, fontSize: "15px", paddingRight: "32px", marginBottom: "12px" }}>
+          {notification.title}
+        </p>
+
         {notification.body && (
-          <p className="text-gray-300 text-sm leading-relaxed mb-4">{notification.body}</p>
+          <p style={{ color: "#d1d5db", fontSize: "14px", lineHeight: 1.6, marginBottom: "16px" }}>
+            {notification.body}
+          </p>
         )}
-        <div className="flex items-center justify-between pt-3 border-t border-gray-800">
-          <span className="text-gray-600 text-xs">
+
+        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", paddingTop: "12px", borderTop: "1px solid #1f2937" }}>
+          <span style={{ color: "#4b5563", fontSize: "12px" }}>
             {new Date(notification.created_at).toLocaleString("en-GB", {
               day: "2-digit", month: "short", year: "numeric",
-              hour: "2-digit", minute: "2-digit"
+              hour: "2-digit", minute: "2-digit",
             })}
           </span>
           {!notification.is_read && (
-            <span className="text-blue-400 text-xs font-medium">Unread</span>
+            <span style={{ color: "#60a5fa", fontSize: "12px", fontWeight: 500 }}>Unread</span>
           )}
         </div>
       </div>
-    </div>
+    </div>,
+    document.body
   )
 }
 
 export default function NotificationBell() {
   const ctx = useNotifications()
-  const [open, setOpen]             = useState(false)
+
+  const [open, setOpen]               = useState(false)
   const [dropdownPos, setDropdownPos] = useState({ top: 0, left: 0 })
   const [selectedNotif, setSelectedNotif] = useState(null)
-  const buttonRef = useRef(null)
-  const panelRef  = useRef(null)
+  const [shaking, setShaking]         = useState(false)
 
-  // If context not available (e.g. marketing layout), render nothing
-  if (!ctx) return null
-  const { notifications, unread, markOne, markAll, clearAll } = ctx
+  const buttonRef  = useRef(null)
+  const panelRef   = useRef(null)
+  const prevUnread = useRef(0)
+
+  const notifications = ctx?.notifications ?? []
+  const unread        = ctx?.unread ?? 0
+  const markOne       = ctx?.markOne
+  const markAll       = ctx?.markAll
+  const clearAll      = ctx?.clearAll
+
+  // Shake bell when unread count increases
+  useEffect(() => {
+    if (unread > prevUnread.current && prevUnread.current !== undefined) {
+      setShaking(true)
+      const t = setTimeout(() => setShaking(false), 2000)
+      return () => clearTimeout(t)
+    }
+    prevUnread.current = unread
+  }, [unread])
+
+  // Sync prevUnread without triggering shake on initial load
+  useEffect(() => {
+    prevUnread.current = unread
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // Close dropdown on outside click
   useEffect(() => {
@@ -83,38 +148,40 @@ export default function NotificationBell() {
     return () => document.removeEventListener("mousedown", handler)
   }, [open])
 
-  const handleToggle = () => {
-    if (!open && buttonRef.current) {
-      const rect = buttonRef.current.getBoundingClientRect()
-      const dropdownWidth = 380
-      let left = rect.right - dropdownWidth
-      if (left < 8) left = 8
-      if (left + dropdownWidth > window.innerWidth - 8) left = window.innerWidth - dropdownWidth - 8
-      setDropdownPos({ top: rect.bottom + 8, left })
-    }
-    setOpen(o => !o)
-  }
-
+  // Reposition dropdown on resize
   useEffect(() => {
     if (!open) return
     const handleResize = () => {
-      if (buttonRef.current) {
-        const rect = buttonRef.current.getBoundingClientRect()
-        const dropdownWidth = 380
-        let left = rect.right - dropdownWidth
-        if (left < 8) left = 8
-        if (left + dropdownWidth > window.innerWidth - 8) left = window.innerWidth - dropdownWidth - 8
-        setDropdownPos({ top: rect.bottom + 8, left })
-      }
+      if (!buttonRef.current) return
+      const rect = buttonRef.current.getBoundingClientRect()
+      const w = 380
+      let left = rect.right - w
+      if (left < 8) left = 8
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8
+      setDropdownPos({ top: rect.bottom + 8, left })
     }
     window.addEventListener("resize", handleResize)
     return () => window.removeEventListener("resize", handleResize)
   }, [open])
 
+  if (!ctx) return null
+
+  const handleToggle = () => {
+    if (!open && buttonRef.current) {
+      const rect = buttonRef.current.getBoundingClientRect()
+      const w = 380
+      let left = rect.right - w
+      if (left < 8) left = 8
+      if (left + w > window.innerWidth - 8) left = window.innerWidth - w - 8
+      setDropdownPos({ top: rect.bottom + 8, left })
+    }
+    setOpen(o => !o)
+  }
+
   const handleClickNotif = async (n) => {
     if (!n.is_read) await markOne(n.id)
     setOpen(false)
-    setSelectedNotif(n.is_read ? n : { ...n, is_read: true })
+    setSelectedNotif({ ...n, is_read: true })
   }
 
   const handleMarkOne = async (e, n) => {
@@ -124,13 +191,20 @@ export default function NotificationBell() {
 
   return (
     <>
+      <style>{bellKeyframes}</style>
+
       <button
         ref={buttonRef}
         onClick={handleToggle}
         className="relative p-1.5 rounded-lg hover:bg-gray-800 transition-colors"
         title="Notifications"
       >
-        <span className="text-gray-400 text-base">🔔</span>
+        <span
+          className="text-gray-400 text-base inline-block"
+          style={shaking ? { animation: "bellShake 0.6s ease-in-out 3" } : {}}
+        >
+          🔔
+        </span>
         {unread > 0 && (
           <span className="absolute -top-0.5 -right-0.5 min-w-[16px] h-4 bg-red-500 rounded-full text-white text-[10px] flex items-center justify-center font-bold px-0.5">
             {unread > 9 ? "9+" : unread}
@@ -138,7 +212,7 @@ export default function NotificationBell() {
         )}
       </button>
 
-      {open && (
+      {open && createPortal(
         <div
           ref={panelRef}
           className="bg-gray-900 border border-gray-700 rounded-xl shadow-2xl overflow-hidden"
@@ -200,7 +274,8 @@ export default function NotificationBell() {
               ))
             )}
           </div>
-        </div>
+        </div>,
+        document.body
       )}
 
       <NotificationModal notification={selectedNotif} onClose={() => setSelectedNotif(null)} />
