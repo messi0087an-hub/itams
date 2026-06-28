@@ -408,7 +408,7 @@ const emailMap = {}
     setDeleting(true)
     const deletedLabel = deleteTarget.name || deleteTarget.email
     try {
-      const { error } = await supabase.rpc("delete_user", { user_id: deleteTarget.id })
+      const { error } = await supabase.rpc("delete_user", { target_id: deleteTarget.id })
       if (error) throw new Error(error.message)
 
       setUsers(users.filter(x => x.id !== deleteTarget.id))
