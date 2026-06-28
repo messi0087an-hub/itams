@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useNavigate, useParams } from "react-router-dom"
+import { useAuth } from "../../context/AuthContext"
 import { QRCodeSVG } from "qrcode.react"
 import { motion, AnimatePresence } from "framer-motion"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
@@ -257,6 +258,7 @@ function PhotoGallery({ assetId }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AssetDetail() {
   const { t } = useTranslation()
+  const { isAdmin, isStandardUser } = useAuth()
   const { id } = useParams()
   const navigate = useNavigate()
   const [asset, setAsset] = useState(null)
@@ -420,17 +422,19 @@ export default function AssetDetail() {
           </div>
           <p className="text-gray-500 text-xs mt-3 text-center">{t("scanToView")}</p>
 
-          {/* Two print buttons */}
-          <div className="mt-4 flex gap-2 w-full">
-            <motion.button
-              whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
-              onClick={() => setShowLabelModal(true)}
-              className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5"
-              style={{ boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}
-            >
-              🏷️ Print QR Label
-            </motion.button>
-          </div>
+          {/* Print QR Label — admin and standard users only */}
+          {(isAdmin || isStandardUser) && (
+            <div className="mt-4 flex gap-2 w-full">
+              <motion.button
+                whileHover={{ scale: 1.03 }} whileTap={{ scale: 0.97 }}
+                onClick={() => setShowLabelModal(true)}
+                className="flex-1 bg-blue-600 hover:bg-blue-500 text-white px-3 py-2 rounded-lg text-sm font-semibold transition-all flex items-center justify-center gap-1.5"
+                style={{ boxShadow: "0 0 16px rgba(59,130,246,0.35)" }}
+              >
+                🏷️ Print QR Label
+              </motion.button>
+            </div>
+          )}
 
           {/* Asset ID */}
           <p className="text-gray-700 text-xs mt-3 font-mono truncate w-full text-center">{id}</p>

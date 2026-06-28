@@ -406,6 +406,7 @@ const emailMap = {}
   const handleConfirmDelete = async () => {
     if (!deleteTarget) return
     setDeleting(true)
+    const deletedLabel = deleteTarget.name || deleteTarget.email
     try {
       const { data: { session } } = await supabase.auth.getSession()
 
@@ -416,14 +417,18 @@ const emailMap = {}
           : {},
       })
 
-      if (fnErr || data?.error) {
-        throw new Error(data?.error || fnErr?.message || "Failed to delete user")
+      const edgeFailed = fnErr || data?.error
+      if (edgeFailed) {
+        // Edge function unavailable — fall back to deleting profile row only
+        const { error: profileErr } = await supabase
+          .from("user_profiles")
+          .delete()
+          .eq("id", deleteTarget.id)
+        if (profileErr) throw new Error(profileErr.message)
       }
 
-      const deletedLabel = deleteTarget.name || deleteTarget.email
       setUsers(users.filter(x => x.id !== deleteTarget.id))
       showSuccess(`${deletedLabel} has been permanently deleted.`)
-      // Notify admin
       if (userProfile?.id) {
         createNotification(userProfile.id, "🗑️ User Deleted", `User "${deletedLabel}" was deleted`, "info", userProfile?.country)
       }

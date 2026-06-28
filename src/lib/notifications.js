@@ -26,10 +26,9 @@ export async function fetchNotifications(userId) {
     const { data, error } = await supabase
       .from("notifications")
       .select("*")
-      .or(`target_user_id.eq.${userId},target_user_id.is.null`)
-      .eq("user_id", userId)
+      .eq("target_user_id", userId)
       .order("created_at", { ascending: false })
-      .limit(20)
+      .limit(50)
     if (error) console.error("[notifications] fetch failed:", error.message, error.details)
     return data || []
   } catch {
@@ -46,14 +45,14 @@ export async function markNotificationRead(notificationId) {
 export async function markAllNotificationsRead(userId) {
   if (!userId) return
   try {
-    await supabase.from("notifications").update({ is_read: true }).eq("user_id", userId).eq("is_read", false)
+    await supabase.from("notifications").update({ is_read: true }).eq("target_user_id", userId).eq("is_read", false)
   } catch {}
 }
 
 export async function clearAllNotifications(userId) {
   if (!userId) return
   try {
-    await supabase.from("notifications").delete().eq("user_id", userId)
+    await supabase.from("notifications").delete().eq("target_user_id", userId)
   } catch {}
 }
 
