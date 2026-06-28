@@ -20,7 +20,7 @@ export function NotificationProvider({ children }) {
     const { data } = await supabase
       .from("notifications")
       .select("*")
-      .eq("target_user_id", userId)
+      .or(`target_user_id.eq.${userId},and(target_user_id.is.null,user_id.eq.${userId})`)
       .order("created_at", { ascending: false })
       .limit(20)
     setNotifications(data || [])
