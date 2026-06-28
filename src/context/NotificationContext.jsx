@@ -8,10 +8,15 @@ const NotificationContext = createContext(null)
 export function NotificationProvider({ children }) {
   const { userProfile } = useAuth()
   const userId = userProfile?.id
+  const userRole = userProfile?.role
   const [notifications, setNotifications] = useState([])
 
   const load = useCallback(async () => {
     if (!userId) return
+    if (userRole === "guest") {
+      setNotifications([])
+      return
+    }
     const { data } = await supabase
       .from("notifications")
       .select("*")
