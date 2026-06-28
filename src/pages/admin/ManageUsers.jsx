@@ -85,6 +85,7 @@ export default function ManageUsers() {
   const [detailUser, setDetailUser] = useState(null)
   const [detailAssets, setDetailAssets] = useState([])
   const [detailLoading, setDetailLoading] = useState(false)
+  const [userSearch, setUserSearch] = useState("")
   const fileInputRef = useRef()
 
   // Country defaults to Singapore for all new users
@@ -905,6 +906,17 @@ const emailMap = {}
         <span className="text-gray-600 text-xs self-center ml-1 hidden md:inline">— click a role badge on a user to change it</span>
       </div>
 
+      {/* Search */}
+      <div className="mb-4">
+        <input
+          type="text"
+          value={userSearch}
+          onChange={e => setUserSearch(e.target.value)}
+          placeholder="Search by name or email..."
+          className="w-full bg-gray-800 text-white rounded-lg px-4 py-2.5 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+        />
+      </div>
+
       {/* Users List */}
       {loading ? (
         <LoadingSkeleton rows={4} cols={2} />
@@ -912,7 +924,11 @@ const emailMap = {}
         <EmptyState preset="users" />
       ) : (
         <div className="space-y-2 md:space-y-3">
-          {users.map((u) => (
+          {users.filter(u => {
+            if (!userSearch.trim()) return true
+            const q = userSearch.toLowerCase()
+            return (u.name || "").toLowerCase().includes(q) || (u.email || "").toLowerCase().includes(q)
+          }).map((u) => (
             <motion.div
               key={u.id}
               initial={{ opacity: 0, y: 10 }}

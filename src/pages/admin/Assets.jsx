@@ -49,7 +49,7 @@ function exportToPDF(selectedAssets) {
   win.document.write(`
     <html>
     <head>
-      <title>Asset Export — ITAMS</title>
+      <title>Asset Export — Trainocate Asset Portal</title>
       <style>
         body { font-family: Arial, sans-serif; padding: 24px; font-size: 12px; color: #111; }
         h1 { font-size: 20px; margin-bottom: 4px; }
@@ -62,7 +62,7 @@ function exportToPDF(selectedAssets) {
       </style>
     </head>
     <body>
-      <h1>ITAMS — Asset Export</h1>
+      <h1>Trainocate Asset Portal — Asset Export</h1>
       <p class="sub">Exported ${selectedAssets.length} asset${selectedAssets.length !== 1 ? "s" : ""} on ${new Date().toLocaleDateString("en-SG", { day: "numeric", month: "long", year: "numeric" })}</p>
       <table>
         <thead>
@@ -137,7 +137,7 @@ export default function Assets() {
   }
 
   const handleDelete = async () => {
-    await logHistory(deleteModal.id, "Deleted", `Asset "${deleteModal.name}" was deleted from ITAMS`, userProfile?.name || userProfile?.email)
+    await logHistory(deleteModal.id, "Deleted", `Asset "${deleteModal.name}" was deleted from Trainocate Asset Portal`, userProfile?.name || userProfile?.email)
     await supabase.from("assets").delete().eq("id", deleteModal.id)
     setAssets(prev => prev.filter(a => a.id !== deleteModal.id))
     setDeleteModal(null)

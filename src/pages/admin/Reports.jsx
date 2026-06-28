@@ -89,7 +89,7 @@ function pdfHeader(doc, title) {
   doc.setTextColor(255, 255, 255)
   doc.setFontSize(16)
   doc.setFont("helvetica", "bold")
-  doc.text(`ITAMS — ${title}`, 14, 16)
+  doc.text(`Trainocate Asset Portal — ${title}`, 14, 16)
   doc.setFontSize(8)
   doc.setFont("helvetica", "normal")
   doc.text(`Trainocate Singapore · Generated: ${new Date().toLocaleDateString("en-SG")}`, 14, 24)
@@ -102,7 +102,7 @@ function pdfFooter(doc) {
     doc.setPage(i)
     doc.setFontSize(8)
     doc.setTextColor(150, 150, 150)
-    doc.text(`ITAMS — Trainocate Singapore · Page ${i} of ${n}`, 14, doc.internal.pageSize.height - 8)
+    doc.text(`Trainocate Asset Portal · Page ${i} of ${n}`, 14, doc.internal.pageSize.height - 8)
   }
 }
 
@@ -436,7 +436,7 @@ export default function Reports() {
     }
 
     pdfFooter(doc)
-    doc.save(`ITAMS_${reportType}_${today()}.pdf`)
+    doc.save(`Trainocate_${reportType}_${today()}.pdf`)
   }
 
   // ── Export Excel ─────────────────────────────────────────────────────────────
@@ -510,7 +510,7 @@ export default function Reports() {
     const ws = XLSX.utils.json_to_sheet(rows)
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "Report")
-    XLSX.writeFile(wb, `ITAMS_${reportType}_${today()}.xlsx`)
+    XLSX.writeFile(wb, `Trainocate_${reportType}_${today()}.xlsx`)
   }
 
   const rt = REPORT_TYPES.find(r => r.id === reportType)

@@ -126,7 +126,7 @@ export default function AISearch() {
 
       {answer && (
         <div className="bg-blue-500/10 border border-blue-500/30 rounded-xl p-4 mb-6">
-          <p className="text-blue-300 text-sm font-medium mb-1">🤖 ITAMS AI says:</p>
+          <p className="text-blue-300 text-sm font-medium mb-1">🤖 Trainocate Asset Portal AI says:</p>
           <p className="text-white">{answer}</p>
         </div>
       )}

@@ -142,7 +142,7 @@ export default function Scanner() {
       }
       const { data } = await supabase.from("assets").select("*").eq("id", assetId).single()
       if (data) setAsset(data)
-      else setError("Asset not found in ITAMS database.")
+      else setError("Asset not found in Trainocate Asset Portal database.")
     } else {
       // Try serial/tag cache
       const key = text.trim().toLowerCase()
@@ -436,7 +436,7 @@ export default function Scanner() {
               <div className="text-center py-8">
                 <motion.div animate={{ scale: [1, 1.05, 1] }} transition={{ duration: 2, repeat: Infinity }}
                   className="text-6xl mb-4">📷</motion.div>
-                <p className="text-gray-400 mb-2 text-sm">Scan an ITAMS QR code sticker</p>
+                <p className="text-gray-400 mb-2 text-sm">Scan a Trainocate Asset Portal QR code sticker</p>
                 <p className="text-gray-500 mb-6 text-xs">OR any manufacturer barcode on the device</p>
                 <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
                   onClick={startScanning}

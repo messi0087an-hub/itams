@@ -14,7 +14,7 @@ const guides = [
       "The bar chart shows assets grouped by category (Laptop, Desktop, etc).",
       "The donut chart shows assets grouped by status (Available, Assigned, etc).",
       "Warranty Expiry Alerts appear in yellow/red for assets expiring within 90 days.",
-      "The Recently Added Assets section shows the last 5 assets added to ITAMS.",
+      "The Recently Added Assets section shows the last 5 assets added to Trainocate Asset Portal.",
     ]
   },
   {
@@ -28,7 +28,7 @@ const guides = [
       "Click any asset row to view its full details including QR code.",
       "Click 'Edit' to update asset information like status, location, or assigned user.",
       "Click 'Delete' to remove an asset — a confirmation modal will appear first.",
-      "Click '+ Add' to register a brand new asset into ITAMS.",
+      "Click '+ Add' to register a brand new asset into Trainocate Asset Portal.",
       "After saving a new asset, a success animation will play automatically.",
     ]
   },
@@ -40,7 +40,7 @@ const guides = [
     steps: [
       "Click 'Scanner' in the sidebar to open the scanner page.",
       "Click 'Start Scanning' and allow camera access when prompted.",
-      "Point your camera at any ITAMS QR code sticker on a device.",
+      "Point your camera at any Trainocate Asset Portal QR code sticker on a device.",
       "The scanner also reads manufacturer barcodes — just scan the barcode on the device!",
       "If scanning doesn't work, use the Manual Search box below.",
       "Type the serial number, asset tag, or name to find the asset manually.",
@@ -53,7 +53,7 @@ const guides = [
     title: "QR Codes",
     color: "green",
     steps: [
-      "Every asset in ITAMS has a unique QR code automatically generated.",
+      "Every asset in Trainocate Asset Portal has a unique QR code automatically generated.",
       "Click any asset → scroll down to see its QR code.",
       "Click 'Print QR Code' to print it as a sticker.",
       "Stick the QR code on the physical device (laptop, monitor, printer etc).",
@@ -117,7 +117,7 @@ const guides = [
       "Prepare an Excel file with columns: name, category, serial_number, location, assigned_user, status.",
       "Click 'Choose File' and select your Excel file.",
       "Preview the data to make sure everything looks correct.",
-      "Click 'Import' to bulk upload all assets into ITAMS.",
+      "Click 'Import' to bulk upload all assets into Trainocate Asset Portal.",
       "All imported assets will appear immediately in the All Assets page.",
     ]
   },
@@ -143,7 +143,7 @@ const guides = [
     color: "yellow",
     steps: [
       "Click 'History' in the sidebar to view the complete audit trail.",
-      "Every action in ITAMS is logged automatically — adding, editing, deleting assets.",
+      "Every action in Trainocate Asset Portal is logged automatically — adding, editing, deleting assets.",
       "Each log entry shows: what happened, which asset, who did it, and when.",
       "Use History to track who made changes and when.",
       "This is useful for accountability and troubleshooting.",
@@ -155,7 +155,7 @@ const guides = [
     title: "Language & Theme",
     color: "pink",
     steps: [
-      "ITAMS supports 9 languages: English, Malay, Chinese, Hindi, Filipino, Thai, Indonesian, Vietnamese, Korean.",
+      "Trainocate Asset Portal supports 9 languages: English, Malay, Chinese, Hindi, Filipino, Thai, Indonesian, Vietnamese, Korean.",
       "Click any language flag in the sidebar to switch languages instantly.",
       "The navigation menu translates immediately when you switch languages.",
       "Click the ☀️ / 🌙 button at the bottom of the sidebar to toggle Light/Dark mode.",
@@ -190,16 +190,16 @@ export default function UserGuide() {
           ${g.steps.map(s => `<li style="margin-bottom:6px;font-size:13px;color:#374151;line-height:1.5;">${s}</li>`).join("")}
         </ol>
       </div>`).join("")
-    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>ITAMS User Guide</title>
+    win.document.write(`<!DOCTYPE html><html><head><meta charset="UTF-8"><title>Trainocate Asset Portal User Guide</title>
       <style>body{font-family:Arial,sans-serif;padding:32px;max-width:800px;margin:0 auto;color:#111;}
       h1{font-size:24px;font-weight:800;margin-bottom:4px;}
       .subtitle{color:#6b7280;font-size:13px;margin-bottom:28px;}
       @media print{body{padding:16px}}</style></head>
       <body>
-        <h1>📖 ITAMS User Guide</h1>
+        <h1>📖 Trainocate Asset Portal User Guide</h1>
         <p class="subtitle">Trainocate Asset Portal — Complete Guide</p>
         ${sectionsHtml}
-        <p style="color:#9ca3af;font-size:11px;margin-top:32px;text-align:center;">ITAMS v1.0 — Trainocate Singapore © 2026</p>
+        <p style="color:#9ca3af;font-size:11px;margin-top:32px;text-align:center;">Trainocate Asset Portal v1.0 — Trainocate Singapore © 2026</p>
       </body></html>`)
     win.document.close()
     win.print()
@@ -216,14 +216,14 @@ export default function UserGuide() {
     ws["!cols"] = [{ wch: 24 }, { wch: 8 }, { wch: 80 }]
     const wb = XLSX.utils.book_new()
     XLSX.utils.book_append_sheet(wb, ws, "User Guide")
-    XLSX.writeFile(wb, "ITAMS_User_Guide.xlsx")
+    XLSX.writeFile(wb, "Trainocate Asset Portal_User_Guide.xlsx")
   }
 
   return (
     <div className="p-4 md:p-8 max-w-4xl">
       <div className="mb-8">
         <h1 className="text-2xl md:text-3xl font-bold text-white">📖 User Guide</h1>
-        <p className="text-gray-400 mt-1 text-sm">Everything you need to know about using ITAMS</p>
+        <p className="text-gray-400 mt-1 text-sm">Everything you need to know about using Trainocate Asset Portal</p>
         <div className="flex flex-wrap gap-3 mt-4">
           <button
             onClick={downloadPDF}
@@ -248,7 +248,7 @@ export default function UserGuide() {
       >
         <h2 className="text-blue-400 font-bold text-lg mb-2">🚀 Quick Start</h2>
         <p className="text-gray-300 text-sm leading-relaxed">
-          Welcome to <span className="text-white font-semibold">ITAMS</span> — the IT Asset Management System for Trainocate Singapore.
+          Welcome to <span className="text-white font-semibold">Trainocate Asset Portal</span> — the IT Asset Management System for Trainocate Singapore.
           This guide will help you navigate and use all features of the system.
           Click any section below to expand it and learn more!
         </p>
@@ -336,8 +336,8 @@ export default function UserGuide() {
       >
         <p className="text-2xl mb-2">🙏</p>
         <p className="text-white font-semibold mb-1">Need more help?</p>
-        <p className="text-gray-400 text-sm">Contact your IT Administrator or refer to the ITAMS documentation.</p>
-        <p className="text-gray-600 text-xs mt-3">ITAMS v1.0 — Trainocate Singapore © 2026</p>
+        <p className="text-gray-400 text-sm">Contact your IT Administrator or refer to the Trainocate Asset Portal documentation.</p>
+        <p className="text-gray-600 text-xs mt-3">Trainocate Asset Portal v1.0 — Trainocate Singapore © 2026</p>
       </motion.div>
     </div>
   )

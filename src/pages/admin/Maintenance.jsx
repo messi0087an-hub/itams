@@ -163,11 +163,16 @@ export default function Maintenance() {
   const fetchAll = async () => {
     fetchAdminUsers()
     let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
+    maintenanceQuery = maintenanceQuery.or("archived.is.null,archived.eq.false")
 
+    let archivedRows = []
     if (showArchived) {
-      maintenanceQuery = maintenanceQuery.eq("archived", true)
-    } else {
-      maintenanceQuery = maintenanceQuery.or("archived.is.null,archived.eq.false")
+      const { data: archData } = await supabase
+        .from("maintenance_schedules")
+        .select("*")
+        .eq("archived", true)
+        .order("scheduled_date", { ascending: true })
+      archivedRows = archData || []
     }
 
     let assetQuery = supabase.from("assets").select("id, name, category, assigned_user").order("name")
@@ -175,7 +180,14 @@ export default function Maintenance() {
 
     const [{ data: s, error: sErr }, { data: a }] = await Promise.all([maintenanceQuery, assetQuery])
     if (sErr) console.error("fetchAll maintenance_schedules error:", sErr)
-    setSchedules(s || [])
+    let scheduleRows = [...(s || []), ...archivedRows]
+    if (isStandardUser && userProfile) {
+      scheduleRows = scheduleRows.filter(x =>
+        x.created_by === userProfile.name ||
+        x.created_by === userProfile.email
+      )
+    }
+    setSchedules(scheduleRows)
     const all = a || []
     if (isStandardUser && userProfile) {
       const mine = all.filter(x =>
@@ -256,9 +268,11 @@ export default function Maintenance() {
       }])
     }
 
+    const adminName = userProfile?.name || userProfile?.email || "Admin"
     if (schedule.created_by && schedule.created_by !== "Auto (recurring)") {
-      notifyUserByIdentifier(schedule.created_by, "✅ Maintenance Completed", `Maintenance for "${schedule.asset_name}" has been completed`, "success")
+      notifyUserByIdentifier(schedule.created_by, "✅ Maintenance Completed", `Your maintenance for "${schedule.asset_name}" has been completed by ${adminName}`, "success")
     }
+    notifyAdmins(userProfile?.country, "✅ Maintenance Completed", `${adminName} completed maintenance for "${schedule.asset_name}"`, "success")
     setCompleteModal(null)
     setCompletingNote("")
     setCompleting(false)

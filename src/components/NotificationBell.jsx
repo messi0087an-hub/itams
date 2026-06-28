@@ -147,20 +147,34 @@ export default function NotificationBell() {
               <p className="text-gray-500 text-sm text-center py-8">No notifications</p>
             ) : (
               notifications.map(n => (
-                <button
+                <div
                   key={n.id}
-                  onClick={() => handleClick(n)}
-                  className={`w-full text-left px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors ${!n.is_read ? "bg-blue-500/5" : ""}`}
+                  className={`flex items-start gap-2 px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors ${!n.is_read ? "bg-blue-500/5" : ""}`}
                 >
-                  <div className="flex items-start gap-2">
-                    {!n.is_read && <span className="w-2 h-2 bg-blue-400 rounded-full mt-1.5 shrink-0" />}
-                    <div className="flex-1 min-w-0" style={n.is_read ? { paddingLeft: "16px" } : {}}>
-                      <p className={`text-sm font-medium ${!n.is_read ? "text-white" : "text-gray-400"}`}>{n.title}</p>
-                      {n.body && <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{n.body}</p>}
-                      <p className="text-gray-600 text-xs mt-1">{timeAgo(n.created_at)}</p>
+                  <button className="flex-1 text-left min-w-0" onClick={() => handleClick(n)}>
+                    <div className="flex items-start gap-2">
+                      {!n.is_read && <span className="w-2 h-2 bg-blue-400 rounded-full mt-1.5 shrink-0" />}
+                      <div className="flex-1 min-w-0" style={n.is_read ? { paddingLeft: "16px" } : {}}>
+                        <p className={`text-sm font-medium ${!n.is_read ? "text-white" : "text-gray-400"}`}>{n.title}</p>
+                        {n.body && <p className="text-gray-500 text-xs mt-0.5 line-clamp-2">{n.body}</p>}
+                        <p className="text-gray-600 text-xs mt-1">{timeAgo(n.created_at)}</p>
+                      </div>
                     </div>
-                  </div>
-                </button>
+                  </button>
+                  {!n.is_read && (
+                    <button
+                      onClick={async (e) => {
+                        e.stopPropagation()
+                        await markNotificationRead(n.id)
+                        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
+                      }}
+                      title="Mark as read"
+                      className="shrink-0 mt-1 text-gray-600 hover:text-green-400 transition-colors text-sm"
+                    >
+                      ✓
+                    </button>
+                  )}
+                </div>
               ))
             )}
           </div>

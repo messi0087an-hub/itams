@@ -157,30 +157,39 @@ export default function Borrow() {
   }, [assets, location.search])
 
   const fetchBorrows = async () => {
-    let q = supabase
+    // Always fetch active borrows
+    const activeQ = supabase
       .from("borrow_history")
       .select("*, assets(name, serial_number)")
+      .is("returned_at", null)
       .order("borrowed_at", { ascending: false })
 
+    // Fetch returned/archived borrows only when showArchived is on
+    let historyRows = []
     if (showArchived) {
-      q = q.not("returned_at", "is", null)
-    } else {
-      q = q.is("returned_at", null)
+      const historyQ = supabase
+        .from("borrow_history")
+        .select("*, assets(name, serial_number)")
+        .not("returned_at", "is", null)
+        .order("borrowed_at", { ascending: false })
+      const { data: hData } = await historyQ
+      historyRows = hData || []
     }
 
-    const { data } = await q
-    const rows = data || []
+    const { data: activeData } = await activeQ
+    const activeRows = activeData || []
+    const rows = [...activeRows, ...historyRows]
     setBorrows(rows)
     setLoading(false)
 
-    const overdue = rows.filter(b => {
-      if (b.returned_at || !b.due_date) return false
+    const overdue = activeRows.filter(b => {
+      if (!b.due_date) return false
       return getDaysRemaining(b.due_date) <= 0
     })
     setDueBorrows(overdue)
     setDismissedDueAlert(false)
 
-    const pending = rows.filter(b => !b.returned_at && b.extension_pending)
+    const pending = activeRows.filter(b => b.extension_pending)
     setPendingExtensions(pending)
     setDismissedExtAlert(false)
   }
@@ -322,7 +331,7 @@ export default function Borrow() {
 
   const filteredActiveBorrows = activeBorrows.filter(b => {
     if (filterBorrowStatus === "all") return true
-    if (filterBorrowStatus === "active") return true
+    if (filterBorrowStatus === "active") return !isOverdueBorrow(b)
     if (filterBorrowStatus === "overdue") return isOverdueBorrow(b)
     return false
   })
