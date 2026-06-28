@@ -50,7 +50,6 @@ export default function Issues() {
   const [resolveSuccess, setResolveSuccess] = useState(false)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
-  const [showArchived, setShowArchived] = useState(false)
   const [formError, setFormError] = useState("")
   const [form, setForm] = useState({
     asset_id: "", issue_type: "", description: "", priority: "medium"
@@ -58,7 +57,7 @@ export default function Issues() {
 
   useEffect(() => {
     fetchIssues()
-  }, [showArchived])
+  }, [])
 
   useEffect(() => {
     if (userProfile !== null && userProfile !== undefined) {
@@ -76,22 +75,10 @@ export default function Issues() {
   }, [assets, location.search])
 
   const fetchIssues = async () => {
-    let q = supabase
+    const { data } = await supabase
       .from("issues")
       .select("*, assets(name, serial_number)")
       .order("created_at", { ascending: false })
-
-    if (showArchived) {
-      q = q.eq("archived", true)
-    } else {
-      q = q.or("archived.is.null,archived.eq.false")
-    }
-
-    if (isStandardUser && userProfile) {
-      // filter handled in JS after fetch since we join assets
-    }
-
-    const { data } = await q
     let rows = data || []
 
     if (isStandardUser && userProfile) {
@@ -287,13 +274,6 @@ export default function Issues() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setShowArchived(!showArchived)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{ background: showArchived ? "rgba(99,102,241,0.2)" : "rgba(30,41,59,0.8)", border: showArchived ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(107,114,128,0.4)", color: showArchived ? "#a5b4fc" : "#9ca3af" }}
-          >
-            📦 {showArchived ? "Hide Archived" : "Show Archived"}
-          </button>
           <button onClick={() => exportIssuesToExcel(filteredIssues)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
@@ -422,7 +402,7 @@ export default function Issues() {
               key={issue.id}
               initial={{ opacity: 0, y: 10 }}
               animate={{ opacity: 1, y: 0 }}
-              className={`bg-gray-900/80 rounded-xl border border-gray-800 p-4 ${showArchived ? "opacity-60" : ""}`}
+              className={"bg-gray-900/80 rounded-xl border border-gray-800 p-4"}
             >
               <div className="flex items-start justify-between mb-2">
                 <div className="flex-1">
@@ -485,7 +465,7 @@ export default function Issues() {
               <tr><td colSpan={6}><EmptyState preset="issues" /></td></tr>
             ) : (
               filteredIssues.map((issue) => (
-                <tr key={issue.id} className={`border-b border-gray-800 hover:bg-gray-800/50 transition-all ${showArchived ? "opacity-60" : ""}`}>
+                <tr key={issue.id} className={"border-b border-gray-800 hover:bg-gray-800/50 transition-all"}>
                   <td className="px-6 py-4">
                     <p className="text-white font-medium">{issue.assets?.name || "—"}</p>
                     <p className="text-gray-500 text-xs">{issue.assets?.serial_number || ""}</p>

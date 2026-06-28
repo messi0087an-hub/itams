@@ -120,7 +120,6 @@ export default function Borrow() {
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
   const [filterBorrowStatus, setFilterBorrowStatus] = useState("all")
-  const [showArchived, setShowArchived] = useState(false)
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -136,7 +135,7 @@ export default function Borrow() {
   useEffect(() => {
     fetchBorrows()
     checkBorrowReminders()
-  }, [showArchived])
+  }, [])
 
   useEffect(() => {
     if (userProfile !== null && userProfile !== undefined) {
@@ -157,31 +156,16 @@ export default function Borrow() {
   }, [assets, location.search])
 
   const fetchBorrows = async () => {
-    // Always fetch active borrows
-    const activeQ = supabase
+    const { data } = await supabase
       .from("borrow_history")
       .select("*, assets(name, serial_number)")
-      .is("returned_at", null)
       .order("borrowed_at", { ascending: false })
 
-    // Fetch returned/archived borrows only when showArchived is on
-    let historyRows = []
-    if (showArchived) {
-      const historyQ = supabase
-        .from("borrow_history")
-        .select("*, assets(name, serial_number)")
-        .not("returned_at", "is", null)
-        .order("borrowed_at", { ascending: false })
-      const { data: hData } = await historyQ
-      historyRows = hData || []
-    }
-
-    const { data: activeData } = await activeQ
-    const activeRows = activeData || []
-    const rows = [...activeRows, ...historyRows]
+    const rows = data || []
     setBorrows(rows)
     setLoading(false)
 
+    const activeRows = rows.filter(b => !b.returned_at)
     const overdue = activeRows.filter(b => {
       if (!b.due_date) return false
       return getDaysRemaining(b.due_date) <= 0
@@ -337,8 +321,7 @@ export default function Borrow() {
   })
 
   const filteredReturnedBorrows = returnedBorrows.filter(() => {
-    if (filterBorrowStatus === "all") return true
-    if (filterBorrowStatus === "returned") return true
+    if (filterBorrowStatus === "all" || filterBorrowStatus === "returned") return true
     return false
   })
 
@@ -522,13 +505,6 @@ export default function Borrow() {
           <p className="text-gray-400 mt-1 text-sm">{activeBorrows.length} active borrows</p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setShowArchived(!showArchived)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{ background: showArchived ? "rgba(99,102,241,0.2)" : "rgba(30,41,59,0.8)", border: showArchived ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(107,114,128,0.4)", color: showArchived ? "#a5b4fc" : "#9ca3af" }}
-          >
-            📦 {showArchived ? "Hide Archived" : "Show Archived"}
-          </button>
           <button onClick={() => exportBorrowsToExcel(borrows)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
@@ -893,7 +869,7 @@ export default function Borrow() {
           <h2 className="text-white font-semibold mb-4">Return History</h2>
           <div className="space-y-3">
             {filteredReturnedBorrows.map((borrow) => (
-              <div key={borrow.id} className={`bg-gray-900/80 rounded-xl border border-gray-800 p-4 ${showArchived ? "opacity-60" : ""}`}>
+              <div key={borrow.id} className={"bg-gray-900/80 rounded-xl border border-gray-800 p-4"}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>

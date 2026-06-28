@@ -10,6 +10,37 @@ function timeAgo(ts) {
   return `${Math.floor(secs / 86400)}d ago`
 }
 
+function NotificationModal({ notification, onClose }) {
+  if (!notification) return null
+  return (
+    <div
+      className="fixed inset-0 flex items-center justify-center z-[10000]"
+      style={{ background: "rgba(0,0,0,0.6)" }}
+      onClick={onClose}
+    >
+      <div
+        className="bg-gray-900 border border-gray-700 rounded-2xl shadow-2xl p-6 w-full max-w-md mx-4"
+        onClick={e => e.stopPropagation()}
+        style={{ animation: "slideInFromTop 0.2s ease-out" }}
+      >
+        <div className="flex items-start justify-between gap-3 mb-4">
+          <p className="text-white font-semibold text-base">{notification.title}</p>
+          <button onClick={onClose} className="text-gray-500 hover:text-gray-300 transition-colors text-lg leading-none">✕</button>
+        </div>
+        {notification.body && (
+          <p className="text-gray-300 text-sm mb-4 leading-relaxed">{notification.body}</p>
+        )}
+        <div className="flex items-center justify-between pt-3 border-t border-gray-800">
+          <span className="text-gray-600 text-xs">{new Date(notification.created_at).toLocaleString("en-GB", { day: "2-digit", month: "short", year: "numeric", hour: "2-digit", minute: "2-digit" })}</span>
+          {!notification.is_read && (
+            <span className="text-blue-400 text-xs">Unread</span>
+          )}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 export default function NotificationBell() {
   const { userProfile } = useAuth()
   const userId = userProfile?.id
@@ -17,6 +48,7 @@ export default function NotificationBell() {
   const [notifications, setNotifications] = useState([])
   const [open, setOpen]                   = useState(false)
   const [dropdownPos, setDropdownPos]     = useState({ top: 0, left: 0 })
+  const [selectedNotif, setSelectedNotif] = useState(null)
   const buttonRef = useRef(null)
   const panelRef  = useRef(null)
 
@@ -48,11 +80,8 @@ export default function NotificationBell() {
     if (!open && buttonRef.current) {
       const rect = buttonRef.current.getBoundingClientRect()
       const dropdownWidth = 380
-      // Try to align right edge to bell's right edge
       let left = rect.right - dropdownWidth
-      // If goes off left edge, clamp
       if (left < 8) left = 8
-      // If still goes off right edge (very narrow viewport), clamp
       if (left + dropdownWidth > window.innerWidth - 8) {
         left = window.innerWidth - dropdownWidth - 8
       }
@@ -81,8 +110,17 @@ export default function NotificationBell() {
     if (!n.is_read) {
       await markNotificationRead(n.id)
       setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
+      setSelectedNotif({ ...n, is_read: true })
+    } else {
+      setSelectedNotif(n)
     }
     setOpen(false)
+  }
+
+  const handleMarkOne = async (e, n) => {
+    e.stopPropagation()
+    await markNotificationRead(n.id)
+    setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
   }
 
   const handleMarkAll = async () => {
@@ -149,9 +187,10 @@ export default function NotificationBell() {
               notifications.map(n => (
                 <div
                   key={n.id}
-                  className={`flex items-start gap-2 px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors ${!n.is_read ? "bg-blue-500/5" : ""}`}
+                  className={`flex items-start gap-2 px-4 py-3 border-b border-gray-800/50 hover:bg-gray-800/50 transition-colors cursor-pointer ${!n.is_read ? "bg-blue-500/5" : ""}`}
+                  onClick={() => handleClick(n)}
                 >
-                  <button className="flex-1 text-left min-w-0" onClick={() => handleClick(n)}>
+                  <div className="flex-1 min-w-0">
                     <div className="flex items-start gap-2">
                       {!n.is_read && <span className="w-2 h-2 bg-blue-400 rounded-full mt-1.5 shrink-0" />}
                       <div className="flex-1 min-w-0" style={n.is_read ? { paddingLeft: "16px" } : {}}>
@@ -160,14 +199,10 @@ export default function NotificationBell() {
                         <p className="text-gray-600 text-xs mt-1">{timeAgo(n.created_at)}</p>
                       </div>
                     </div>
-                  </button>
+                  </div>
                   {!n.is_read && (
                     <button
-                      onClick={async (e) => {
-                        e.stopPropagation()
-                        await markNotificationRead(n.id)
-                        setNotifications(prev => prev.map(x => x.id === n.id ? { ...x, is_read: true } : x))
-                      }}
+                      onClick={(e) => handleMarkOne(e, n)}
                       title="Mark as read"
                       className="shrink-0 mt-1 text-gray-600 hover:text-green-400 transition-colors text-sm"
                     >
@@ -180,6 +215,8 @@ export default function NotificationBell() {
           </div>
         </div>
       )}
+
+      <NotificationModal notification={selectedNotif} onClose={() => setSelectedNotif(null)} />
     </>
   )
 }

@@ -109,7 +109,6 @@ export default function Maintenance() {
   const [tab, setTab] = useState("upcoming")
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
-  const [showArchived, setShowArchived] = useState(false)
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -141,7 +140,7 @@ export default function Maintenance() {
 
   useEffect(() => {
     if (!profileLoading && userProfile !== null && userProfile !== undefined) fetchAll()
-  }, [profileLoading, userProfile, userCountry, showArchived])
+  }, [profileLoading, userProfile, userCountry])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -162,25 +161,14 @@ export default function Maintenance() {
 
   const fetchAll = async () => {
     fetchAdminUsers()
-    let maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
-    maintenanceQuery = maintenanceQuery.or("archived.is.null,archived.eq.false")
-
-    let archivedRows = []
-    if (showArchived) {
-      const { data: archData } = await supabase
-        .from("maintenance_schedules")
-        .select("*")
-        .eq("archived", true)
-        .order("scheduled_date", { ascending: true })
-      archivedRows = archData || []
-    }
+    const maintenanceQuery = supabase.from("maintenance_schedules").select("*").order("scheduled_date", { ascending: true })
 
     let assetQuery = supabase.from("assets").select("id, name, category, assigned_user").order("name")
     if (userCountry) assetQuery = assetQuery.eq("country", userCountry)
 
     const [{ data: s, error: sErr }, { data: a }] = await Promise.all([maintenanceQuery, assetQuery])
     if (sErr) console.error("fetchAll maintenance_schedules error:", sErr)
-    let scheduleRows = [...(s || []), ...archivedRows]
+    let scheduleRows = s || []
     if (isStandardUser && userProfile) {
       scheduleRows = scheduleRows.filter(x =>
         x.created_by === userProfile.name ||
@@ -402,13 +390,6 @@ export default function Maintenance() {
           </p>
         </div>
         <div className="flex gap-2 flex-wrap">
-          <button
-            onClick={() => setShowArchived(!showArchived)}
-            className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
-            style={{ background: showArchived ? "rgba(99,102,241,0.2)" : "rgba(30,41,59,0.8)", border: showArchived ? "1px solid rgba(99,102,241,0.5)" : "1px solid rgba(107,114,128,0.4)", color: showArchived ? "#a5b4fc" : "#9ca3af" }}
-          >
-            📦 {showArchived ? "Hide Archived" : "Show Archived"}
-          </button>
           <button onClick={() => exportMaintenanceToExcel(filtered)}
             className="flex items-center gap-1.5 px-3 py-2 rounded-lg text-sm font-medium transition-all"
             style={{ background: "rgba(30,41,59,0.8)", border: "1px solid rgba(59,130,246,0.4)", color: "#60a5fa" }}
@@ -611,7 +592,7 @@ export default function Maintenance() {
 
             return (
               <motion.div key={s.id} initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }}
-                className={`bg-gray-900/80 rounded-xl border p-4 ${showArchived ? "opacity-60" : ""} ${
+                className={`bg-gray-900/80 rounded-xl border p-4 ${
                   isDue ? "border-l-4 border-red-500 bg-red-500/5 border-red-500/30" :
                   s.status === "completed" ? "border-green-500/20" : "border-gray-800"
                 }`}>
