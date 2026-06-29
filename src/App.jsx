@@ -259,7 +259,11 @@ function LoginPage({ onVerified }) {
       // Use Supabase Auth built-in OTP — sends 6-digit code, NOT a magic link
       const { error: otpErr } = await supabase.auth.signInWithOtp({
         email,
-        options: { shouldCreateUser: false, emailRedirectTo: undefined },
+        options: {
+          shouldCreateUser: false,
+          emailRedirectTo: undefined,
+          channel: 'email'
+        },
       })
       setOtpSending(false)
       if (otpErr) {
