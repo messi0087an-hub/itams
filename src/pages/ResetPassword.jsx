@@ -95,31 +95,27 @@ export default function ResetPassword() {
 
   // ── Supabase auth state (exchange recovery token from URL) ──────────────────
   useEffect(() => {
-    // First check URL hash for tokens
-    const hash = window.location.hash
-    if (hash && hash.includes('access_token')) {
-      // Extract tokens from hash and set session manually
+    const params = new URLSearchParams(window.location.search)
+    const tokenHash = params.get('token_hash')
+    const type = params.get('type')
+
+    if (tokenHash && type === 'recovery') {
+      supabase.auth.verifyOtp({ token_hash: tokenHash, type: 'recovery' })
+        .then(({ data, error }) => {
+          if (data?.session) setReady(true)
+          if (error) console.error('OTP verify error:', error)
+        })
+    } else {
       supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) {
-          setReady(true)
-          return
-        }
+        if (session) setReady(true)
       })
     }
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      console.log("Auth event:", event, session)
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
+      if (event === 'PASSWORD_RECOVERY' || (event === 'SIGNED_IN' && session)) {
         setReady(true)
       }
     })
-
-    // Fallback — check session after short delay
-    setTimeout(() => {
-      supabase.auth.getSession().then(({ data: { session } }) => {
-        if (session) setReady(true)
-      })
-    }, 1000)
 
     return () => subscription.unsubscribe()
   }, [])
