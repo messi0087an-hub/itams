@@ -9,56 +9,66 @@ const guides = [
     title: "Dashboard",
     color: "blue",
     steps: [
-      "The Dashboard is the first page you see after logging in.",
-      "It shows live stats: Total Assets, Available, Assigned, and Open Issues.",
-      "The bar chart shows assets grouped by category (Laptop, Desktop, etc).",
-      "The donut chart shows assets grouped by status (Available, Assigned, etc).",
-      "Warranty Expiry Alerts appear in yellow/red for assets expiring within 90 days.",
-      "The Recently Added Assets section shows the last 5 assets added to Trainocate Asset Portal.",
+      "The Dashboard is your home page after logging in — showing live system stats",
+      "Total Assets, Available, Assigned, and Open Issues are shown as coloured stat cards",
+      "Overdue Borrows and Expiring Warranties (within 30 days) are highlighted with alerts",
+      "Pending Asset Requests appear on the dashboard for quick admin action",
+      "Recently Added Assets section shows the last 5 assets added to the system",
+      "Warranty Status shows a breakdown of valid vs expired warranties",
+      "Click Overview or Analytics tabs to switch between summary and chart views",
+      "Quick action buttons: Add Asset, Report Issue, Borrow Asset"
     ]
   },
   {
     id: "assets",
     emoji: "📦",
     title: "Managing Assets",
-    color: "purple",
+    color: "green",
     steps: [
-      "Click 'All Assets' in the sidebar to view all 193+ assets.",
-      "Use the search bar to search by asset name, serial number, or assigned user.",
-      "Click any asset row to view its full details including QR code.",
-      "Click 'Edit' to update asset information like status, location, or assigned user.",
-      "Click 'Delete' to remove an asset — a confirmation modal will appear first.",
-      "Click '+ Add' to register a brand new asset into Trainocate Asset Portal.",
-      "After saving a new asset, a success animation will play automatically.",
+      "Go to All Assets to view the complete list of all assets in the system",
+      "Search assets by name, serial number, or assigned user using the search bar",
+      "Filter by Status (Available, Assigned, Maintenance, Retired) or Category",
+      "Click any asset row to open the full Asset Detail page",
+      "Use + Add to register a new asset with full details including category, serial number, location, warranty and purchase info",
+      "When Status is set to Assigned, a user dropdown appears to select who the asset is assigned to",
+      "For Software License category, additional fields appear: License Key, Number of Seats, License Expiry, Licensed To",
+      "Use the Assign button to assign one or multiple selected assets to a user",
+      "Edit button opens the edit form to update any asset details",
+      "Export Excel downloads the full asset list as a spreadsheet",
+      "Print QR Label generates a printable sticker for the selected asset",
+      "Asset Detail page shows full info, depreciation value, asset timeline, photos, and QR code"
     ]
   },
   {
     id: "scanner",
     emoji: "🔍",
     title: "Asset Scanner",
-    color: "cyan",
+    color: "purple",
     steps: [
-      "Click 'Scanner' in the sidebar to open the scanner page.",
-      "Click 'Start Scanning' and allow camera access when prompted.",
-      "Point your camera at any Trainocate Asset Portal QR code sticker on a device.",
-      "The scanner also reads manufacturer barcodes — just scan the barcode on the device!",
-      "If scanning doesn't work, use the Manual Search box below.",
-      "Type the serial number, asset tag, or name to find the asset manually.",
-      "Once found, click 'View Full Details' to see the complete asset information.",
+      "Go to Scanner to quickly look up any asset by scanning or searching",
+      "QR/Barcode tab: click Start Scanning to use your device camera to scan an asset QR sticker",
+      "Photo Scan tab: take a photo of the asset and AI will identify it automatically",
+      "Manual Search: type the serial number, asset tag, or asset name to search",
+      "Once an asset is found, full details are shown including location, assigned user, warranty and remarks",
+      "Report Issue button redirects to the Issues page with the asset pre-filled",
+      "Request Maintenance button redirects to the Maintenance page with the asset pre-filled",
+      "Borrow This Asset button redirects to the Borrow page with the asset pre-filled",
+      "View Full Details opens the complete Asset Detail page"
     ]
   },
   {
     id: "qr",
-    emoji: "📱",
-    title: "QR Codes",
-    color: "green",
+    emoji: "🏷️",
+    title: "QR Code Labels",
+    color: "yellow",
     steps: [
-      "Every asset in Trainocate Asset Portal has a unique QR code automatically generated.",
-      "Click any asset → scroll down to see its QR code.",
-      "Click 'Print QR Code' to print it as a sticker.",
-      "Stick the QR code on the physical device (laptop, monitor, printer etc).",
-      "Anyone can scan the sticker with their phone camera to instantly see asset info.",
-      "If the sticker falls off, use the Scanner page to search by serial number instead.",
+      "Select one or more assets from the All Assets page",
+      "Click Print QR Labels button at the top",
+      "A preview of the label is shown (85mm x 54mm format)",
+      "The label includes the Trainocate logo, asset name, serial number, category, location and QR code",
+      "Adjust quantity using the +/- buttons then click Print Label",
+      "Labels are designed for the Brother VC-500W label printer",
+      "Scanning the QR code on any device opens the asset detail page instantly"
     ]
   },
   {
@@ -67,14 +77,16 @@ const guides = [
     title: "Borrow & Return",
     color: "orange",
     steps: [
-      "Click 'Borrow / Return' in the sidebar.",
-      "Click '+ Borrow Asset' to borrow an available asset.",
-      "Select the asset, enter the borrower's name and email, then click 'Confirm Borrow'.",
-      "A blue success animation will play when the borrow is confirmed.",
-      "The asset status automatically changes to 'Assigned' in the system.",
-      "To return an asset, find it in the Active Borrows list and click 'Return'.",
-      "A green success animation will play when the return is confirmed.",
-      "All borrow/return history is saved automatically.",
+      "Go to Borrow / Return to manage asset borrowing",
+      "Click + Borrow Asset to open the borrow form",
+      "Select a Category first, then choose from available assets assigned to you",
+      "Fill in Borrowing For (Myself or Customer/External), Signed Off By, Date Borrowed and Due Date",
+      "Active borrows appear below with borrower name, asset, dates and due date countdown",
+      "Click Return on any active borrow to mark it as returned",
+      "Click Extend to request a due date extension — admin will be notified",
+      "Use the filter tabs: All / Active / Returned / Overdue to view different borrow states",
+      "Admins can see all borrows across all users; Standard Users see only their own",
+      "Export Excel downloads the full borrow history"
     ]
   },
   {
@@ -83,14 +95,85 @@ const guides = [
     title: "Reporting Issues",
     color: "red",
     steps: [
-      "Click 'Issues' in the sidebar to view all reported issues.",
-      "Click '+ Report' to report a new issue with any asset.",
-      "Select the asset, choose the issue type (Hardware/Software/Network/Other).",
-      "Describe the issue in detail and click 'Submit Issue'.",
-      "An orange success animation will play when the issue is submitted.",
-      "To resolve an issue, click the 'Resolve' button next to it.",
-      "A green success animation will play when the issue is resolved.",
-      "All issues are tracked with timestamps for audit purposes.",
+      "Go to Issues to report or manage asset problems",
+      "Click + Report to open the issue form",
+      "Select the Asset, Issue Type (Hardware/Software/Physical/Other), Priority and write a description",
+      "Once submitted, the issue appears in the list with status Open",
+      "Admins can see all issues; Standard Users see only issues they reported",
+      "Filter by Status (Open, In Progress, Resolved) or Priority (Low, Medium, High, Critical)",
+      "Admin can click Resolve to mark an issue as fixed — the reporter gets a notification",
+      "Export Excel downloads the full issues list"
+    ]
+  },
+  {
+    id: "maintenance",
+    emoji: "🔧",
+    title: "Maintenance",
+    color: "teal",
+    steps: [
+      "Go to Maintenance to schedule and track asset maintenance tasks",
+      "Click + Schedule to create a new maintenance task",
+      "Select the Asset, Type (Repair/Cleaning/Inspection/Upgrade/Calibration), Priority, Scheduled Date and Recurrence",
+      "Assign To field shows a dropdown of admin users (IT staff) who will handle the maintenance",
+      "Once submitted the maintenance task appears in the list",
+      "Filter by Status (Pending, In Progress, Completed) or Priority",
+      "Admin marks task as Done when maintenance is completed — the requester gets notified",
+      "Admins see all maintenance tasks; Standard Users see only their own requests",
+      "Export Excel downloads the full maintenance schedule"
+    ]
+  },
+  {
+    id: "requests",
+    emoji: "📋",
+    title: "Asset Requests",
+    color: "indigo",
+    steps: [
+      "Go to Asset Requests to submit or manage requests for new assets",
+      "Click + New Request to open the request form",
+      "Fill in Asset Type, Laptop Type (if applicable), Operating System, Department, Cost, Business Justification and Priority",
+      "Attach supporting documents (PDF only) if needed",
+      "Submitted requests appear in the list with Pending status",
+      "Admins can Approve or Reject requests — the requester gets an email notification automatically",
+      "Filter by All, Pending, or My Requests tabs",
+      "Approved/Rejected status is shown with the decision date and actioning admin"
+    ]
+  },
+  {
+    id: "import",
+    emoji: "📥",
+    title: "Importing Assets & Users",
+    color: "cyan",
+    steps: [
+      "Go to Import Assets to bulk upload assets from an Excel file",
+      "Choose Import Mode: Add new assets only (skip duplicates) or Add new + update existing",
+      "Upload your Excel file — the system reads the first sheet automatically regardless of sheet name",
+      "Required columns: name, serial_number, category, status, assigned_user, location, country, warranty_expiry, condition",
+      "A preview of detected records is shown before importing",
+      "After import, a summary shows how many were imported, skipped or failed",
+      "Import History below shows all previous imports with date, user and counts",
+      "For importing users, go to Manage Users and click Import Users",
+      "User Excel columns: Full Name, Email, Department, Role (admin/standard_user/guest), Country",
+      "Imported users automatically receive a welcome email with their login credentials"
+    ]
+  },
+  {
+    id: "users",
+    emoji: "👥",
+    title: "Manage Users",
+    color: "pink",
+    steps: [
+      "Go to Manage Users (Admin only) to manage all user accounts",
+      "User cards show name, email, role, country, last login time and number of assigned assets",
+      "Click any user card to see full details including list of assets assigned to them",
+      "Use the search bar to quickly find a user by name or email",
+      "Click + Add New User to create a new account — fill in name, email, role, department and country",
+      "Click Generate to create a secure password — the user will receive it in their welcome email",
+      "Click the pencil icon to edit a user's name, role, country or marketing access",
+      "Click the X button to delete a user account permanently",
+      "Toggle 2FA on/off for any user using the lock icon",
+      "Toggle Marketing Access using the Mktg button to give users access to the Marketing module",
+      "Import Users button allows bulk user creation from an Excel file",
+      "Role badges: Admin (full access), Standard User (limited access), Guest (view only)"
     ]
   },
   {
@@ -99,69 +182,82 @@ const guides = [
     title: "Reports & Exports",
     color: "green",
     steps: [
-      "Click 'Reports' in the sidebar to view the full asset report.",
-      "The page shows a summary of all assets by status and category.",
-      "The category breakdown shows animated progress bars.",
-      "Click '📄 PDF' to download a branded PDF report with your company header.",
-      "Click '📊 Excel' to download a full Excel spreadsheet of all assets.",
-      "The PDF includes a summary table and full asset list — ready to share with management.",
-    ]
-  },
-  {
-    id: "import",
-    emoji: "📥",
-    title: "Importing Assets",
-    color: "purple",
-    steps: [
-      "Click 'Import Assets' in the sidebar.",
-      "Prepare an Excel file with columns: name, category, serial_number, location, assigned_user, status.",
-      "Click 'Choose File' and select your Excel file.",
-      "Preview the data to make sure everything looks correct.",
-      "Click 'Import' to bulk upload all assets into Trainocate Asset Portal.",
-      "All imported assets will appear immediately in the All Assets page.",
-    ]
-  },
-  {
-    id: "ai",
-    emoji: "🤖",
-    title: "AI Chat Assistant",
-    color: "blue",
-    steps: [
-      "Click the glowing 🤖 button at the bottom right of any page.",
-      "Type your question in plain English and press Enter or click →.",
-      "Try: 'Show me all Dell laptops'",
-      "Try: 'How many assets are available?'",
-      "Try: 'Show me assets assigned to John'",
-      "Try: 'Show me all laptops'",
-      "The AI searches your entire asset database instantly and shows results.",
+      "Go to Reports to view detailed analytics and export data",
+      "Full Asset Inventory: complete list with status and category charts, filter by date range",
+      "Warranty Expiry: shows assets expiring within 30/60/90 days with visual breakdown",
+      "Department Assets: assets grouped by department with assigned vs available breakdown",
+      "Asset Depreciation: calculates current value based on straight-line depreciation over 5 years",
+      "License Usage: tracks software license status and expiry",
+      "Maintenance History: all maintenance records with status breakdown chart",
+      "Borrow History: all borrow records with active vs returned counts",
+      "Overdue Borrows: assets not returned past their due date",
+      "Assets by Department: count of assets per department",
+      "License Expiry Report: licenses expiring within 30/60/90 days",
+      "All reports can be exported as PDF or Excel using the buttons at the top right"
     ]
   },
   {
     id: "history",
-    emoji: "📋",
+    emoji: "🕐",
     title: "Asset History",
-    color: "yellow",
+    color: "gray",
     steps: [
-      "Click 'History' in the sidebar to view the complete audit trail.",
-      "Every action in Trainocate Asset Portal is logged automatically — adding, editing, deleting assets.",
-      "Each log entry shows: what happened, which asset, who did it, and when.",
-      "Use History to track who made changes and when.",
-      "This is useful for accountability and troubleshooting.",
+      "Go to History to see a complete audit trail of all asset activities",
+      "Every action is logged: asset created, updated, assigned, borrowed, returned, issues reported etc",
+      "Filter by Action Type (Created/Updated/Borrowed/Returned/Issue/Maintenance)",
+      "Filter by User — type a username to see only actions by that person",
+      "Filter by Asset Name to see history for a specific asset",
+      "Filter by Date Range using the date pickers",
+      "Each entry shows the action type badge, asset name, description, who did it and when",
+      "Export PDF or Export Excel to download the full history log"
     ]
   },
   {
-    id: "language",
-    emoji: "🌐",
-    title: "Language & Theme",
-    color: "pink",
+    id: "notifications",
+    emoji: "🔔",
+    title: "Notifications",
+    color: "yellow",
     steps: [
-      "Trainocate Asset Portal supports 9 languages: English, Malay, Chinese, Hindi, Filipino, Thai, Indonesian, Vietnamese, Korean.",
-      "Click any language flag in the sidebar to switch languages instantly.",
-      "The navigation menu translates immediately when you switch languages.",
-      "Click the ☀️ / 🌙 button at the bottom of the sidebar to toggle Light/Dark mode.",
-      "Your language preference is remembered during your session.",
+      "The bell icon at the top shows your notification count badge",
+      "Bell shakes when a new notification arrives",
+      "Click the bell to open the notifications dropdown",
+      "Click any notification to see full details in a popup modal",
+      "Click the ✓ button on any notification to mark it as read individually",
+      "Mark All Read button marks all notifications as read at once",
+      "Clear All removes all notifications from your list",
+      "Admins receive notifications when users borrow, return, extend, report issues or schedule maintenance",
+      "Standard Users receive notifications when their requests are approved, issues resolved or maintenance completed",
+      "Email notifications are also sent directly to your office email for important actions"
     ]
   },
+  {
+    id: "settings",
+    emoji: "⚙️",
+    title: "Settings",
+    color: "gray",
+    steps: [
+      "Go to Settings (Admin only) to configure system-wide options",
+      "Asset Request Approvals: set which admin receives notifications and approves asset requests",
+      "Marketing Distribution Approvals: set the approving officer for marketing distribution requests",
+      "Changes take effect immediately after clicking Save Settings"
+    ]
+  },
+  {
+    id: "marketing",
+    emoji: "🎯",
+    title: "Marketing Module",
+    color: "purple",
+    steps: [
+      "Marketing module is accessible via the Switch Module button in the sidebar",
+      "Only users with Marketing Access enabled can see this module",
+      "Marketing Dashboard shows an overview of all marketing assets and activities",
+      "Marketing Items: manage all marketing collateral and materials",
+      "Events: track event collateral sign-in and sign-out",
+      "Distribution Approvals: submit and approve marketing distribution requests",
+      "History: full audit trail of all marketing activities",
+      "Reports: analytics and exports for marketing asset usage"
+    ]
+  }
 ]
 
 const colorMap = {
@@ -173,6 +269,9 @@ const colorMap = {
   red: { bg: "bg-red-500/10", border: "border-red-500/30", text: "text-red-400", dot: "bg-red-500" },
   yellow: { bg: "bg-yellow-500/10", border: "border-yellow-500/30", text: "text-yellow-400", dot: "bg-yellow-500" },
   pink: { bg: "bg-pink-500/10", border: "border-pink-500/30", text: "text-pink-400", dot: "bg-pink-500" },
+  teal: { bg: "bg-teal-500/10", border: "border-teal-500/30", text: "text-teal-400", dot: "bg-teal-500" },
+  indigo: { bg: "bg-indigo-500/10", border: "border-indigo-500/30", text: "text-indigo-400", dot: "bg-indigo-500" },
+  gray: { bg: "bg-gray-500/10", border: "border-gray-500/30", text: "text-gray-400", dot: "bg-gray-500" },
 }
 
 export default function UserGuide() {
@@ -248,7 +347,7 @@ export default function UserGuide() {
       >
         <h2 className="text-blue-400 font-bold text-lg mb-2">🚀 Quick Start</h2>
         <p className="text-gray-300 text-sm leading-relaxed">
-          Welcome to <span className="text-white font-semibold">Trainocate Asset Portal</span> — the IT Asset Management System for Trainocate Singapore.
+          Welcome to the <span className="text-white font-semibold">Trainocate Asset Portal</span> — the IT Asset Management System for Trainocate Singapore.
           This guide will help you navigate and use all features of the system.
           Click any section below to expand it and learn more!
         </p>
