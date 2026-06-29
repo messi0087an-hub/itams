@@ -95,15 +95,32 @@ export default function ResetPassword() {
 
   // ── Supabase auth state (exchange recovery token from URL) ──────────────────
   useEffect(() => {
+    // First check URL hash for tokens
+    const hash = window.location.hash
+    if (hash && hash.includes('access_token')) {
+      // Extract tokens from hash and set session manually
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) {
+          setReady(true)
+          return
+        }
+      })
+    }
+
     const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
-      if (event === "PASSWORD_RECOVERY" || (event === "SIGNED_IN" && session)) {
+      console.log("Auth event:", event, session)
+      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") {
         setReady(true)
       }
     })
-    // In case the page loaded with an existing session already exchanged
-    supabase.auth.getSession().then(({ data: { session } }) => {
-      if (session) setReady(true)
-    })
+
+    // Fallback — check session after short delay
+    setTimeout(() => {
+      supabase.auth.getSession().then(({ data: { session } }) => {
+        if (session) setReady(true)
+      })
+    }, 1000)
+
     return () => subscription.unsubscribe()
   }, [])
 
