@@ -4,6 +4,7 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "react-i18next"
 import { motion, AnimatePresence } from "framer-motion"
+import MarketingSearch from "./MarketingSearch"
 
 const MKT = {
   bg:      "#071920",
@@ -304,8 +305,6 @@ export default function MarketingSidebar() {
           gap: "10px",
         }}
       >
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{ height: "28px", filter: "brightness(1.3)", flex: 1 }} />
-        <BellButton size={16} />
         <button
           onClick={() => setOpen(!open)}
           style={{ background: "rgba(6,182,212,0.1)", border: `1px solid ${MKT.border}`, borderRadius: "8px", color: MKT.text, width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "16px", flexShrink: 0, transition: "background 0.15s" }}
@@ -314,6 +313,10 @@ export default function MarketingSidebar() {
         >
           {open ? "✕" : "☰"}
         </button>
+        <div style={{ flex: 1, minWidth: 0 }}>
+          <MarketingSearch />
+        </div>
+        <BellButton size={16} />
       </div>
 
       {/* Notification dropdown */}
