@@ -240,8 +240,8 @@ export default function Sidebar() {
 
         </nav>
 
-        {/* Sign Out — sticky at bottom, always reachable on mobile */}
-        <div style={{ position: "sticky", bottom: 0, padding: "12px", background: "#111827", borderTop: "1px solid #1f2937", flexShrink: 0 }}>
+        {/* Sign Out — fixed at bottom, always reachable on mobile */}
+        <div style={{ position: "fixed", bottom: 0, left: 0, width: "256px", padding: "12px 16px", background: "#0f172a", borderTop: "1px solid rgba(255,255,255,0.1)", zIndex: 100 }}>
           <button
             onClick={handleLogout}
             className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
