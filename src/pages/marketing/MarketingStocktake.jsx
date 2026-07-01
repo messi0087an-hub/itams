@@ -2,6 +2,9 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import * as XLSX from "xlsx"
 
 const C = {
   accent: "#06b6d4", teal: "#14b8a6",
@@ -122,29 +125,63 @@ export default function MarketingStocktake() {
     fetchAll()
   }
 
-  const exportCSV = () => {
+  const getStocktakeRows = () => {
     const rows = []
     items.forEach(item => {
       filteredLocations.forEach(loc => {
         const sysQty = getSystemQty(item.id, loc.id)
         const key = `${item.id}_${loc.id}`
-        const actualQty = parseInt(stocktake[key]?.actual) || sysQty
-        rows.push([item.name, loc.name, sysQty, actualQty, actualQty - sysQty])
+        const actualQty = parseInt(stocktake[key]?.actual) ?? sysQty
+        rows.push({ Item: item.name, Location: loc.name, "System Qty": sysQty, "Actual Qty": actualQty, Discrepancy: actualQty - sysQty })
       })
     })
-    const csv = ["Item,Location,System Qty,Actual Qty,Discrepancy", ...rows.map(r => r.join(","))].join("\n")
+    return rows
+  }
+
+  const dateStr = new Date().toISOString().split("T")[0]
+
+  const exportCSV = () => {
+    const rows = getStocktakeRows()
+    const headers = Object.keys(rows[0])
+    const csv = [headers.join(","), ...rows.map(r => headers.map(h => r[h]).join(","))].join("\n")
     const blob = new Blob([csv], { type: "text/csv" })
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `stocktake_${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `stocktake_${dateStr}.csv`
     a.click()
+  }
+
+  const exportExcel = () => {
+    const rows = getStocktakeRows()
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Stocktake")
+    XLSX.writeFile(wb, `stocktake_${dateStr}.xlsx`)
+  }
+
+  const exportPDF = () => {
+    const rows = getStocktakeRows()
+    const doc = new jsPDF({ orientation: "landscape" })
+    doc.setFontSize(14)
+    doc.text("Stocktake Report", 14, 15)
+    doc.setFontSize(9)
+    doc.text(`Date: ${dateStr}  |  Location: ${filterLocation === "All" ? "All Locations" : locations.find(l => l.id === filterLocation)?.name || filterLocation}`, 14, 22)
+    autoTable(doc, {
+      startY: 28,
+      head: [["Item", "Location", "System Qty", "Actual Qty", "Discrepancy"]],
+      body: rows.map(r => [r.Item, r.Location, r["System Qty"], r["Actual Qty"], r.Discrepancy]),
+      styles: { fontSize: 9, cellPadding: 3 },
+      headStyles: { fillColor: [6, 182, 212], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 250, 252] },
+    })
+    doc.save(`stocktake_${dateStr}.pdf`)
   }
 
   const filteredLocations = filterLocation === "All" ? locations : locations.filter(l => l.id === filterLocation)
 
   return (
-    <div style={{ padding: "24px" }}>
+    <div style={{ padding: "24px", maxWidth: "100%", overflowX: "hidden" }}>
       {/* Success toast */}
       <AnimatePresence>
         {successMsg && (
@@ -162,9 +199,23 @@ export default function MarketingStocktake() {
           <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>🔢 Stocktake</h1>
           <p style={{ color: C.sub, fontSize: "13px" }}>Monthly physical count — verify and override quantities</p>
         </div>
-        <button onClick={exportCSV} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "9px 16px", fontSize: "12px", fontWeight: "600", cursor: "pointer" }}>
-          Export CSV
-        </button>
+        <div style={{ display: "flex", gap: "8px", flexWrap: "wrap" }}>
+          <button onClick={exportCSV} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "9px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.28)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(16,185,129,0.15)"}>
+            ⬇️ CSV
+          </button>
+          <button onClick={exportExcel} style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "10px", padding: "9px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(34,197,94,0.25)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(34,197,94,0.12)"}>
+            📊 Excel
+          </button>
+          <button onClick={exportPDF} style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "9px 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer", transition: "all 0.15s" }}
+            onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.22)"}
+            onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.12)"}>
+            📄 PDF
+          </button>
+        </div>
       </div>
 
       {/* Location filter */}

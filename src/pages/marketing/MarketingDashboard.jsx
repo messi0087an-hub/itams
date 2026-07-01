@@ -105,9 +105,10 @@ export default function MarketingDashboard() {
     setError(null)
     try {
       const today = new Date()
-      const todayStr = today.toISOString().split("T")[0]
+      const toLocalStr = d => `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,"0")}-${String(d.getDate()).padStart(2,"0")}`
+      const todayStr = toLocalStr(today)
 
-      // Week bounds (Mon–Sun)
+      // Week bounds (Mon–Sun) using local dates to avoid UTC timezone offset issues
       const dow = today.getDay() // 0=Sun
       const diffToMon = dow === 0 ? -6 : 1 - dow
       const weekStart = new Date(today)
@@ -116,8 +117,8 @@ export default function MarketingDashboard() {
       const weekEnd = new Date(weekStart)
       weekEnd.setDate(weekStart.getDate() + 6)
       weekEnd.setHours(23, 59, 59, 999)
-      const weekStartStr = weekStart.toISOString().split("T")[0]
-      const weekEndStr   = weekEnd.toISOString().split("T")[0]
+      const weekStartStr = toLocalStr(weekStart)
+      const weekEndStr   = toLocalStr(weekEnd)
 
       const [
         { data: items,     error: e1 },
@@ -213,7 +214,7 @@ export default function MarketingDashboard() {
       {/* Header */}
       <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} style={{ marginBottom: "26px" }}>
         <h1 style={{ color: C.text, fontSize: "24px", fontWeight: "800", marginBottom: "4px" }}>🎯 Marketing Dashboard</h1>
-        <p style={{ color: C.sub, fontSize: "13px" }}>Welcome back, {firstName}! Here's what's happening.</p>
+        <p style={{ color: C.sub, fontSize: "13px" }}>Welcome back to Marketing — Trainocate Asset Portal 🇸🇬 Singapore, {firstName}!</p>
       </motion.div>
 
       {/* 4 stat cards */}

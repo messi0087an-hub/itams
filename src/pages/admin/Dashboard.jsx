@@ -294,10 +294,7 @@ export default function Dashboard() {
             className="text-2xl md:text-3xl font-bold text-white">{t("dashboard")}</motion.h1>
           <motion.p initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.2 }}
             className="text-gray-400 mt-1 text-sm">
-            {t("welcomeMessage")}
-            {userCountry && (
-              <span className="ml-2 text-blue-400 font-medium">🌏 {userCountry}</span>
-            )}
+            Welcome back to IT — Trainocate Asset Portal 🇸🇬 Singapore, {userProfile?.name || userProfile?.email || ""}!
           </motion.p>
         </div>
       </div>

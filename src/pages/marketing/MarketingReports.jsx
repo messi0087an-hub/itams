@@ -2,6 +2,9 @@ import { useState, useEffect } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion } from "framer-motion"
+import jsPDF from "jspdf"
+import autoTable from "jspdf-autotable"
+import * as XLSX from "xlsx"
 
 const C = {
   accent: "#06b6d4", teal: "#14b8a6",
@@ -396,6 +399,8 @@ export default function MarketingReports() {
     setLoading(false)
   }
 
+  const fileName = `marketing_${selectedReport}_${new Date().toISOString().split("T")[0]}`
+
   const exportCSV = () => {
     if (!reportData?.rows?.length) return
     const headers = Object.keys(reportData.rows[0])
@@ -407,8 +412,36 @@ export default function MarketingReports() {
     const url = URL.createObjectURL(blob)
     const a = document.createElement("a")
     a.href = url
-    a.download = `marketing_${selectedReport}_${new Date().toISOString().split("T")[0]}.csv`
+    a.download = `${fileName}.csv`
     a.click()
+  }
+
+  const exportExcel = () => {
+    if (!reportData?.rows?.length) return
+    const ws = XLSX.utils.json_to_sheet(reportData.rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Report")
+    XLSX.writeFile(wb, `${fileName}.xlsx`)
+  }
+
+  const exportPDF = () => {
+    if (!reportData?.rows?.length) return
+    const doc = new jsPDF({ orientation: "landscape" })
+    const meta = visibleReports.find(r => r.id === selectedReport)
+    doc.setFontSize(14)
+    doc.text(`${meta?.label || selectedReport}`, 14, 15)
+    doc.setFontSize(9)
+    doc.text(`Generated: ${reportData.generatedAt}`, 14, 22)
+    const headers = Object.keys(reportData.rows[0])
+    autoTable(doc, {
+      startY: 28,
+      head: [headers.map(h => h.replace(/_/g, " ").toUpperCase())],
+      body: reportData.rows.map(r => headers.map(h => String(r[h] ?? ""))),
+      styles: { fontSize: 8, cellPadding: 3 },
+      headStyles: { fillColor: [6, 182, 212], textColor: 255 },
+      alternateRowStyles: { fillColor: [245, 250, 252] },
+    })
+    doc.save(`${fileName}.pdf`)
   }
 
   const reportMeta = visibleReports.find(r => r.id === selectedReport)
@@ -420,7 +453,7 @@ export default function MarketingReports() {
         <p style={{ color: C.sub, fontSize: "13px" }}>Generate and export marketing reports</p>
       </div>
 
-      <div style={{ display: "grid", gridTemplateColumns: "280px 1fr", gap: "20px", alignItems: "start" }}>
+      <div style={{ display: "grid", gridTemplateColumns: "clamp(220px, 28%, 280px) 1fr", gap: "20px", alignItems: "start", overflowX: "auto" }}>
 
         {/* ── Report selector ── */}
         <div style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "16px", padding: "16px" }}>
@@ -434,8 +467,11 @@ export default function MarketingReports() {
                 border: selectedReport === r.id ? `1px solid ${C.border}` : "1px solid transparent",
                 color: selectedReport === r.id ? C.accent : C.sub,
                 cursor: "pointer", fontSize: "13px", fontWeight: selectedReport === r.id ? "600" : "400",
-                textAlign: "left",
-              }}>
+                textAlign: "left", transition: "all 0.15s",
+              }}
+              onMouseEnter={e => { if (selectedReport !== r.id) { e.currentTarget.style.background = "rgba(6,182,212,0.07)"; e.currentTarget.style.color = "#e2e8f0" } }}
+              onMouseLeave={e => { if (selectedReport !== r.id) { e.currentTarget.style.background = "transparent"; e.currentTarget.style.color = C.sub } }}
+            >
               <span>{r.icon}</span>
               <span style={{ flex: 1 }}>{r.label}</span>
               {r.adminOnly && <span style={{ background: "rgba(167,139,250,0.15)", color: "#a78bfa", borderRadius: "4px", padding: "1px 5px", fontSize: "9px" }}>Admin</span>}
@@ -479,12 +515,23 @@ export default function MarketingReports() {
                     style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 20px", fontWeight: "600", fontSize: "13px", cursor: (loading || refLoading) ? "not-allowed" : "pointer", opacity: (loading || refLoading) ? 0.6 : 1 }}>
                     {refLoading ? "Loading data..." : loading ? "Generating..." : "Generate Report"}
                   </button>
-                  {reportData?.rows?.length > 0 && (
+                  {reportData?.rows?.length > 0 && (<>
                     <button onClick={exportCSV}
-                      style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "10px 20px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}>
-                      ⬇️ Export CSV
-                    </button>
-                  )}
+                      style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "10px", padding: "10px 16px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(16,185,129,0.28)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(16,185,129,0.15)"}
+                    >⬇️ CSV</button>
+                    <button onClick={exportExcel}
+                      style={{ background: "rgba(34,197,94,0.12)", color: "#4ade80", border: "1px solid rgba(34,197,94,0.3)", borderRadius: "10px", padding: "10px 16px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(34,197,94,0.25)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(34,197,94,0.12)"}
+                    >📊 Excel</button>
+                    <button onClick={exportPDF}
+                      style={{ background: "rgba(239,68,68,0.12)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "10px 16px", fontWeight: "600", fontSize: "13px", cursor: "pointer", transition: "all 0.15s" }}
+                      onMouseEnter={e => e.currentTarget.style.background = "rgba(239,68,68,0.22)"}
+                      onMouseLeave={e => e.currentTarget.style.background = "rgba(239,68,68,0.12)"}
+                    >📄 PDF</button>
+                  </>)}
                 </div>
               </div>
 

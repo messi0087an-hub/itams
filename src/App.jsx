@@ -8,6 +8,7 @@ import Sidebar from "./components/Sidebar"
 import MarketingSidebar from "./components/MarketingSidebar"
 import GlobalSearch from "./components/GlobalSearch"
 import NotificationBell from "./components/NotificationBell"
+import MarketingSearch from "./components/MarketingSearch"
 import Particles, { initParticlesEngine } from "@tsparticles/react"
 import { loadSlim } from "@tsparticles/slim"
 import { motion, AnimatePresence } from "framer-motion"
@@ -731,8 +732,8 @@ function MarketingLayout({ user }) {
         <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
           <MarketingSidebar />
           <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
-            <div className="sticky top-0 z-30 hidden md:flex items-center px-4 py-2" style={{ background: "rgba(7,25,32,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(6,182,212,0.15)" }}>
-              <span style={{ color: "#94a3b8", fontSize: "12px", fontWeight: "500", letterSpacing: "0.3px" }}>ITAMS Marketing</span>
+            <div className="sticky top-0 z-30 hidden md:flex items-center gap-3 px-4 py-2" style={{ background: "rgba(7,25,32,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(6,182,212,0.15)" }}>
+              <MarketingSearch />
             </div>
             <Suspense fallback={<PageLoader />}>
               {/* Paths here are RELATIVE to the parent /marketing/* match */}
