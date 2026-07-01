@@ -131,9 +131,9 @@ export default function MarketingDashboard() {
         supabase.from("marketing_stock").select("item_id, quantity"),
         supabase.from("marketing_classes")
           .select("*, marketing_class_gifts(*)")
-          .gte("class_date", weekStartStr)
-          .lte("class_date", weekEndStr)
-          .order("class_date"),
+          .gte("start_date", weekStartStr)
+          .lte("start_date", weekEndStr)
+          .order("start_date"),
         supabase.from("marketing_events")
           .select("id, event_name, event_date, partner_category, project_lead, event_modality, status")
           .gte("event_date", todayStr)
