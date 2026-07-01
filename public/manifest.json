@@ -1,6 +1,6 @@
 {
-    "name": "ITAMS - IT Asset Management",
-    "short_name": "ITAMS",
+    "name": "Trainocate Asset Portal",
+    "short_name": "TAP",
     "description": "IT Asset Management System for Trainocate Singapore",
     "start_url": "/",
     "display": "standalone",
