@@ -238,17 +238,18 @@ export default function Sidebar() {
             </NavLink>
           ))}
 
-          {/* Sign Out — last item in scrollable nav, always reachable */}
-          <div className="pt-3 mt-1 border-t border-gray-800">
-            <button
-              onClick={handleLogout}
-              className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
-            >
-              <span>🚪</span>
-              <span className="text-sm font-medium">{t("signOut")}</span>
-            </button>
-          </div>
         </nav>
+
+        {/* Sign Out — sticky at bottom, always reachable on mobile */}
+        <div style={{ position: "sticky", bottom: 0, padding: "12px", background: "#111827", borderTop: "1px solid #1f2937", flexShrink: 0 }}>
+          <button
+            onClick={handleLogout}
+            className="flex items-center gap-3 px-4 py-3 rounded-lg text-gray-400 hover:bg-gray-800 hover:text-red-400 transition-all w-full"
+          >
+            <span>🚪</span>
+            <span className="text-sm font-medium">{t("signOut")}</span>
+          </button>
+        </div>
       </div>
     </>
   )

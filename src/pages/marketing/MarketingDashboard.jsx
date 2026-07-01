@@ -145,6 +145,8 @@ export default function MarketingDashboard() {
           .limit(10),
       ])
 
+      console.log("CLASSES DATA:", classes, "ERROR:", e3, "weekStart:", weekStartStr, "weekEnd:", weekEndStr)
+
       // Soft-handle table-not-found errors (migration not run yet)
       if (e1?.code === "42P01" || e2?.code === "42P01") {
         setError("Marketing tables not set up yet. Please run the database migration (010_marketing_module.sql).")
