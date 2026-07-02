@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
@@ -63,6 +63,10 @@ export default function MarketingEvents() {
   const [saveError, setSaveError] = useState(null)
   const [successMsg, setSuccessMsg] = useState(null)
   const [collaterals, setCollaterals] = useState([{ item_id: "", variant_id: "", quantity_needed: 1 }])
+  const [signModal, setSignModal] = useState(null)
+  const [hasSignature, setHasSignature] = useState(false)
+  const canvasRef = useRef(null)
+  const drawingRef = useRef(false)
 
   const [form, setForm] = useState(emptyForm)
 
@@ -135,22 +139,67 @@ export default function MarketingEvents() {
     fetchAll()
   }
 
-  const handleSignOut = async (collateralId) => {
-    await supabase.from("marketing_event_collaterals").update({
-      signed_out_by: userProfile.id,
-      signed_out_name: userProfile?.name || userProfile?.email,
-      signed_out_at: new Date().toISOString(),
-    }).eq("id", collateralId)
-    fetchAll()
+  useEffect(() => {
+    if (!signModal || !canvasRef.current) return
+    const ctx = canvasRef.current.getContext("2d")
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, canvasRef.current.width, canvasRef.current.height)
+    setHasSignature(false)
+  }, [signModal])
+
+  const getCanvasPos = (e) => {
+    const canvas = canvasRef.current
+    const rect = canvas.getBoundingClientRect()
+    const point = e.touches ? e.touches[0] : e
+    return {
+      x: (point.clientX - rect.left) * (canvas.width / rect.width),
+      y: (point.clientY - rect.top) * (canvas.height / rect.height),
+    }
   }
 
-  const handleSignIn = async (collateralId, damaged = 0) => {
-    await supabase.from("marketing_event_collaterals").update({
-      signed_in_by: userProfile.id,
-      signed_in_name: userProfile?.name || userProfile?.email,
-      signed_in_at: new Date().toISOString(),
-      quantity_damaged: damaged,
-    }).eq("id", collateralId)
+  const startDraw = (e) => {
+    e.preventDefault()
+    drawingRef.current = true
+    const { x, y } = getCanvasPos(e)
+    const ctx = canvasRef.current.getContext("2d")
+    ctx.beginPath()
+    ctx.moveTo(x, y)
+  }
+
+  const draw = (e) => {
+    if (!drawingRef.current) return
+    e.preventDefault()
+    const { x, y } = getCanvasPos(e)
+    const ctx = canvasRef.current.getContext("2d")
+    ctx.lineTo(x, y)
+    ctx.strokeStyle = "#0f2730"
+    ctx.lineWidth = 2.5
+    ctx.lineCap = "round"
+    ctx.stroke()
+    setHasSignature(true)
+  }
+
+  const stopDraw = () => { drawingRef.current = false }
+
+  const clearSignature = () => {
+    const canvas = canvasRef.current
+    const ctx = canvas.getContext("2d")
+    ctx.fillStyle = "#ffffff"
+    ctx.fillRect(0, 0, canvas.width, canvas.height)
+    setHasSignature(false)
+  }
+
+  const handleConfirmSignature = async () => {
+    if (!signModal || !hasSignature) return
+    setSaving(true)
+    const signature = canvasRef.current.toDataURL("image/png")
+    const payload = signModal.mode === "out"
+      ? { signed_out_by: userProfile.id, signed_out_name: userProfile?.name || userProfile?.email, signed_out_at: new Date().toISOString(), signature }
+      : { signed_in_by: userProfile.id, signed_in_name: userProfile?.name || userProfile?.email, signed_in_at: new Date().toISOString(), signature }
+    await supabase.from("marketing_event_collaterals").update(payload).eq("id", signModal.collateral.id)
+    setSaving(false)
+    setSignModal(null)
+    showSuccess(signModal.mode === "out" ? "✅ Signed out with signature!" : "✅ Signed in with signature!")
     fetchAll()
   }
 
@@ -240,8 +289,8 @@ export default function MarketingEvents() {
                           {colVariantName && ` (${colVariantName})`}
                         </span>
                         <div style={{ display: "flex", gap: "4px" }}>
-                          {!col.signed_out_at && <button onClick={() => handleSignOut(col.id)} style={{ background: "rgba(245,158,11,0.15)", color: C.warning, border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}>Sign Out</button>}
-                          {col.signed_out_at && !col.signed_in_at && <button onClick={() => handleSignIn(col.id)} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}>Sign In</button>}
+                          {!col.signed_out_at && <button onClick={() => setSignModal({ collateral: col, itemName: colItemName, mode: "out" })} style={{ background: "rgba(245,158,11,0.15)", color: C.warning, border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}>Sign Out</button>}
+                          {col.signed_out_at && !col.signed_in_at && <button onClick={() => setSignModal({ collateral: col, itemName: colItemName, mode: "in" })} style={{ background: "rgba(16,185,129,0.15)", color: C.success, border: "none", borderRadius: "6px", padding: "3px 8px", fontSize: "10px", cursor: "pointer" }}>Sign In</button>}
                           {col.signed_in_at && <span style={{ color: C.success, fontSize: "10px" }}>✅ Returned</span>}
                           {col.signed_out_at && !col.signed_in_at && <span style={{ color: C.warning, fontSize: "10px" }}>📤 Out</span>}
                         </div>
@@ -359,6 +408,45 @@ export default function MarketingEvents() {
               <div style={{ display: "flex", gap: "10px" }}>
                 <button onClick={() => { setShowCollateralModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", cursor: "pointer" }}>Cancel</button>
                 <button onClick={handleAssignCollateral} disabled={saving} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>{saving ? "Saving..." : "Assign Collaterals"}</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Signature Modal */}
+      <AnimatePresence>
+        {signModal && (
+          <Modal title={`${signModal.mode === "out" ? "✍️ Sign Out" : "✍️ Sign In"} Collateral`} onClose={() => setSignModal(null)}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              <div style={{ background: "rgba(6,182,212,0.06)", border: `1px solid ${C.border}`, borderRadius: "10px", padding: "10px 14px" }}>
+                <p style={{ color: C.text, fontSize: "13px", fontWeight: "600" }}>{signModal.itemName}</p>
+                <p style={{ color: C.sub, fontSize: "12px" }}>Quantity: {signModal.collateral.quantity_needed}</p>
+              </div>
+              <div>
+                <p style={{ color: C.sub, fontSize: "12px", marginBottom: "6px" }}>Sign below:</p>
+                <canvas
+                  ref={canvasRef}
+                  width={480}
+                  height={180}
+                  style={{ width: "100%", height: "180px", background: "#fff", borderRadius: "10px", border: `1px solid ${C.border}`, touchAction: "none", cursor: "crosshair" }}
+                  onMouseDown={startDraw}
+                  onMouseMove={draw}
+                  onMouseUp={stopDraw}
+                  onMouseLeave={stopDraw}
+                  onTouchStart={startDraw}
+                  onTouchMove={draw}
+                  onTouchEnd={stopDraw}
+                />
+              </div>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={clearSignature} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>
+                  Clear
+                </button>
+                <button onClick={handleConfirmSignature} disabled={!hasSignature || saving}
+                  style={{ flex: 2, background: (!hasSignature || saving) ? "rgba(6,182,212,0.3)" : `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: (!hasSignature || saving) ? "not-allowed" : "pointer" }}>
+                  {saving ? "Saving..." : "Confirm"}
+                </button>
               </div>
             </div>
           </Modal>

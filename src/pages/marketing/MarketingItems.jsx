@@ -1,7 +1,8 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import * as XLSX from "xlsx"
 
 const C = {
   accent: "#06b6d4", teal: "#14b8a6",
@@ -55,6 +56,12 @@ export default function MarketingItems() {
   const [successMsg, setSuccessMsg] = useState(null)
   const [form, setForm] = useState({ name: "", category: "", description: "", item_code: "", unit: "pcs", cost_per_unit: "", delivery_charge: "", tax_amount: "", total_cost: "", is_free_from_vendor: false, supplier_name: "", minimum_stock_level: 0, expiry_date: "" })
   const [formVariants, setFormVariants] = useState([{ variant_name: "", color: "", size: "" }])
+
+  const fileInputRef = useRef(null)
+  const [showImportModal, setShowImportModal] = useState(false)
+  const [importRows, setImportRows] = useState([])
+  const [importing, setImporting] = useState(false)
+  const [importError, setImportError] = useState(null)
 
   useEffect(() => { fetchAll() }, [])
 
@@ -166,6 +173,80 @@ export default function MarketingItems() {
     fetchAll()
   }
 
+  const handleImportFile = async (e) => {
+    const file = e.target.files?.[0]
+    e.target.value = ""
+    if (!file) return
+    setImportError(null)
+    try {
+      const buf = await file.arrayBuffer()
+      const wb = XLSX.read(buf, { type: "array" })
+      const sheet = wb.Sheets[wb.SheetNames[0]]
+      const rows = XLSX.utils.sheet_to_json(sheet, { defval: "" })
+      if (rows.length === 0) {
+        setImportError("No rows found in the first sheet of this file.")
+        setImportRows([])
+      } else {
+        const get = (row, ...keys) => {
+          for (const k of keys) {
+            const found = Object.keys(row).find(rk => rk.trim().toLowerCase() === k)
+            if (found && String(row[found]).trim() !== "") return row[found]
+          }
+          return ""
+        }
+        setImportRows(rows.map(r => ({
+          name: String(get(r, "name")).trim(),
+          description: String(get(r, "description")).trim(),
+          category: String(get(r, "category")).trim(),
+          unit: String(get(r, "unit")).trim() || "pcs",
+          minimum_stock: parseInt(get(r, "minimum_stock", "minimum_stock_level")) || 0,
+        })))
+      }
+    } catch (err) {
+      setImportError(`Could not read file: ${err.message}`)
+      setImportRows([])
+    }
+    setShowImportModal(true)
+  }
+
+  const handleConfirmImport = async () => {
+    const validRows = importRows.filter(r => r.name)
+    setImporting(true)
+    let successCount = 0
+    let failCount = 0
+    const insertedItems = []
+
+    for (const row of validRows) {
+      const { data, error } = await supabase
+        .from("marketing_items")
+        .insert({
+          name: row.name,
+          description: row.description || null,
+          category: row.category || null,
+          unit: row.unit || "pcs",
+          minimum_stock_level: row.minimum_stock || 0,
+        })
+        .select()
+        .single()
+      if (error) failCount++
+      else { successCount++; insertedItems.push(data) }
+    }
+    failCount += importRows.length - validRows.length
+
+    if (locations.length > 0 && insertedItems.length > 0) {
+      const stockRows = []
+      insertedItems.forEach(item => locations.forEach(loc => stockRows.push({ item_id: item.id, location_id: loc.id, quantity: 0 })))
+      await supabase.from("marketing_stock").insert(stockRows)
+    }
+
+    setImporting(false)
+    setShowImportModal(false)
+    setImportRows([])
+    setSuccessMsg(`✅ Import complete: ${successCount} added${failCount > 0 ? `, ${failCount} failed` : ""}`)
+    setTimeout(() => setSuccessMsg(null), 7000)
+    fetchAll()
+  }
+
   const filtered = items.filter(item => {
     const qty = getItemStock(item.id)
     const min = item.minimum_stock_level || 0
@@ -199,12 +280,24 @@ export default function MarketingItems() {
           <p style={{ color: C.sub, fontSize: "13px" }}>{items.length} items tracked</p>
         </div>
         {isAdmin && (
-          <button
-            onClick={() => setShowModal(true)}
-            style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
-          >
-            + Add New Item
-          </button>
+          <div style={{ display: "flex", gap: "10px" }}>
+            <input
+              ref={fileInputRef} type="file" accept=".xlsx"
+              onChange={handleImportFile} style={{ display: "none" }}
+            />
+            <button
+              onClick={() => fileInputRef.current?.click()}
+              style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+            >
+              📥 Import Items
+            </button>
+            <button
+              onClick={() => setShowModal(true)}
+              style={{ background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+            >
+              + Add New Item
+            </button>
+          </div>
         )}
       </div>
 
@@ -476,6 +569,88 @@ export default function MarketingItems() {
                     {saving ? "Saving..." : "Save Item"}
                   </button>
                 </div>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Import Preview Modal */}
+      <AnimatePresence>
+        {showImportModal && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.7)", zIndex: 1000, display: "flex", alignItems: "center", justifyContent: "center", padding: "16px" }}
+            onClick={e => { if (e.target === e.currentTarget && !importing) { setShowImportModal(false); setImportRows([]); setImportError(null) } }}
+          >
+            <motion.div
+              initial={{ scale: 0.95, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.95, opacity: 0 }}
+              style={{ background: "#0f2730", border: `1px solid ${C.border}`, borderRadius: "20px", padding: "28px", width: "100%", maxWidth: "640px", maxHeight: "85vh", overflowY: "auto" }}
+            >
+              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: "18px" }}>
+                <h2 style={{ color: C.text, fontSize: "18px", fontWeight: "700" }}>Import Items from Excel</h2>
+                <button onClick={() => { setShowImportModal(false); setImportRows([]); setImportError(null) }} disabled={importing}
+                  style={{ color: C.sub, background: "none", border: "none", cursor: "pointer", fontSize: "20px" }}>✕</button>
+              </div>
+
+              {importError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "10px", padding: "12px 14px", marginBottom: "16px", color: C.error, fontSize: "13px" }}>
+                  ⚠️ {importError}
+                </div>
+              )}
+
+              {importRows.length > 0 && (
+                <>
+                  <p style={{ color: C.sub, fontSize: "13px", marginBottom: "12px" }}>
+                    {importRows.filter(r => r.name).length} item{importRows.filter(r => r.name).length !== 1 ? "s" : ""} ready to import
+                    {importRows.some(r => !r.name) && (
+                      <span style={{ color: C.warning }}> · {importRows.filter(r => !r.name).length} row{importRows.filter(r => !r.name).length !== 1 ? "s" : ""} skipped (missing name)</span>
+                    )}
+                  </p>
+                  <div style={{ border: `1px solid ${C.border}`, borderRadius: "12px", overflow: "hidden", marginBottom: "20px" }}>
+                    <div style={{ overflowX: "auto" }}>
+                      <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", minWidth: "480px" }}>
+                        <thead>
+                          <tr>
+                            {["Name", "Category", "Unit", "Min Stock", ""].map(h => (
+                              <th key={h} style={{ color: C.sub, textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${C.border}`, fontSize: "10.5px", fontWeight: "600", textTransform: "uppercase" }}>{h}</th>
+                            ))}
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {importRows.map((row, i) => (
+                            <tr key={i} style={{ borderBottom: `1px solid rgba(6,182,212,0.08)`, opacity: row.name ? 1 : 0.5 }}>
+                              <td style={{ color: C.text, padding: "7px 10px" }}>{row.name || "(no name)"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.category || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.unit}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.minimum_stock}</td>
+                              <td style={{ padding: "7px 10px" }}>
+                                {row.name
+                                  ? <span style={{ color: C.success, fontSize: "12px" }}>✅</span>
+                                  : <span style={{ color: C.error, fontSize: "12px" }}>⚠️ skip</span>}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={() => { setShowImportModal(false); setImportRows([]); setImportError(null) }} disabled={importing}
+                  style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: `1px solid rgba(148,163,184,0.2)`, borderRadius: "10px", padding: "11px", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}>
+                  Cancel
+                </button>
+                <button onClick={handleConfirmImport} disabled={importing || importRows.filter(r => r.name).length === 0}
+                  style={{ flex: 2, background: importing ? "rgba(6,182,212,0.3)" : `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "11px", fontSize: "13px", fontWeight: "600", cursor: importing ? "not-allowed" : "pointer" }}>
+                  {importing ? "Importing..." : `Import ${importRows.filter(r => r.name).length || ""} Item${importRows.filter(r => r.name).length !== 1 ? "s" : ""}`}
+                </button>
               </div>
             </motion.div>
           </motion.div>
