@@ -1,4 +1,5 @@
 import { useState, useEffect } from "react"
+import { useNavigate } from "react-router-dom"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
@@ -36,7 +37,11 @@ function StatusBadge({ status }) {
 
 export default function MarketingApprovals() {
   const { userProfile, canManageMarketing, role } = useAuth()
-  const [tab, setTab] = useState("pending")
+  const navigate = useNavigate()
+  const marketingRole = userProfile?.marketing_role
+  const isBDM = marketingRole === "bdm"
+  const isBDMS = marketingRole === "bdms"
+  const [tab, setTab] = useState(isBDM ? "my" : "pending")
   const [approvals, setApprovals] = useState([])
   const [myRequests, setMyRequests] = useState([])
   const [items, setItems] = useState([])
@@ -55,6 +60,10 @@ export default function MarketingApprovals() {
   }
 
   useEffect(() => { fetchAll() }, [])
+
+  useEffect(() => {
+    if (isBDMS) navigate("/marketing/dashboard", { replace: true })
+  }, [isBDMS])
 
   const fetchAll = async () => {
     setLoading(true)
@@ -159,6 +168,8 @@ export default function MarketingApprovals() {
     setTab("my")
   }
 
+  if (isBDMS) return null
+
   return (
     <div style={{ padding: "24px" }}>
       {/* Success toast */}
@@ -185,7 +196,7 @@ export default function MarketingApprovals() {
 
       {/* Tabs */}
       <div style={{ display: "flex", gap: "6px", marginBottom: "24px" }}>
-        {[["pending", `⏳ Pending (${approvals.length})`], ["my", "📋 My Requests"]].map(([t, label]) => (
+        {(isBDM ? [["my", "📋 My Requests"]] : [["pending", `⏳ Pending (${approvals.length})`], ["my", "📋 My Requests"]]).map(([t, label]) => (
           <button key={t} onClick={() => setTab(t)} style={{
             padding: "9px 18px", borderRadius: "10px", border: "none", cursor: "pointer", fontWeight: "600", fontSize: "13px",
             background: tab === t ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(6,182,212,0.08)",

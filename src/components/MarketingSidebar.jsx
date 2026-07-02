@@ -59,6 +59,13 @@ export default function MarketingSidebar() {
   const displayName = userProfile?.name || userProfile?.full_name || userProfile?.email || "Marketing User"
   const firstLetter = (displayName[0] || "M").toUpperCase()
 
+  const marketingRole = userProfile?.marketing_role
+  const visibleNavItems = marketingRole === "bdm"
+    ? navItems.filter(item => ["/marketing/dashboard", "/marketing/items", "/marketing/approvals"].includes(item.path))
+    : marketingRole === "bdms"
+    ? navItems.filter(item => ["/marketing/dashboard", "/marketing/items"].includes(item.path))
+    : navItems
+
   useEffect(() => {
     if (!userProfile?.id) return
     fetchNotifications()
@@ -254,7 +261,7 @@ export default function MarketingSidebar() {
           .mkt-nav-link { display:flex;align-items:center;gap:10px;padding:9px 12px;border-radius:10px;margin-bottom:2px;text-decoration:none;font-size:13.5px;transition:all 0.15s; }
           .mkt-nav-link:not(.active):hover { background:rgba(6,182,212,0.1)!important; color:#e2e8f0!important; }
         `}</style>
-        {navItems.map(item => (
+        {visibleNavItems.map(item => (
           <NavLink
             key={item.path}
             to={item.path}
