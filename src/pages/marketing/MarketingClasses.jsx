@@ -55,6 +55,13 @@ export default function MarketingClasses() {
   const [showReviewModal, setShowReviewModal] = useState(null)
   const [reviews, setReviews] = useState([])
   const [reviewRows, setReviewRows] = useState([{ attendee_name: "", left_review: false, gift_item_id: "" }])
+  const [showTimingModal, setShowTimingModal] = useState(null)
+  const [trainerTimings, setTrainerTimings] = useState([])
+  const [timingForm, setTimingForm] = useState({ trainer_name: "", arrival_time: "", start_time: "", end_time: "", notes: "" })
+  const [showAttendanceModal, setShowAttendanceModal] = useState(null)
+  const [attendance, setAttendance] = useState([])
+  const [attendanceRows, setAttendanceRows] = useState([{ attendee_name: "", status: "Present" }])
+  const [bulkPasteText, setBulkPasteText] = useState("")
 
   const [form, setForm] = useState(emptyForm)
 
@@ -67,22 +74,28 @@ export default function MarketingClasses() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [{ data: c }, { data: i }, { data: v }, { data: s }, { data: r }] = await Promise.all([
+    const [{ data: c }, { data: i }, { data: v }, { data: s }, { data: r }, { data: t }, { data: a }] = await Promise.all([
       supabase.from("marketing_classes").select("*, marketing_class_gifts(*)").order("class_date", { ascending: false }),
       supabase.from("marketing_items").select("id, name, unit, category").order("name"),
       supabase.from("marketing_item_variants").select("*"),
       supabase.from("marketing_stock").select("item_id, quantity"),
       supabase.from("marketing_google_reviews").select("*").order("created_at", { ascending: false }),
+      supabase.from("marketing_trainer_timing").select("*"),
+      supabase.from("marketing_attendance").select("*").order("created_at"),
     ])
     setClasses(c || [])
     setItems(i || [])
     setVariants(v || [])
     setStock(s || [])
     setReviews(r || [])
+    setTrainerTimings(t || [])
+    setAttendance(a || [])
     setLoading(false)
   }
 
   const getClassReviews = (classId) => reviews.filter(r => r.class_id === classId)
+  const getClassTiming = (classId) => trainerTimings.find(t => t.class_id === classId)
+  const getClassAttendance = (classId) => attendance.filter(a => a.class_id === classId)
 
   const getItemStock = (itemId) =>
     stock.filter(s => s.item_id === itemId).reduce((sum, s) => sum + s.quantity, 0)
@@ -195,6 +208,119 @@ export default function MarketingClasses() {
     fetchAll()
   }
 
+  const handleSaveTiming = async () => {
+    if (!showTimingModal) return
+    setSaving(true)
+    setSaveError(null)
+    const existing = getClassTiming(showTimingModal.id)
+    const payload = {
+      class_id: showTimingModal.id,
+      trainer_name: timingForm.trainer_name || null,
+      arrival_time: timingForm.arrival_time || null,
+      start_time: timingForm.start_time || null,
+      end_time: timingForm.end_time || null,
+      notes: timingForm.notes || null,
+      recorded_by: userProfile?.id,
+      recorded_by_name: userProfile?.name || userProfile?.email,
+    }
+    let error
+    if (existing) {
+      ({ error } = await supabase.from("marketing_trainer_timing").update({ ...payload, updated_at: new Date().toISOString() }).eq("id", existing.id))
+    } else {
+      ({ error } = await supabase.from("marketing_trainer_timing").insert(payload))
+    }
+    if (error) {
+      setSaving(false)
+      setSaveError(`Could not save timing: ${error.message}`)
+      return
+    }
+    setSaving(false)
+    setShowTimingModal(null)
+    setSaveError(null)
+    showSuccess("✅ Trainer timing saved!")
+    fetchAll()
+  }
+
+  const handleAddFromPaste = () => {
+    const names = bulkPasteText.split(",").map(n => n.trim()).filter(Boolean)
+    if (names.length === 0) return
+    setAttendanceRows(prev => [...prev.filter(r => r.attendee_name.trim()), ...names.map(n => ({ attendee_name: n, status: "Present" }))])
+    setBulkPasteText("")
+  }
+
+  const handleSaveAttendance = async () => {
+    if (!showAttendanceModal) return
+    setSaving(true)
+    setSaveError(null)
+
+    const existing = getClassAttendance(showAttendanceModal.id)
+    const currentIds = attendanceRows.filter(r => r.id).map(r => r.id)
+    const removedIds = existing.filter(e => !currentIds.includes(e.id)).map(e => e.id)
+    const validRows = attendanceRows.filter(r => r.attendee_name.trim())
+
+    if (removedIds.length) {
+      const { error: delErr } = await supabase.from("marketing_attendance").delete().in("id", removedIds)
+      if (delErr) {
+        setSaving(false)
+        setSaveError(`Could not update attendance: ${delErr.message}`)
+        return
+      }
+    }
+
+    const toInsert = validRows.filter(r => !r.id).map(r => ({
+      class_id: showAttendanceModal.id,
+      attendee_name: r.attendee_name.trim(),
+      status: r.status,
+      created_by: userProfile?.id,
+      created_by_name: userProfile?.name || userProfile?.email,
+    }))
+    if (toInsert.length) {
+      const { error: insErr } = await supabase.from("marketing_attendance").insert(toInsert)
+      if (insErr) {
+        setSaving(false)
+        setSaveError(`Could not save attendance: ${insErr.message}`)
+        return
+      }
+    }
+
+    for (const r of validRows.filter(r => r.id)) {
+      const { error: updErr } = await supabase.from("marketing_attendance").update({ attendee_name: r.attendee_name.trim(), status: r.status }).eq("id", r.id)
+      if (updErr) {
+        setSaving(false)
+        setSaveError(`Could not update attendance: ${updErr.message}`)
+        return
+      }
+    }
+
+    setSaving(false)
+    setShowAttendanceModal(null)
+    setSaveError(null)
+    setBulkPasteText("")
+    showSuccess("✅ Attendance saved!")
+    fetchAll()
+  }
+
+  const openTimingModal = (cls) => {
+    const existing = getClassTiming(cls.id)
+    setShowTimingModal(cls)
+    setTimingForm({
+      trainer_name: existing?.trainer_name || cls.trainer_name || "",
+      arrival_time: existing?.arrival_time || "",
+      start_time: existing?.start_time || "",
+      end_time: existing?.end_time || "",
+      notes: existing?.notes || "",
+    })
+    setSaveError(null)
+  }
+
+  const openAttendanceModal = (cls) => {
+    const existing = getClassAttendance(cls.id)
+    setShowAttendanceModal(cls)
+    setAttendanceRows(existing.length > 0 ? existing.map(a => ({ id: a.id, attendee_name: a.attendee_name, status: a.status })) : [{ attendee_name: "", status: "Present" }])
+    setBulkPasteText("")
+    setSaveError(null)
+  }
+
   const weekClasses = classes.filter(c => isThisWeek(c.class_date))
   const otherClasses = classes.filter(c => !isThisWeek(c.class_date))
 
@@ -229,7 +355,7 @@ export default function MarketingClasses() {
         <div style={{ marginBottom: "28px" }}>
           <h2 style={{ color: C.accent, fontSize: "15px", fontWeight: "700", marginBottom: "12px" }}>📅 This Week's Classes</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} />)}
+            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onTiming={() => openTimingModal(cls)} onAttendance={() => openAttendanceModal(cls)} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} timing={getClassTiming(cls.id)} attendance={getClassAttendance(cls.id)} />)}
           </div>
         </div>
       )}
@@ -240,7 +366,7 @@ export default function MarketingClasses() {
         {loading ? <p style={{ color: C.sub }}>Loading...</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {classes.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>No classes yet. Add a class to get started.</p>}
-            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} />)}
+            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onTiming={() => openTimingModal(cls)} onAttendance={() => openAttendanceModal(cls)} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} timing={getClassTiming(cls.id)} attendance={getClassAttendance(cls.id)} />)}
           </div>
         )}
       </div>
@@ -397,15 +523,100 @@ export default function MarketingClasses() {
           </Modal>
         )}
       </AnimatePresence>
+
+      {/* Trainer Timing Modal */}
+      <AnimatePresence>
+        {showTimingModal && (
+          <Modal title={`⏱️ Trainer Timing — ${showTimingModal.class_name}`} onClose={() => { setShowTimingModal(null); setSaveError(null) }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "12px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
+              <Field label="Trainer Name">
+                <input value={timingForm.trainer_name} onChange={e => setTimingForm({ ...timingForm, trainer_name: e.target.value })} placeholder="Trainer name" style={inputStyle} />
+              </Field>
+              <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr 1fr", gap: "10px" }}>
+                <Field label="Arrival Time">
+                  <input type="time" value={timingForm.arrival_time} onChange={e => setTimingForm({ ...timingForm, arrival_time: e.target.value })} style={inputStyle} />
+                </Field>
+                <Field label="Start Time">
+                  <input type="time" value={timingForm.start_time} onChange={e => setTimingForm({ ...timingForm, start_time: e.target.value })} style={inputStyle} />
+                </Field>
+                <Field label="End Time">
+                  <input type="time" value={timingForm.end_time} onChange={e => setTimingForm({ ...timingForm, end_time: e.target.value })} style={inputStyle} />
+                </Field>
+              </div>
+              <Field label="Notes">
+                <textarea value={timingForm.notes} onChange={e => setTimingForm({ ...timingForm, notes: e.target.value })} rows={2} style={{ ...inputStyle, resize: "vertical" }} />
+              </Field>
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={() => { setShowTimingModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+                <button onClick={handleSaveTiming} disabled={saving} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Save Timing"}</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
+
+      {/* Attendance Modal */}
+      <AnimatePresence>
+        {showAttendanceModal && (
+          <Modal title={`👥 Attendance — ${showAttendanceModal.class_name}`} onClose={() => { setShowAttendanceModal(null); setSaveError(null) }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "14px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
+
+              <Field label="Paste comma-separated names (optional)">
+                <div style={{ display: "flex", gap: "8px" }}>
+                  <input value={bulkPasteText} onChange={e => setBulkPasteText(e.target.value)} placeholder="e.g. John Tan, Mary Lim, Ahmad Faiz" style={inputStyle} />
+                  <button onClick={handleAddFromPaste} style={{ background: "rgba(6,182,212,0.15)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "0 14px", fontSize: "12px", fontWeight: "600", cursor: "pointer", whiteSpace: "nowrap" }}>Add List</button>
+                </div>
+              </Field>
+
+              <div>
+                <p style={{ color: C.sub, fontSize: "12px", fontWeight: "600", marginBottom: "8px" }}>Attendees</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px", maxHeight: "320px", overflowY: "auto" }}>
+                  {attendanceRows.map((r, i) => (
+                    <div key={r.id || `new-${i}`} style={{ display: "grid", gridTemplateColumns: "1fr 110px 30px", gap: "6px", alignItems: "center" }}>
+                      <input value={r.attendee_name} onChange={e => { const arr = [...attendanceRows]; arr[i].attendee_name = e.target.value; setAttendanceRows(arr) }}
+                        placeholder="Attendee name" style={inputStyle} />
+                      <select value={r.status} onChange={e => { const arr = [...attendanceRows]; arr[i].status = e.target.value; setAttendanceRows(arr) }} style={inputStyle}>
+                        <option value="Present">Present</option>
+                        <option value="Absent">Absent</option>
+                      </select>
+                      <button onClick={() => setAttendanceRows(prev => prev.filter((_, idx) => idx !== i))} style={{ color: C.error, background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>✕</button>
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setAttendanceRows(prev => [...prev, { attendee_name: "", status: "Present" }])}
+                  style={{ marginTop: "8px", background: "rgba(6,182,212,0.08)", color: C.accent, border: `1px dashed ${C.border}`, borderRadius: "8px", padding: "8px", fontSize: "12px", cursor: "pointer", fontWeight: "600", width: "100%" }}>
+                  + Add Attendee
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={() => { setShowAttendanceModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Cancel</button>
+                <button onClick={handleSaveAttendance} disabled={saving || !attendanceRows.some(r => r.attendee_name.trim())} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Save Attendance"}</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-function ClassCard({ cls, onAssign, onTrackReviews, onPacked, onDistributed, canManage, items, variants, getItemStock, reviews }) {
+function ClassCard({ cls, onAssign, onTrackReviews, onTiming, onAttendance, onPacked, onDistributed, canManage, items, variants, getItemStock, reviews, timing, attendance }) {
   const gifts = cls.marketing_class_gifts || []
   const allDist = gifts.length > 0 && gifts.every(g => g.is_distributed)
   const allPacked = gifts.length > 0 && gifts.every(g => g.is_packed)
   const reviewCount = reviews?.filter(r => r.left_review).length || 0
+  const presentCount = attendance?.filter(a => a.status === "Present").length || 0
 
   return (
     <motion.div whileHover={{ scale: 1.005 }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "16px" }}>
@@ -420,11 +631,23 @@ function ClassCard({ cls, onAssign, onTrackReviews, onPacked, onDistributed, can
                 ⭐ {reviewCount}/{reviews.length} reviews
               </span>
             )}
+            {timing && (
+              <span style={{ background: "rgba(16,185,129,0.12)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "6px", padding: "1px 8px", fontSize: "11px", fontWeight: "600" }}>
+                ✅ Timing recorded
+              </span>
+            )}
+            {attendance?.length > 0 && (
+              <span style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "6px", padding: "1px 8px", fontSize: "11px", fontWeight: "600" }}>
+                👥 {presentCount}/{attendance.length} attended
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {canManage && <button onClick={onAssign} style={{ background: "rgba(6,182,212,0.12)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>🎁 Assign Gifts</button>}
           {canManage && <button onClick={onTrackReviews} style={{ background: "rgba(245,158,11,0.12)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>🎁 Track Google Reviews</button>}
+          {canManage && <button onClick={onTiming} style={{ background: "rgba(16,185,129,0.12)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>⏱️ Trainer Timing</button>}
+          {canManage && <button onClick={onAttendance} style={{ background: "rgba(6,182,212,0.12)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>👥 Attendance</button>}
           {canManage && !allPacked && gifts.length > 0 && <button onClick={onPacked} style={{ background: "rgba(245,158,11,0.12)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>📦 Mark Packed</button>}
           {canManage && allPacked && !allDist && <button onClick={onDistributed} style={{ background: "rgba(16,185,129,0.12)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>✅ Mark Distributed</button>}
         </div>
