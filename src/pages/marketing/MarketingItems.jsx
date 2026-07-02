@@ -162,7 +162,7 @@ export default function MarketingItems() {
     setShowModal(false)
     resetForm()
     setSuccessMsg(`✅ "${item.name}" added successfully!`)
-    setTimeout(() => setSuccessMsg(null), 4000)
+    setTimeout(() => setSuccessMsg(null), 7000)
     fetchAll()
   }
 

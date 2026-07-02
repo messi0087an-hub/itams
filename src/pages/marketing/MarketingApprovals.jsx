@@ -51,7 +51,7 @@ export default function MarketingApprovals() {
 
   const showSuccess = (msg) => {
     setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(null), 4000)
+    setTimeout(() => setSuccessMsg(null), 7000)
   }
 
   useEffect(() => { fetchAll() }, [])

@@ -28,7 +28,7 @@ export default function MarketingStocktake() {
 
   const showSuccess = (msg) => {
     setSuccessMsg(msg)
-    setTimeout(() => setSuccessMsg(null), 4000)
+    setTimeout(() => setSuccessMsg(null), 7000)
   }
 
   useEffect(() => { fetchAll() }, [])
@@ -123,6 +123,7 @@ export default function MarketingStocktake() {
     setSaving(false)
     showSuccess(`✅ ${item.name} @ ${location.name} saved — quantity set to ${actualQty}`)
     fetchAll()
+    setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 3000)
   }
 
   const getStocktakeRows = () => {
@@ -302,18 +303,24 @@ export default function MarketingStocktake() {
                                 style={{ width: "120px", background: "rgba(6,182,212,0.04)", color: C.sub, border: `1px solid rgba(6,182,212,0.1)`, borderRadius: "6px", padding: "5px 8px", fontSize: "12px", outline: "none" }}
                               />
                             </td>
-                            <td style={{ padding: "6px 10px" }}>
-                              {isSaved ? (
-                                <span style={{ color: C.success, fontSize: "12px" }}>✅ Saved</span>
-                              ) : (
-                                <button
-                                  onClick={() => handleSaveRow(item, location)}
-                                  disabled={saving || actual === ""}
-                                  style={{ background: actual !== "" ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(148,163,184,0.1)", color: actual !== "" ? "#fff" : C.sub, border: "none", borderRadius: "6px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", cursor: actual !== "" ? "pointer" : "not-allowed", opacity: saving ? 0.6 : 1 }}
-                                >
-                                  {saving ? "..." : "Save"}
-                                </button>
-                              )}
+                            <td style={{ padding: "6px 10px", display: "flex", alignItems: "center", gap: "8px" }}>
+                              <button
+                                onClick={() => handleSaveRow(item, location)}
+                                disabled={saving || actual === ""}
+                                style={{ background: actual !== "" ? `linear-gradient(135deg, ${C.accent}, ${C.teal})` : "rgba(148,163,184,0.1)", color: actual !== "" ? "#fff" : C.sub, border: "none", borderRadius: "6px", padding: "5px 12px", fontSize: "11px", fontWeight: "600", cursor: actual !== "" ? "pointer" : "not-allowed", opacity: saving ? 0.6 : 1 }}
+                              >
+                                {saving ? "..." : "Save"}
+                              </button>
+                              <AnimatePresence>
+                                {isSaved && (
+                                  <motion.span
+                                    initial={{ opacity: 0, scale: 0.5 }} animate={{ opacity: 1, scale: 1 }} exit={{ opacity: 0, scale: 0.5 }}
+                                    style={{ color: C.success, fontSize: "14px" }}
+                                  >
+                                    ✅
+                                  </motion.span>
+                                )}
+                              </AnimatePresence>
                             </td>
                           </tr>
                         )
