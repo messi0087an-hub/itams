@@ -40,6 +40,7 @@ const navItems = [
   { label: "Reports",      path: "/marketing/reports",   icon: "📋" },
   { label: "History",      path: "/marketing/history",   icon: "📜" },
   { label: "Stocktake",    path: "/marketing/stocktake", icon: "🔢" },
+  { label: "Ads",          path: "/marketing/ads",       icon: "📢" },
   { label: "Settings",     path: "/marketing/settings",  icon: "⚙️" },
 ]
 
@@ -64,7 +65,7 @@ export default function MarketingSidebar() {
     ? navItems.filter(item => ["/marketing/dashboard", "/marketing/items", "/marketing/approvals"].includes(item.path))
     : marketingRole === "bdms"
     ? navItems.filter(item => ["/marketing/dashboard", "/marketing/items"].includes(item.path))
-    : navItems
+    : navItems.filter(item => item.path !== "/marketing/ads" || marketingRole === "marketing_admin")
 
   useEffect(() => {
     if (!userProfile?.id) return

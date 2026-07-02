@@ -45,6 +45,7 @@ const MarketingReports   = lazy(() => import("./pages/marketing/MarketingReports
 const MarketingHistory   = lazy(() => import("./pages/marketing/MarketingHistory"))
 const MarketingSettings  = lazy(() => import("./pages/marketing/MarketingSettings"))
 const MarketingStocktake = lazy(() => import("./pages/marketing/MarketingStocktake"))
+const MarketingAds       = lazy(() => import("./pages/marketing/MarketingAds"))
 
 // OTP is now handled entirely by Supabase Auth — no custom email sending needed
 
@@ -750,6 +751,7 @@ function MarketingLayout({ user }) {
                 <Route path="history"    element={<MarketingHistory />} />
                 <Route path="settings"   element={<MarketingSettings />} />
                 <Route path="stocktake"  element={<MarketingStocktake />} />
+                <Route path="ads"        element={<MarketingAds />} />
                 <Route path="*"          element={<Navigate to="/marketing/dashboard" replace />} />
               </Routes>
             </Suspense>

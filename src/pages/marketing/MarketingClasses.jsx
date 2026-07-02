@@ -52,6 +52,9 @@ export default function MarketingClasses() {
   const [successMsg, setSuccessMsg] = useState(null)
   const [activeClass, setActiveClass] = useState(null)
   const [giftList, setGiftList] = useState([{ item_id: "", variant_id: "", quantity: 1 }])
+  const [showReviewModal, setShowReviewModal] = useState(null)
+  const [reviews, setReviews] = useState([])
+  const [reviewRows, setReviewRows] = useState([{ attendee_name: "", left_review: false, gift_item_id: "" }])
 
   const [form, setForm] = useState(emptyForm)
 
@@ -64,18 +67,22 @@ export default function MarketingClasses() {
 
   const fetchAll = async () => {
     setLoading(true)
-    const [{ data: c }, { data: i }, { data: v }, { data: s }] = await Promise.all([
+    const [{ data: c }, { data: i }, { data: v }, { data: s }, { data: r }] = await Promise.all([
       supabase.from("marketing_classes").select("*, marketing_class_gifts(*)").order("class_date", { ascending: false }),
-      supabase.from("marketing_items").select("id, name, unit").order("name"),
+      supabase.from("marketing_items").select("id, name, unit, category").order("name"),
       supabase.from("marketing_item_variants").select("*"),
       supabase.from("marketing_stock").select("item_id, quantity"),
+      supabase.from("marketing_google_reviews").select("*").order("created_at", { ascending: false }),
     ])
     setClasses(c || [])
     setItems(i || [])
     setVariants(v || [])
     setStock(s || [])
+    setReviews(r || [])
     setLoading(false)
   }
+
+  const getClassReviews = (classId) => reviews.filter(r => r.class_id === classId)
 
   const getItemStock = (itemId) =>
     stock.filter(s => s.item_id === itemId).reduce((sum, s) => sum + s.quantity, 0)
@@ -153,6 +160,41 @@ export default function MarketingClasses() {
     fetchAll()
   }
 
+  const handleSaveReviews = async () => {
+    if (!showReviewModal) return
+    setSaving(true)
+    setSaveError(null)
+    const valid = reviewRows.filter(r => r.attendee_name.trim())
+    if (valid.length) {
+      const { error } = await supabase.from("marketing_google_reviews").insert(
+        valid.map(r => ({
+          class_id: showReviewModal.id,
+          attendee_name: r.attendee_name.trim(),
+          left_review: r.left_review,
+          gift_item_id: r.gift_item_id || null,
+          created_by: userProfile?.id,
+          created_by_name: userProfile?.name || userProfile?.email,
+        }))
+      )
+      if (error) {
+        setSaving(false)
+        setSaveError(`Could not save reviews: ${error.message}`)
+        return
+      }
+    }
+    setSaving(false)
+    setShowReviewModal(null)
+    setSaveError(null)
+    setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }])
+    showSuccess("✅ Attendees saved successfully!")
+    fetchAll()
+  }
+
+  const handleDeleteReview = async (id) => {
+    await supabase.from("marketing_google_reviews").delete().eq("id", id)
+    fetchAll()
+  }
+
   const weekClasses = classes.filter(c => isThisWeek(c.class_date))
   const otherClasses = classes.filter(c => !isThisWeek(c.class_date))
 
@@ -187,7 +229,7 @@ export default function MarketingClasses() {
         <div style={{ marginBottom: "28px" }}>
           <h2 style={{ color: C.accent, fontSize: "15px", fontWeight: "700", marginBottom: "12px" }}>📅 This Week's Classes</h2>
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
+            {weekClasses.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} />)}
           </div>
         </div>
       )}
@@ -198,7 +240,7 @@ export default function MarketingClasses() {
         {loading ? <p style={{ color: C.sub }}>Loading...</p> : (
           <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
             {classes.length === 0 && <p style={{ color: C.sub, textAlign: "center", padding: "40px" }}>No classes yet. Add a class to get started.</p>}
-            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} />)}
+            {classes.map(cls => <ClassCard key={cls.id} cls={cls} onAssign={() => { setShowGiftModal(cls); setGiftList([{ item_id: "", variant_id: "", quantity: 1 }]); setSaveError(null) }} onTrackReviews={() => { setShowReviewModal(cls); setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }]); setSaveError(null) }} onPacked={() => handleMarkPacked(cls.id, cls.marketing_class_gifts)} onDistributed={() => handleMarkDistributed(cls.id, cls.marketing_class_gifts)} canManage={canManageMarketing} items={items} variants={variants} getItemStock={getItemStock} reviews={getClassReviews(cls.id)} />)}
           </div>
         )}
       </div>
@@ -286,14 +328,84 @@ export default function MarketingClasses() {
           </Modal>
         )}
       </AnimatePresence>
+
+      {/* Track Google Reviews Modal */}
+      <AnimatePresence>
+        {showReviewModal && (
+          <Modal title={`🎁 Track Google Reviews — ${showReviewModal.class_name}`} onClose={() => { setShowReviewModal(null); setSaveError(null) }}>
+            <div style={{ display: "flex", flexDirection: "column", gap: "16px" }}>
+              {saveError && (
+                <div style={{ background: "rgba(239,68,68,0.12)", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "8px", padding: "10px 14px", color: C.error, fontSize: "13px" }}>
+                  {saveError}
+                </div>
+              )}
+
+              {getClassReviews(showReviewModal.id).length > 0 && (
+                <div>
+                  <p style={{ color: C.sub, fontSize: "12px", fontWeight: "600", marginBottom: "8px" }}>Tracked attendees</p>
+                  <div style={{ display: "flex", flexDirection: "column", gap: "6px" }}>
+                    {getClassReviews(showReviewModal.id).map(r => {
+                      const giftName = items.find(it => it.id === r.gift_item_id)?.name
+                      return (
+                        <div key={r.id} style={{ display: "flex", alignItems: "center", justifyContent: "space-between", background: "rgba(6,182,212,0.04)", borderRadius: "8px", padding: "7px 10px" }}>
+                          <span style={{ color: C.text, fontSize: "12.5px" }}>
+                            {r.attendee_name} — {r.left_review ? <span style={{ color: C.success }}>⭐ Left review</span> : <span style={{ color: C.sub }}>No review yet</span>}
+                            {giftName && <span style={{ color: C.sub }}> · Gift: {giftName}</span>}
+                          </span>
+                          <button onClick={() => handleDeleteReview(r.id)} style={{ color: C.error, background: "none", border: "none", cursor: "pointer", fontSize: "14px" }}>✕</button>
+                        </div>
+                      )
+                    })}
+                  </div>
+                </div>
+              )}
+
+              <div>
+                <p style={{ color: C.sub, fontSize: "12px", fontWeight: "600", marginBottom: "8px" }}>Add attendees</p>
+                <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
+                  {reviewRows.map((r, i) => (
+                    <div key={i} style={{ display: "grid", gridTemplateColumns: "1.2fr 90px 1.2fr 30px", gap: "6px", alignItems: "center" }}>
+                      <input value={r.attendee_name} onChange={e => { const arr = [...reviewRows]; arr[i].attendee_name = e.target.value; setReviewRows(arr) }}
+                        placeholder="Attendee name" style={inputStyle} />
+                      <label style={{ display: "flex", alignItems: "center", gap: "5px", color: C.sub, fontSize: "11px", cursor: "pointer" }}>
+                        <input type="checkbox" checked={r.left_review} onChange={e => { const arr = [...reviewRows]; arr[i].left_review = e.target.checked; setReviewRows(arr) }} />
+                        Reviewed
+                      </label>
+                      <select value={r.gift_item_id} onChange={e => { const arr = [...reviewRows]; arr[i].gift_item_id = e.target.value; setReviewRows(arr) }} style={inputStyle}>
+                        <option value="">No gift</option>
+                        {(items.some(it => it.category === "Google Review Gift") ? items.filter(it => it.category === "Google Review Gift") : items).map(it => (
+                          <option key={it.id} value={it.id}>{it.name}</option>
+                        ))}
+                      </select>
+                      {reviewRows.length > 1 && (
+                        <button onClick={() => setReviewRows(prev => prev.filter((_, idx) => idx !== i))} style={{ color: C.error, background: "none", border: "none", cursor: "pointer", fontSize: "16px" }}>✕</button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <button onClick={() => setReviewRows(prev => [...prev, { attendee_name: "", left_review: false, gift_item_id: "" }])}
+                  style={{ marginTop: "8px", background: "rgba(6,182,212,0.08)", color: C.accent, border: `1px dashed ${C.border}`, borderRadius: "8px", padding: "8px", fontSize: "12px", cursor: "pointer", fontWeight: "600", width: "100%" }}>
+                  + Add Attendee
+                </button>
+              </div>
+
+              <div style={{ display: "flex", gap: "10px" }}>
+                <button onClick={() => { setShowReviewModal(null); setSaveError(null) }} style={{ flex: 1, background: "rgba(148,163,184,0.1)", color: C.sub, border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer" }}>Close</button>
+                <button onClick={handleSaveReviews} disabled={saving || !reviewRows.some(r => r.attendee_name.trim())} style={{ flex: 2, background: `linear-gradient(135deg, ${C.accent}, ${C.teal})`, color: "#fff", border: "none", borderRadius: "10px", padding: "10px", fontWeight: "600", cursor: "pointer", opacity: saving ? 0.6 : 1 }}>{saving ? "Saving..." : "Save Attendees"}</button>
+              </div>
+            </div>
+          </Modal>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
 
-function ClassCard({ cls, onAssign, onPacked, onDistributed, canManage, items, variants, getItemStock }) {
+function ClassCard({ cls, onAssign, onTrackReviews, onPacked, onDistributed, canManage, items, variants, getItemStock, reviews }) {
   const gifts = cls.marketing_class_gifts || []
   const allDist = gifts.length > 0 && gifts.every(g => g.is_distributed)
   const allPacked = gifts.length > 0 && gifts.every(g => g.is_packed)
+  const reviewCount = reviews?.filter(r => r.left_review).length || 0
 
   return (
     <motion.div whileHover={{ scale: 1.005 }} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "14px", padding: "16px" }}>
@@ -303,10 +415,16 @@ function ClassCard({ cls, onAssign, onPacked, onDistributed, canManage, items, v
           <div style={{ display: "flex", gap: "8px", marginTop: "4px", flexWrap: "wrap" }}>
             {cls.class_type && <span style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "6px", padding: "1px 8px", fontSize: "11px" }}>{cls.class_type}</span>}
             <PackingBadge gifts={gifts} />
+            {reviews?.length > 0 && (
+              <span style={{ background: "rgba(245,158,11,0.12)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "6px", padding: "1px 8px", fontSize: "11px", fontWeight: "600" }}>
+                ⭐ {reviewCount}/{reviews.length} reviews
+              </span>
+            )}
           </div>
         </div>
         <div style={{ display: "flex", gap: "6px", flexWrap: "wrap" }}>
           {canManage && <button onClick={onAssign} style={{ background: "rgba(6,182,212,0.12)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>🎁 Assign Gifts</button>}
+          {canManage && <button onClick={onTrackReviews} style={{ background: "rgba(245,158,11,0.12)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>🎁 Track Google Reviews</button>}
           {canManage && !allPacked && gifts.length > 0 && <button onClick={onPacked} style={{ background: "rgba(245,158,11,0.12)", color: C.warning, border: "1px solid rgba(245,158,11,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>📦 Mark Packed</button>}
           {canManage && allPacked && !allDist && <button onClick={onDistributed} style={{ background: "rgba(16,185,129,0.12)", color: C.success, border: "1px solid rgba(16,185,129,0.3)", borderRadius: "8px", padding: "5px 10px", fontSize: "11px", fontWeight: "600", cursor: "pointer" }}>✅ Mark Distributed</button>}
         </div>
