@@ -226,7 +226,7 @@ export default function MarketingApprovals() {
                   <div style={{ flex: 1 }}>
                     <div style={{ display: "flex", alignItems: "center", gap: "8px", marginBottom: "6px" }}>
                       <p style={{ color: C.text, fontWeight: "600", fontSize: "14px" }}>{req.requested_by_name || "Unknown"}</p>
-                      {isUrgent && <span style={{ background: "rgba(239,68,68,0.15)", color: C.error, border: "1px solid rgba(239,68,68,0.3)", borderRadius: "6px", padding: "1px 7px", fontSize: "10px", fontWeight: "700" }}>⏰ {days}d waiting</span>}
+                      {isUrgent && <span style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "999px", padding: "1px 9px", fontSize: "10px", fontWeight: "700" }}>⚠️ {days}d overdue</span>}
                     </div>
                     <p style={{ color: C.sub, fontSize: "13px" }}>
                       Requesting: <b style={{ color: C.text }}>{items.find(i => i.id === req.item_id)?.name || "Unknown item"}</b> × {req.quantity}
@@ -265,21 +265,28 @@ export default function MarketingApprovals() {
       {/* My Requests */}
       {tab === "my" && (
         <div style={{ display: "flex", flexDirection: "column", gap: "10px" }}>
-          {myRequests.map(req => (
-            <div key={req.id} style={{ background: C.card, border: `1px solid ${C.border}`, borderRadius: "12px", padding: "16px" }}>
-              <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
-                <div>
-                  <p style={{ color: C.text, fontSize: "14px", fontWeight: "600" }}>
-                    {items.find(i => i.id === req.item_id)?.name || "Item"} × {req.quantity}
-                  </p>
-                  {req.reason && <p style={{ color: C.sub, fontSize: "12px", marginTop: "2px" }}>Reason: {req.reason}</p>}
-                  {req.rejection_reason && <p style={{ color: C.error, fontSize: "12px", marginTop: "2px" }}>Rejected: {req.rejection_reason}</p>}
-                  <p style={{ color: C.sub, fontSize: "11px", marginTop: "4px" }}>{new Date(req.created_at).toLocaleDateString()}</p>
+          {myRequests.map(req => {
+            const days = daysSince(req.created_at)
+            const isOverdue = req.status === "pending" && days >= 3
+            return (
+              <div key={req.id} style={{ background: C.card, border: `1px solid ${isOverdue ? "rgba(239,68,68,0.3)" : C.border}`, borderRadius: "12px", padding: "16px" }}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+                  <div>
+                    <div style={{ display: "flex", alignItems: "center", gap: "8px", flexWrap: "wrap" }}>
+                      <p style={{ color: C.text, fontSize: "14px", fontWeight: "600" }}>
+                        {items.find(i => i.id === req.item_id)?.name || "Item"} × {req.quantity}
+                      </p>
+                      {isOverdue && <span style={{ background: "rgba(239,68,68,0.2)", color: "#f87171", border: "1px solid rgba(239,68,68,0.3)", borderRadius: "999px", padding: "1px 9px", fontSize: "10px", fontWeight: "700" }}>⚠️ {days}d overdue</span>}
+                    </div>
+                    {req.reason && <p style={{ color: C.sub, fontSize: "12px", marginTop: "2px" }}>Reason: {req.reason}</p>}
+                    {req.rejection_reason && <p style={{ color: C.error, fontSize: "12px", marginTop: "2px" }}>Rejected: {req.rejection_reason}</p>}
+                    <p style={{ color: C.sub, fontSize: "11px", marginTop: "4px" }}>{new Date(req.created_at).toLocaleDateString()}</p>
+                  </div>
+                  <StatusBadge status={req.status} />
                 </div>
-                <StatusBadge status={req.status} />
               </div>
-            </div>
-          ))}
+            )
+          })}
           {myRequests.length === 0 && (
             <div style={{ textAlign: "center", padding: "40px", color: C.sub }}>No requests submitted yet</div>
           )}

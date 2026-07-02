@@ -261,7 +261,7 @@ export default function MarketingDashboard() {
       {/* Low stock alerts */}
       <Section title="⚠️ Low Stock Alerts" action={{ label: "View Items", onClick: () => navigate("/marketing/items") }}>
         {lowStock.length === 0
-          ? <EmptyCard text="All stock levels are healthy! 🎉" icon="✅" />
+          ? <EmptyCard text="All stock levels healthy ✅" icon="✅" />
           : (
             <div style={{ display: "flex", flexDirection: "column", gap: "8px" }}>
               {lowStock.map(item => (
