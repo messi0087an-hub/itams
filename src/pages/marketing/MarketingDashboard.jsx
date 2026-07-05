@@ -92,6 +92,7 @@ export default function MarketingDashboard() {
   const [weekClasses, setWeekClasses] = useState([])
   const [upcomingEvents, setUpcomingEvents] = useState([])
   const [recentMovements, setRecentMovements] = useState([])
+  const [itemNameById, setItemNameById] = useState({})
 
   // Use the same name field as IT sidebar
   const firstName = (userProfile?.name || userProfile?.full_name || userProfile?.email || "").split(" ")[0] || "there"
@@ -140,7 +141,7 @@ export default function MarketingDashboard() {
           .order("event_date")
           .limit(6),
         supabase.from("marketing_stock_movements")
-          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id, marketing_items!item_id(name)")
+          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id")
           .order("created_at", { ascending: false })
           .limit(10),
       ])
@@ -164,11 +165,15 @@ export default function MarketingDashboard() {
         return (item.minimum_stock_level || 0) > 0 && qty <= item.minimum_stock_level
       }).map(item => ({ ...item, currentStock: stockMap[item.id] || 0 }))
 
+      const nameById = {}
+      itemList.forEach(item => { nameById[item.id] = item.name })
+
       setTotalItems(itemList.length)
       setLowStock(lowItems)
       setWeekClasses(classes || [])
       setUpcomingEvents(events || [])
       setRecentMovements(movements || [])
+      setItemNameById(nameById)
     } catch (err) {
       console.error("[MarketingDashboard] fetchAll error:", err)
       setError("Could not load dashboard data. Please try refreshing.")
@@ -338,7 +343,7 @@ export default function MarketingDashboard() {
                         <span style={{ color: m.movement_type === "stock_in" ? C.success : m.movement_type === "stock_out" ? C.error : C.accent }}>
                           {m.movement_type === "stock_in" ? "Stock In" : m.movement_type === "stock_out" ? "Stock Out" : m.movement_type}
                         </span>
-                        {" · "}{m.marketing_items?.name || "Unknown item"}
+                        {" · "}{itemNameById[m.item_id] || "Unknown item"}
                         {" · "}<b style={{ color: C.accent }}>{m.quantity} units</b>
                       </p>
                       {m.performed_by_name && <p style={{ color: C.sub, fontSize: "11px", marginTop: "1px" }}>by {m.performed_by_name}</p>}
