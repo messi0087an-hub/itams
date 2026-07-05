@@ -140,7 +140,7 @@ export default function MarketingDashboard() {
           .order("event_date")
           .limit(6),
         supabase.from("marketing_stock_movements")
-          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id")
+          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id, marketing_items!item_id(name)")
           .order("created_at", { ascending: false })
           .limit(10),
       ])
@@ -338,7 +338,7 @@ export default function MarketingDashboard() {
                         <span style={{ color: m.movement_type === "stock_in" ? C.success : m.movement_type === "stock_out" ? C.error : C.accent }}>
                           {m.movement_type === "stock_in" ? "Stock In" : m.movement_type === "stock_out" ? "Stock Out" : m.movement_type}
                         </span>
-                        {" · "}Item #{m.item_id}
+                        {" · "}{m.marketing_items?.name || "Unknown item"}
                         {" · "}<b style={{ color: C.accent }}>{m.quantity} units</b>
                       </p>
                       {m.performed_by_name && <p style={{ color: C.sub, fontSize: "11px", marginTop: "1px" }}>by {m.performed_by_name}</p>}
