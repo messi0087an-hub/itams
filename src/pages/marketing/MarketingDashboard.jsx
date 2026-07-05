@@ -140,12 +140,10 @@ export default function MarketingDashboard() {
           .order("event_date")
           .limit(6),
         supabase.from("marketing_stock_movements")
-          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id, marketing_items(name)")
+          .select("id, movement_type, quantity, reason, performed_by_name, created_at, item_id")
           .order("created_at", { ascending: false })
           .limit(10),
       ])
-
-      console.log("STOCK DATA:", movements, "ERROR:", e5)
 
       // Soft-handle table-not-found errors (migration not run yet)
       if (e1?.code === "42P01" || e2?.code === "42P01") {
@@ -340,7 +338,7 @@ export default function MarketingDashboard() {
                         <span style={{ color: m.movement_type === "stock_in" ? C.success : m.movement_type === "stock_out" ? C.error : C.accent }}>
                           {m.movement_type === "stock_in" ? "Stock In" : m.movement_type === "stock_out" ? "Stock Out" : m.movement_type}
                         </span>
-                        {" · "}{m.marketing_items?.name || "Unknown item"}
+                        {" · "}Item #{m.item_id}
                         {" · "}<b style={{ color: C.accent }}>{m.quantity} units</b>
                       </p>
                       {m.performed_by_name && <p style={{ color: C.sub, fontSize: "11px", marginTop: "1px" }}>by {m.performed_by_name}</p>}
