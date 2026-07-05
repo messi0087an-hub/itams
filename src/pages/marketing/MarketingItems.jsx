@@ -209,6 +209,12 @@ export default function MarketingItems() {
           category: String(get(r, "category")).trim(),
           unit: String(get(r, "unit")).trim() || "pcs",
           minimum_stock: parseInt(get(r, "minimum_stock", "minimum_stock_level")) || 0,
+          item_code: String(get(r, "item_code")).trim(),
+          supplier: String(get(r, "supplier_name")).trim(),
+          expiry_date: String(get(r, "expiry_date")).trim(),
+          cost_per_unit: parseFloat(get(r, "cost_per_unit")) || 0,
+          delivery: parseFloat(get(r, "delivery")) || 0,
+          tax: parseFloat(get(r, "tax")) || 0,
         })))
       }
     } catch (err) {
@@ -234,6 +240,12 @@ export default function MarketingItems() {
           category: row.category || null,
           unit: row.unit || "pcs",
           minimum_stock_level: row.minimum_stock || 0,
+          item_code: row.item_code || null,
+          supplier_name: row.supplier || null,
+          expiry_date: row.expiry_date || null,
+          cost_per_unit: row.cost_per_unit || null,
+          delivery_charge: row.delivery || null,
+          tax_amount: row.tax || null,
         })
         .select()
         .single()
@@ -631,7 +643,7 @@ export default function MarketingItems() {
                       <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "12.5px", minWidth: "480px" }}>
                         <thead>
                           <tr>
-                            {["Name", "Category", "Unit", "Min Stock", ""].map(h => (
+                            {["Name", "Category", "Item Code", "Unit", "Min Stock", "Supplier", "Expiry", "Cost/Unit", "Delivery", "Tax", ""].map(h => (
                               <th key={h} style={{ color: C.sub, textAlign: "left", padding: "8px 10px", borderBottom: `1px solid ${C.border}`, fontSize: "10.5px", fontWeight: "600", textTransform: "uppercase" }}>{h}</th>
                             ))}
                           </tr>
@@ -641,8 +653,14 @@ export default function MarketingItems() {
                             <tr key={i} style={{ borderBottom: `1px solid rgba(6,182,212,0.08)`, opacity: row.name ? 1 : 0.5 }}>
                               <td style={{ color: C.text, padding: "7px 10px" }}>{row.name || "(no name)"}</td>
                               <td style={{ color: C.sub, padding: "7px 10px" }}>{row.category || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.item_code || "—"}</td>
                               <td style={{ color: C.sub, padding: "7px 10px" }}>{row.unit}</td>
                               <td style={{ color: C.sub, padding: "7px 10px" }}>{row.minimum_stock}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.supplier || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.expiry_date || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.cost_per_unit || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.delivery || "—"}</td>
+                              <td style={{ color: C.sub, padding: "7px 10px" }}>{row.tax || "—"}</td>
                               <td style={{ padding: "7px 10px" }}>
                                 {row.name
                                   ? <span style={{ color: C.success, fontSize: "12px" }}>✅</span>
