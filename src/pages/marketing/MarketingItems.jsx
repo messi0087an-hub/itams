@@ -173,6 +173,15 @@ export default function MarketingItems() {
     fetchAll()
   }
 
+  const handleDownloadTemplate = () => {
+    const headers = ["name", "category", "item_code", "unit", "description", "supplier_name", "minimum_stock", "expiry_date", "cost_per_unit", "delivery", "tax"]
+    const exampleRow = ["Cloud Pillow", "Gift", "PC001", "pcs", "Branded cloud pillow for events", "ABC Gifts", 30, "", 4.99, 0, 0]
+    const ws = XLSX.utils.aoa_to_sheet([headers, exampleRow])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Items")
+    XLSX.writeFile(wb, "marketing_items_import_template.xlsx")
+  }
+
   const handleImportFile = async (e) => {
     const file = e.target.files?.[0]
     e.target.value = ""
@@ -285,6 +294,12 @@ export default function MarketingItems() {
               ref={fileInputRef} type="file" accept=".xlsx"
               onChange={handleImportFile} style={{ display: "none" }}
             />
+            <button
+              onClick={handleDownloadTemplate}
+              style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
+            >
+              📄 Download Template
+            </button>
             <button
               onClick={() => fileInputRef.current?.click()}
               style={{ background: "rgba(6,182,212,0.1)", color: C.accent, border: `1px solid ${C.border}`, borderRadius: "10px", padding: "10px 18px", fontWeight: "600", fontSize: "13px", cursor: "pointer" }}
