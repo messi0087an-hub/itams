@@ -328,7 +328,9 @@ export default function MarketingSidebar() {
       </div>
 
       {/* Notification dropdown */}
-      <NotifDropdown />
+      <div className="md:hidden">
+        <NotifDropdown />
+      </div>
 
       {/* ── Mobile: overlay + slide-in drawer ─────────────────────────────── */}
       <AnimatePresence>
