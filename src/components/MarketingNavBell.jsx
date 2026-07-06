@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react"
+import { useState, useEffect, useRef } from "react"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
@@ -14,13 +14,27 @@ export default function MarketingNavBell() {
   const { userProfile } = useAuth()
   const [notifications, setNotifications] = useState([])
   const [show, setShow] = useState(false)
+  const [shake, setShake] = useState(false)
+  const [selectedNotif, setSelectedNotif] = useState(null)
+  const prevUnreadRef = useRef(0)
 
   useEffect(() => {
     if (!userProfile?.id) return
-    fetch()
+    fetchNotifications()
+
+    const channel = supabase
+      .channel(`marketing_notifications_${userProfile.id}`)
+      .on(
+        "postgres_changes",
+        { event: "*", schema: "public", table: "marketing_notifications", filter: `user_id=eq.${userProfile.id}` },
+        () => fetchNotifications()
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
   }, [userProfile?.id])
 
-  const fetch = async () => {
+  const fetchNotifications = async () => {
     const { data } = await supabase
       .from("marketing_notifications")
       .select("*")
@@ -43,10 +57,23 @@ export default function MarketingNavBell() {
 
   const unread = notifications.filter(n => !n.is_read).length
 
+  useEffect(() => {
+    if (unread > prevUnreadRef.current) {
+      setShake(true)
+      const t = setTimeout(() => setShake(false), 600)
+      prevUnreadRef.current = unread
+      return () => clearTimeout(t)
+    }
+    prevUnreadRef.current = unread
+  }, [unread])
+
   return (
     <div style={{ position: "relative", flexShrink: 0 }}>
-      <button
+      <motion.button
+        type="button"
         onClick={() => setShow(v => !v)}
+        animate={shake ? { rotate: [0, -16, 14, -12, 10, -6, 0] } : { rotate: 0 }}
+        transition={{ duration: 0.5 }}
         style={{
           background: "rgba(6,182,212,0.1)", border: `1px solid ${B}`,
           borderRadius: "9px", width: "34px", height: "34px",
@@ -69,7 +96,7 @@ export default function MarketingNavBell() {
             {unread > 9 ? "9+" : unread}
           </span>
         )}
-      </button>
+      </motion.button>
 
       <AnimatePresence>
         {show && (
@@ -101,7 +128,11 @@ export default function MarketingNavBell() {
                 {notifications.length === 0
                   ? <div style={{ padding: "28px", textAlign: "center", color: "#94a3b8", fontSize: "13px" }}>No notifications</div>
                   : notifications.map(n => (
-                    <div key={n.id} style={{ padding: "11px 16px", borderBottom: "1px solid rgba(6,182,212,0.07)", background: n.is_read ? "transparent" : "rgba(6,182,212,0.05)" }}>
+                    <div
+                      key={n.id}
+                      onClick={() => setSelectedNotif(n)}
+                      style={{ padding: "11px 16px", borderBottom: "1px solid rgba(6,182,212,0.07)", background: n.is_read ? "transparent" : "rgba(6,182,212,0.05)", cursor: "pointer" }}
+                    >
                       <div style={{ display: "flex", gap: "8px", alignItems: "flex-start" }}>
                         <span style={{ fontSize: "15px", flexShrink: 0, marginTop: "1px" }}>{notifIcon[n.type] || "🔔"}</span>
                         <div style={{ flex: 1, minWidth: 0 }}>
@@ -115,6 +146,48 @@ export default function MarketingNavBell() {
                   ))
                 }
               </div>
+            </motion.div>
+          </>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {selectedNotif && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              style={{ position: "fixed", inset: 0, zIndex: 9999, background: "rgba(0,0,0,0.5)" }}
+              onClick={() => setSelectedNotif(null)}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                width: "360px", maxWidth: "calc(100vw - 32px)", zIndex: 10000,
+                background: "#0f2730", border: "1px solid rgba(6,182,212,0.2)",
+                borderRadius: "16px",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(6,182,212,0.1)",
+                padding: "20px",
+              }}
+            >
+              <div style={{ display: "flex", alignItems: "flex-start", gap: "10px", marginBottom: "12px" }}>
+                <span style={{ fontSize: "20px" }}>{notifIcon[selectedNotif.type] || "🔔"}</span>
+                <p style={{ color: "#fff", fontWeight: "600", fontSize: "15px", margin: 0, flex: 1 }}>{selectedNotif.title}</p>
+                <button
+                  type="button"
+                  onClick={() => setSelectedNotif(null)}
+                  style={{ color: "#94a3b8", background: "none", border: "none", cursor: "pointer", fontSize: "16px", lineHeight: 1 }}
+                >
+                  ✕
+                </button>
+              </div>
+              <p style={{ color: "#cbd5e1", fontSize: "13px", lineHeight: 1.5, margin: "0 0 12px" }}>{selectedNotif.message}</p>
+              <p style={{ color: "rgba(148,163,184,0.6)", fontSize: "11px", margin: 0 }}>{new Date(selectedNotif.created_at).toLocaleString()}</p>
             </motion.div>
           </>
         )}
