@@ -299,7 +299,7 @@ export default function MarketingSidebar() {
     <>
       {/* ── Mobile top bar ─────────────────────────────────────────────────── */}
       <div
-        className="md:hidden"
+        className="flex md:hidden"
         style={{
           position: "fixed", top: 0, left: 0, right: 0, zIndex: 50,
           height: "56px",
@@ -307,14 +307,13 @@ export default function MarketingSidebar() {
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           borderBottom: `1px solid ${MKT.border}`,
-          display: "flex", alignItems: "center", justifyContent: "space-between",
+          alignItems: "center", justifyContent: "space-between",
           padding: "0 16px",
           gap: "10px",
         }}
       >
         <button
           onClick={() => setOpen(!open)}
-          className="md:hidden"
           style={{ background: "rgba(6,182,212,0.1)", border: `1px solid ${MKT.border}`, borderRadius: "9px", color: MKT.accent, width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(6,182,212,0.2)"}
           onMouseLeave={e => e.currentTarget.style.background = "rgba(6,182,212,0.1)"}

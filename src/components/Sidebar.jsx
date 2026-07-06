@@ -132,7 +132,7 @@ export default function Sidebar() {
       {/* Sidebar — fixed, exactly 100vh tall, flex column, overflow hidden at container level */}
       <div
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 transform transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
-        style={{ height: "100vh", display: "flex", flexDirection: "column", overflow: "hidden" }}
+        style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
       >
         {/* ── TOP: Logo (desktop) / spacer (mobile) — never scrolls ── */}
         <div className="shrink-0">
