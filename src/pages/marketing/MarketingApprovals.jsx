@@ -179,6 +179,26 @@ export default function MarketingApprovals() {
         is_read: false,
       })
     }
+
+    const { data: admins } = await supabase
+      .from("user_profiles")
+      .select("id, name")
+      .eq("role", "admin")
+
+    if (admins) {
+      for (const admin of admins) {
+        if (admin.id !== userProfile?.id) {
+          await supabase.from("marketing_notifications").insert({
+            user_id: admin.id,
+            title: "New Approval Request 📋",
+            message: `${userProfile?.name} requested ${submittedItemName} x${submittedQty} — needs your approval`,
+            type: "approval_request",
+            is_read: false,
+          })
+        }
+      }
+    }
+
     fetchAll()
     setTab("my")
   }
