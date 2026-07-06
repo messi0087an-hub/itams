@@ -35,6 +35,7 @@ export default function MarketingSettings() {
   const [approvalThreshold, setApprovalThreshold] = useState(30)
   const [tab, setTab] = useState("locations")
   const [successMsg, setSuccessMsg] = useState(null)
+  const [deleteTarget, setDeleteTarget] = useState(null)
 
   const showSuccess = (msg) => {
     setSuccessMsg(msg)
@@ -67,7 +68,12 @@ export default function MarketingSettings() {
   }
 
   const handleDeleteLocation = async (id, name) => {
-    if (!window.confirm(`Delete "${name}"? This may affect stock records.`)) return
+    setDeleteTarget({ id, name })
+  }
+
+  const confirmDeleteLocation = async () => {
+    const { id, name } = deleteTarget
+    setDeleteTarget(null)
     const { error } = await supabase.from("marketing_locations").delete().eq("id", id)
     if (error) {
       showSuccess(`❌ Could not delete: ${error.message}`)
@@ -100,6 +106,49 @@ export default function MarketingSettings() {
           >
             {successMsg}
           </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Delete location confirm modal */}
+      <AnimatePresence>
+        {deleteTarget && (
+          <>
+            <motion.div
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+              onClick={() => setDeleteTarget(null)}
+              style={{ position: "fixed", inset: 0, background: "rgba(0,0,0,0.5)", zIndex: 9999 }}
+            />
+            <motion.div
+              initial={{ opacity: 0, y: -8, scale: 0.96 }}
+              animate={{ opacity: 1, y: 0, scale: 1 }}
+              exit={{ opacity: 0, y: -8, scale: 0.96 }}
+              transition={{ duration: 0.15 }}
+              style={{
+                position: "fixed", top: "50%", left: "50%", transform: "translate(-50%, -50%)",
+                width: "380px", maxWidth: "calc(100vw - 32px)", zIndex: 10000,
+                background: "#0f2730", border: `1px solid ${C.border}`,
+                borderRadius: "16px", padding: "22px",
+                boxShadow: "0 20px 60px rgba(0,0,0,0.5), 0 0 30px rgba(6,182,212,0.1)",
+              }}
+            >
+              <p style={{ color: C.text, fontWeight: "700", fontSize: "16px", margin: "0 0 8px" }}>Delete "{deleteTarget.name}"?</p>
+              <p style={{ color: C.sub, fontSize: "13px", margin: "0 0 20px", lineHeight: 1.5 }}>This may affect stock records tied to this location. This action cannot be undone.</p>
+              <div style={{ display: "flex", gap: "10px", justifyContent: "flex-end" }}>
+                <button
+                  onClick={() => setDeleteTarget(null)}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: `1px solid ${C.border}`, background: "transparent", color: C.sub, fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={confirmDeleteLocation}
+                  style={{ padding: "8px 16px", borderRadius: "8px", border: "none", background: C.error, color: "#fff", fontSize: "13px", fontWeight: "600", cursor: "pointer" }}
+                >
+                  Delete
+                </button>
+              </div>
+            </motion.div>
+          </>
         )}
       </AnimatePresence>
 

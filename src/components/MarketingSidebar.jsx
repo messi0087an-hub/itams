@@ -183,7 +183,7 @@ export default function MarketingSidebar() {
 
       {/* Logo — desktop only */}
       <div className="hidden md:block" style={{ padding: "28px 18px 16px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0, textAlign: "center" }}>
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "120px", filter: "brightness(1.3)", display: "block", margin: "8px auto 0" }} />
+        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "120px", filter: "brightness(1.3)", display: "block", margin: "8px auto 0", marginTop: "12px" }} />
       </div>
       {/* Mobile spacer (height matches mobile top bar) */}
       <div className="md:hidden" style={{ height: "56px", flexShrink: 0 }} />
@@ -315,11 +315,16 @@ export default function MarketingSidebar() {
       >
         <button
           onClick={() => setOpen(!open)}
-          style={{ background: "rgba(6,182,212,0.1)", border: `1px solid ${MKT.border}`, borderRadius: "8px", color: MKT.text, width: "36px", height: "36px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", fontSize: "16px", flexShrink: 0, transition: "background 0.15s" }}
+          style={{ background: "rgba(6,182,212,0.1)", border: `1px solid ${MKT.border}`, borderRadius: "9px", color: MKT.accent, width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(6,182,212,0.2)"}
           onMouseLeave={e => e.currentTarget.style.background = "rgba(6,182,212,0.1)"}
         >
-          {open ? "✕" : "☰"}
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+            {open
+              ? <><line x1="5" y1="5" x2="19" y2="19" /><line x1="19" y1="5" x2="5" y2="19" /></>
+              : <><line x1="3" y1="6" x2="21" y2="6" /><line x1="3" y1="12" x2="21" y2="12" /><line x1="3" y1="18" x2="21" y2="18" /></>
+            }
+          </svg>
         </button>
         <div style={{ flex: 1, minWidth: 0 }}>
           <MarketingSearch />
