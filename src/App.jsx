@@ -734,8 +734,10 @@ function MarketingLayout({ user }) {
         <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
           <MarketingSidebar />
           <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
-            <div className="sticky top-0 z-30 hidden md:flex items-center gap-3 px-4 py-2" style={{ background: "rgba(7,25,32,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(6,182,212,0.15)" }}>
+            <div className="sticky top-0 z-50 hidden md:flex items-center gap-3 px-4 py-2" style={{ background: "rgba(7,25,32,0.85)", backdropFilter: "blur(8px)", WebkitBackdropFilter: "blur(8px)", borderBottom: "1px solid rgba(6,182,212,0.15)", isolation: "auto" }}>
               <MarketingSearch />
+            </div>
+            <div className="hidden md:block" style={{ position: "fixed", top: "8px", right: "16px", zIndex: 9998 }}>
               <MarketingNavBell />
             </div>
             <Suspense fallback={<PageLoader />}>
