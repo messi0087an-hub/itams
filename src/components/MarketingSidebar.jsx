@@ -183,7 +183,7 @@ export default function MarketingSidebar() {
 
       {/* Logo — desktop only */}
       <div className="hidden md:block" style={{ padding: "28px 18px 16px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0, textAlign: "center" }}>
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "120px", filter: "brightness(1.3)", display: "block", margin: "8px auto 0", marginTop: "12px" }} />
+        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "120px", filter: "brightness(1.3)", display: "block", margin: "12px 0 0 16px" }} />
       </div>
       {/* Mobile spacer (height matches mobile top bar) */}
       <div className="md:hidden" style={{ height: "56px", flexShrink: 0 }} />
@@ -315,6 +315,7 @@ export default function MarketingSidebar() {
       >
         <button
           onClick={() => setOpen(!open)}
+          className="md:hidden"
           style={{ background: "rgba(6,182,212,0.1)", border: `1px solid ${MKT.border}`, borderRadius: "9px", color: MKT.accent, width: "34px", height: "34px", display: "flex", alignItems: "center", justifyContent: "center", cursor: "pointer", flexShrink: 0, transition: "background 0.15s" }}
           onMouseEnter={e => e.currentTarget.style.background = "rgba(6,182,212,0.2)"}
           onMouseLeave={e => e.currentTarget.style.background = "rgba(6,182,212,0.1)"}

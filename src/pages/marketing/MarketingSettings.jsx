@@ -74,6 +74,19 @@ export default function MarketingSettings() {
   const confirmDeleteLocation = async () => {
     const { id, name } = deleteTarget
     setDeleteTarget(null)
+    setLocationError(null)
+
+    const { data: stockCheck } = await supabase
+      .from("marketing_stock")
+      .select("id")
+      .eq("location_id", id)
+      .limit(1)
+
+    if (stockCheck && stockCheck.length > 0) {
+      setLocationError("Cannot delete — this location has stock records. Remove all stock first.")
+      return
+    }
+
     const { error } = await supabase.from("marketing_locations").delete().eq("id", id)
     if (error) {
       showSuccess(`❌ Could not delete: ${error.message}`)
