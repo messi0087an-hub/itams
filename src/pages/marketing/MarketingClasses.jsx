@@ -70,6 +70,11 @@ export default function MarketingClasses() {
     setTimeout(() => setSuccessMsg(null), 7000)
   }
 
+  const notify = async (title, message, type) => {
+    if (!userProfile?.id) return
+    await supabase.from("marketing_notifications").insert({ user_id: userProfile.id, title, message, type, is_read: false })
+  }
+
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
@@ -127,6 +132,7 @@ export default function MarketingClasses() {
     setSaveError(null)
     setForm(emptyForm)
     showSuccess(`✅ "${cls.class_name}" added successfully!`)
+    notify("Class Added ✅", `${cls.class_name} has been added successfully`, "class_added")
     fetchAll()
   }
 
@@ -196,6 +202,9 @@ export default function MarketingClasses() {
       }
     }
     setSaving(false)
+    for (const r of valid) {
+      await notify("Google Review Tracked 🎁", `Review tracked for ${r.attendee_name.trim()} in ${showReviewModal.class_name}`, "review_tracked")
+    }
     setShowReviewModal(null)
     setSaveError(null)
     setReviewRows([{ attendee_name: "", left_review: false, gift_item_id: "" }])
@@ -235,6 +244,7 @@ export default function MarketingClasses() {
       return
     }
     setSaving(false)
+    notify("Trainer Timing Saved ⏱️", `Timing recorded for ${showTimingModal.class_name}`, "trainer_timing")
     setShowTimingModal(null)
     setSaveError(null)
     showSuccess("✅ Trainer timing saved!")
@@ -293,6 +303,8 @@ export default function MarketingClasses() {
     }
 
     setSaving(false)
+    const presentCount = validRows.filter(r => r.status === "Present").length
+    notify("Attendance Saved 👥", `Attendance recorded for ${showAttendanceModal.class_name}: ${presentCount}/${validRows.length} present`, "attendance")
     setShowAttendanceModal(null)
     setSaveError(null)
     setBulkPasteText("")

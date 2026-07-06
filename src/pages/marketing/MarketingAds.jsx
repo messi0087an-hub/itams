@@ -150,9 +150,19 @@ export default function MarketingAds() {
 
     setSaving(false)
     setShowModal(false)
+    const wasNewCampaign = !editingAd
     setEditingAd(null)
     setForm(emptyForm)
-    showSuccess(editingAd ? "✅ Campaign updated successfully!" : "✅ Campaign added successfully!")
+    showSuccess(wasNewCampaign ? "✅ Campaign added successfully!" : "✅ Campaign updated successfully!")
+    if (wasNewCampaign && userProfile?.id) {
+      await supabase.from("marketing_notifications").insert({
+        user_id: userProfile.id,
+        title: "Campaign Added 📢",
+        message: `${payload.campaign_name} on ${payload.platform} added`,
+        type: "campaign_added",
+        is_read: false,
+      })
+    }
     fetchAll()
   }
 

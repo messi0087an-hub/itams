@@ -95,13 +95,15 @@ export default function MarketingApprovals() {
     }
     const approval = approvals.find(a => a.id === id)
     if (approval?.requested_by) {
+      const approvedItemName = items.find(i => i.id === approval.item_id)?.name || "item"
       await supabase.from("marketing_notifications").insert({
         user_id: approval.requested_by,
         title: "Request Approved ✅",
-        message: `Your request for ${items.find(i => i.id === approval.item_id)?.name || "item"} has been approved.`,
+        message: `Request for ${approvedItemName} has been approved`,
         type: "approved",
         related_id: id,
         related_type: "approval",
+        is_read: false,
       })
     }
     setSaving(false)
@@ -124,13 +126,15 @@ export default function MarketingApprovals() {
       return
     }
     if (rejectModal.requested_by) {
+      const rejectedItemName = items.find(i => i.id === rejectModal.item_id)?.name || "item"
       await supabase.from("marketing_notifications").insert({
         user_id: rejectModal.requested_by,
         title: "Request Rejected ❌",
-        message: `Your request was rejected. Reason: ${rejectReason}`,
+        message: `Request for ${rejectedItemName} has been rejected`,
         type: "rejected",
         related_id: rejectModal.id,
         related_type: "approval",
+        is_read: false,
       })
     }
     setSaving(false)
@@ -162,8 +166,19 @@ export default function MarketingApprovals() {
     setSaving(false)
     setShowRequestModal(false)
     setSaveError(null)
+    const submittedItemName = items.find(i => i.id === form.item_id)?.name || "item"
+    const submittedQty = form.quantity
     setForm({ item_id: "", quantity: "", reason: "", request_type: "stock_request" })
     showSuccess("✅ Request submitted successfully!")
+    if (userProfile?.id) {
+      await supabase.from("marketing_notifications").insert({
+        user_id: userProfile.id,
+        title: "Request Submitted 📋",
+        message: `Request for ${submittedItemName} x${submittedQty} submitted`,
+        type: "request_submitted",
+        is_read: false,
+      })
+    }
     fetchAll()
     setTab("my")
   }

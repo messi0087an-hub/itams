@@ -75,6 +75,11 @@ export default function MarketingEvents() {
     setTimeout(() => setSuccessMsg(null), 7000)
   }
 
+  const notify = async (title, message, type) => {
+    if (!userProfile?.id) return
+    await supabase.from("marketing_notifications").insert({ user_id: userProfile.id, title, message, type, is_read: false })
+  }
+
   useEffect(() => { fetchAll() }, [])
 
   const fetchAll = async () => {
@@ -113,6 +118,7 @@ export default function MarketingEvents() {
     setSaveError(null)
     setForm(emptyForm)
     showSuccess(`✅ "${ev.event_name}" added successfully!`)
+    notify("Event Added ✅", `${ev.event_name} has been added successfully`, "event_added")
     fetchAll()
   }
 

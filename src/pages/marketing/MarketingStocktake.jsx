@@ -122,6 +122,15 @@ export default function MarketingStocktake() {
     setSaved(prev => ({ ...prev, [key]: true }))
     setSaving(false)
     showSuccess(`✅ ${item.name} @ ${location.name} saved — quantity set to ${actualQty}`)
+    if (userProfile?.id) {
+      await supabase.from("marketing_notifications").insert({
+        user_id: userProfile.id,
+        title: "Stocktake Saved 🔢",
+        message: `${item.name} at ${location.name} updated to ${actualQty} pcs`,
+        type: "stocktake",
+        is_read: false,
+      })
+    }
     fetchAll()
     setTimeout(() => setSaved(prev => ({ ...prev, [key]: false })), 3000)
   }

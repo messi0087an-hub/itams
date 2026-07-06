@@ -38,7 +38,7 @@ function StatusBadge({ qty, min }) {
 }
 
 export default function MarketingItems() {
-  const { canManageMarketing, marketingRole, role } = useAuth()
+  const { userProfile, canManageMarketing, marketingRole, role } = useAuth()
   const isAdmin = canManageMarketing
   const showCost = ["marketing_admin", "marketing_manager"].includes(marketingRole) || role === "admin"
 
@@ -170,6 +170,15 @@ export default function MarketingItems() {
     resetForm()
     setSuccessMsg(`✅ "${item.name}" added successfully!`)
     setTimeout(() => setSuccessMsg(null), 7000)
+    if (userProfile?.id) {
+      await supabase.from("marketing_notifications").insert({
+        user_id: userProfile.id,
+        title: "Item Added 📦",
+        message: `${item.name} has been added to inventory`,
+        type: "item_added",
+        is_read: false,
+      })
+    }
     fetchAll()
   }
 

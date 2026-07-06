@@ -89,6 +89,11 @@ export default function MarketingStock() {
     setTimeout(() => setSuccessMsg(null), 7000)
   }
 
+  const notify = async (title, message, type) => {
+    if (!userProfile?.id) return
+    await supabase.from("marketing_notifications").insert({ user_id: userProfile.id, title, message, type, is_read: false })
+  }
+
   // Build the stock lookup query, handling null variant_id correctly.
   // PostgREST requires .is("col", null) for null checks — .eq("col", null) fails.
   const stockLookup = (itemId, locationId, variantId) => {
@@ -160,8 +165,10 @@ export default function MarketingStock() {
     }
 
     setSaving(false)
+    const locationName = locations.find(l => l.id === formIn.location_id)?.name || "location"
     setFormIn({ item_id: "", variant_id: "", location_id: "", quantity: "", brought_by: "", intended_for: "", date: new Date().toISOString().split("T")[0], notes: "" })
     showSuccess(`✅ Stock In recorded: +${qty} units of ${itemName}`)
+    notify("Stock In 📥", `${qty} units of ${itemName} received at ${locationName}`, "stock_in")
     fetchAll()
   }
 
@@ -214,8 +221,10 @@ export default function MarketingStock() {
     }
 
     setSaving(false)
+    const outLocationName = locations.find(l => l.id === formOut.from_location_id)?.name || "location"
     setFormOut({ item_id: "", variant_id: "", from_location_id: "", quantity: "", taken_by: "", purpose: "", class_id: "", event_id: "", date: new Date().toISOString().split("T")[0], notes: "" })
     showSuccess(`✅ Stock Out recorded: -${qty} units of ${itemName}`)
+    notify("Stock Out 📤", `${qty} units of ${itemName} distributed from ${outLocationName}`, "stock_out")
     fetchAll()
   }
 
