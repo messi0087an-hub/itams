@@ -4,7 +4,6 @@ import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "react-i18next"
 import { motion, AnimatePresence } from "framer-motion"
-import MarketingSearch from "./MarketingSearch"
 
 const MKT = {
   bg:      "#071920",
@@ -308,7 +307,7 @@ export default function MarketingSidebar() {
           backdropFilter: "blur(12px)",
           WebkitBackdropFilter: "blur(12px)",
           borderBottom: `1px solid ${MKT.border}`,
-          display: "flex", alignItems: "center",
+          display: "flex", alignItems: "center", justifyContent: "space-between",
           padding: "0 16px",
           gap: "10px",
         }}
@@ -327,9 +326,6 @@ export default function MarketingSidebar() {
             }
           </svg>
         </button>
-        <div style={{ flex: 1, minWidth: 0 }}>
-          <MarketingSearch />
-        </div>
         <BellButton size={16} />
       </div>
 
