@@ -79,7 +79,7 @@ export default function MarketingNavBell() {
           borderRadius: "9px", width: "34px", height: "34px",
           display: "flex", alignItems: "center", justifyContent: "center",
           cursor: "pointer", fontSize: "16px", position: "relative",
-          transition: "background 0.15s",
+          transition: "background 0.15s", zIndex: 9998,
         }}
         onMouseEnter={e => e.currentTarget.style.background = "rgba(6,182,212,0.2)"}
         onMouseLeave={e => e.currentTarget.style.background = "rgba(6,182,212,0.1)"}
