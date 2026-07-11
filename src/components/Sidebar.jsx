@@ -137,7 +137,7 @@ export default function Sidebar() {
         {/* ── TOP: Logo (desktop) / spacer (mobile) — never scrolls ── */}
         <div className="shrink-0">
           <div className="p-6 border-b border-gray-800 hidden md:block">
-            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"140px", mixBlendMode:"multiply", background:"transparent"}} />
+            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"140px", mixBlendMode:"multiply", background:"transparent", filter: "brightness(1.8) contrast(1.1)"}} />
           </div>
           <div className="h-14 md:hidden" />
         </div>
