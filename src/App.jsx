@@ -683,11 +683,11 @@ function LoginPage({ onVerified }) {
           backgroundPosition: "center",
         }}
       >
+        <div style={{position:"absolute", inset:0, background:"rgba(0,0,0,0.35)"}} />
         <div className="relative z-10 flex flex-col items-center">
-          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: 200, height: "auto", marginBottom: 28, background: "transparent", mixBlendMode: "multiply" }} />
-          <h1 style={{color:"#333",fontSize:26,fontWeight:800,textAlign:"center",marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
-          <p style={{color:"#444",fontSize:14,textAlign:"center"}}>Trainocate Singapore</p>
-          <p style={{color:"#555",fontSize:12,textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
+          <img src="/trainocate-logo.png" width="220" style={{display:"block", margin:"0 auto"}} alt="Trainocate" />
+          <h1 style={{color:"#fff",fontSize:"2.2rem",fontWeight:800,textAlign:"center",marginTop:28,marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
+          <p style={{color:"#fff",fontSize:"1rem",textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
         </div>
       </div>
 
