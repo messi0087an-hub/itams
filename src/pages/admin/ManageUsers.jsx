@@ -411,6 +411,10 @@ const emailMap = {}
       const { error } = await supabase.rpc("delete_user", { target_id: deleteTarget.id })
       if (error) throw new Error(error.message)
 
+      await supabase.from("assets")
+        .update({ assigned_user: null, status: "available" })
+        .eq("assigned_user", deleteTarget.name)
+
       setUsers(users.filter(x => x.id !== deleteTarget.id))
       showSuccess(`${deletedLabel} has been permanently deleted.`)
       if (userProfile?.id) {

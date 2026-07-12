@@ -354,9 +354,9 @@ export default function Scanner() {
         ) : null)}
       </div>
       <div className="flex flex-wrap gap-2 mb-3">
-        <button onClick={() => navigate(`/admin/issues?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 hover:bg-orange-600/30 transition-all text-sm font-medium">⚠️ Report Issue</button>
-        <button onClick={() => navigate(`/admin/maintenance?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 transition-all text-sm font-medium">🔧 Request Maintenance</button>
-        <button onClick={() => navigate(`/admin/borrow?asset_id=${a.id}`)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 hover:bg-purple-600/30 transition-all text-sm font-medium">🔄 Borrow This Asset</button>
+        <button onClick={() => navigate("/admin/issues?asset_id=" + a.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-orange-600/20 border border-orange-500/30 text-orange-400 hover:bg-orange-600/30 transition-all text-sm font-medium">⚠️ Report Issue</button>
+        <button onClick={() => navigate("/admin/maintenance?asset_id=" + a.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-yellow-600/20 border border-yellow-500/30 text-yellow-400 hover:bg-yellow-600/30 transition-all text-sm font-medium">🔧 Request Maintenance</button>
+        <button onClick={() => navigate("/admin/borrow?asset_id=" + a.id)} className="flex items-center gap-2 px-4 py-2 rounded-lg bg-purple-600/20 border border-purple-500/30 text-purple-400 hover:bg-purple-600/30 transition-all text-sm font-medium">🔄 Borrow This Asset</button>
       </div>
       <div className="flex gap-3">
         <motion.button whileHover={{ scale: 1.02 }} whileTap={{ scale: 0.98 }}

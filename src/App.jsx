@@ -683,7 +683,7 @@ function LoginPage({ onVerified }) {
           backgroundPosition: "center",
         }}
       >
-        <div style={{position:"absolute", inset:0, background:"rgba(0,0,0,0.35)"}} />
+        <div style={{position:"absolute", inset:0, background:"rgba(0,0,0,0.15)"}} />
         <div className="relative z-10 flex flex-col items-center">
           <img src="/trainocate-logo.png" width="220" style={{display:"block", margin:"0 auto"}} alt="Trainocate" />
           <h1 style={{color:"#fff",fontSize:"2.2rem",fontWeight:800,textAlign:"center",marginTop:28,marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
