@@ -8,6 +8,7 @@ import { notifyUserByIdentifier } from "../../lib/notifications"
 import { useAuth } from "../../context/AuthContext"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
+import { useCurrency } from "../../lib/useCurrency"
 
 const CATEGORIES = ["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"]
 const PAGE_SIZE = 20
@@ -32,7 +33,7 @@ function exportToExcel(data, filename = "assets") {
   XLSX.writeFile(wb, `${filename}_${new Date().toISOString().split("T")[0]}.xlsx`)
 }
 
-function exportToPDF(selectedAssets) {
+function exportToPDF(selectedAssets, currencySymbol) {
   const rows = selectedAssets.map(a => `
     <tr>
       <td>${a.name}</td>
@@ -42,7 +43,7 @@ function exportToPDF(selectedAssets) {
       <td>${a.assigned_user || "—"}</td>
       <td>${a.location || "—"}</td>
       <td>${a.status}</td>
-      <td>${a.purchase_price ? "SGD " + Number(a.purchase_price).toLocaleString() : "—"}</td>
+      <td>${a.purchase_price ? currencySymbol + Number(a.purchase_price).toLocaleString() : "—"}</td>
     </tr>`).join("")
 
   const win = window.open("")
@@ -81,6 +82,7 @@ function exportToPDF(selectedAssets) {
 
 export default function Assets() {
   const { canEdit, canDelete, isGuest, userCountry, profileLoading, userProfile } = useAuth()
+  const { symbol: currencySymbol } = useCurrency()
   const [assets, setAssets] = useState([])
   const [maintByAsset, setMaintByAsset] = useState({})
   const [searchParams] = useSearchParams()
@@ -462,7 +464,7 @@ export default function Assets() {
                   🔄 Change Status
                 </button>
               )}
-              <button onClick={() => exportToPDF(selectedAssets)}
+              <button onClick={() => exportToPDF(selectedAssets, currencySymbol)}
                 className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
                 📄 Export PDF
               </button>

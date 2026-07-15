@@ -11,6 +11,7 @@ import {
 } from "recharts"
 import { calcDepreciation } from "../../lib/depreciation"
 import { useAuth } from "../../context/AuthContext"
+import { useCurrency } from "../../lib/useCurrency"
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
@@ -109,6 +110,7 @@ function pdfFooter(doc) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function Reports() {
   const { userCountry, profileLoading } = useAuth()
+  const { symbol: currencySymbol } = useCurrency()
   const [reportType, setReportType] = useState("inventory")
   const [assets, setAssets] = useState([])
   const [borrows, setBorrows] = useState([])
@@ -350,13 +352,13 @@ export default function Reports() {
     if (reportType === "depreciation") {
       const { rows, stats } = reportData
       doc.setFontSize(9)
-      doc.text(`Total Original Value: SGD ${stats.totalOriginal.toLocaleString()}  |  Current Value: SGD ${Math.round(stats.totalCurrent).toLocaleString()}  |  Fully Depreciated: ${stats.fullyDep}`, 14, y)
+      doc.text(`Total Original Value: ${currencySymbol}${stats.totalOriginal.toLocaleString()}  |  Current Value: ${currencySymbol}${Math.round(stats.totalCurrent).toLocaleString()}  |  Fully Depreciated: ${stats.fullyDep}`, 14, y)
       y += 6
       autoTable(doc, {
         startY: y, head: [["Asset Name","Purchase Price","Current Value","% Remaining","Yrs Old","Status"]],
         body: rows.map(a => [
-          a.name, `SGD ${a.dep.originalPrice.toLocaleString()}`,
-          `SGD ${Math.round(a.dep.currentValue).toLocaleString()}`,
+          a.name, `${currencySymbol}${a.dep.originalPrice.toLocaleString()}`,
+          `${currencySymbol}${Math.round(a.dep.currentValue).toLocaleString()}`,
           `${a.dep.percentRemaining}%`, `${a.dep.yearsOld}yr`,
           a.dep.fullyDepreciated ? "Fully Dep." : "Active",
         ]),
@@ -449,7 +451,7 @@ export default function Reports() {
         "Serial Number": a.serial_number||"", "Asset Tag": a.asset_tag||"",
         "Status": a.status, "Location": a.location||"", "Assigned To": a.assigned_user||"",
         "Department": a.department||"", "Purchase Date": a.purchase_date||"",
-        "Purchase Price (SGD)": a.purchase_price||"", "Warranty Expiry": a.warranty_expiry||"", "Remarks": a.remarks||"",
+        [`Purchase Price (${currencySymbol})`]: a.purchase_price||"", "Warranty Expiry": a.warranty_expiry||"", "Remarks": a.remarks||"",
       }))
     } else if (reportType === "warranty") {
       rows = (reportData.rows || []).map(a => ({
@@ -805,9 +807,9 @@ export default function Reports() {
               {reportType === "depreciation" && reportData.stats && (
                 <>
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-5">
-                    <StatCard label="Total Original" value={`SGD ${Math.round(reportData.stats.totalOriginal).toLocaleString()}`} color="blue" delay={0} />
-                    <StatCard label="Current Value" value={`SGD ${Math.round(reportData.stats.totalCurrent).toLocaleString()}`} color="green" delay={0.05} />
-                    <StatCard label="Total Loss" value={`SGD ${Math.round(reportData.stats.loss).toLocaleString()}`} color="red" delay={0.1} />
+                    <StatCard label="Total Original" value={`${currencySymbol}${Math.round(reportData.stats.totalOriginal).toLocaleString()}`} color="blue" delay={0} />
+                    <StatCard label="Current Value" value={`${currencySymbol}${Math.round(reportData.stats.totalCurrent).toLocaleString()}`} color="green" delay={0.05} />
+                    <StatCard label="Total Loss" value={`${currencySymbol}${Math.round(reportData.stats.loss).toLocaleString()}`} color="red" delay={0.1} />
                     <StatCard label="Fully Dep." value={reportData.stats.fullyDep} color="orange" delay={0.15} />
                   </div>
                   <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5" style={{ width: "100%", maxWidth: "100%", overflowX: "hidden" }}>
@@ -826,8 +828,8 @@ export default function Reports() {
                   <ReportTable headers={["Asset Name","Original","Current","% Left"]}
                     rows={reportData.rows.map(a => [
                       a.name,
-                      `SGD ${a.dep.originalPrice.toLocaleString()}`,
-                      `SGD ${Math.round(a.dep.currentValue).toLocaleString()}`,
+                      `${currencySymbol}${a.dep.originalPrice.toLocaleString()}`,
+                      `${currencySymbol}${Math.round(a.dep.currentValue).toLocaleString()}`,
                       <span key="p" className={a.dep.percentRemaining > 60 ? "text-green-400" : a.dep.percentRemaining > 30 ? "text-yellow-400" : "text-red-400"}>{a.dep.percentRemaining}%</span>,
                     ])} />
                 </>

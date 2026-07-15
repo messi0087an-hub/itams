@@ -2,20 +2,23 @@ import { useEffect, useState } from "react"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
+import { CURRENCIES } from "../../lib/useCurrency"
 
 export default function Settings() {
   const { isAdmin } = useAuth()
   const [approvingEmail, setApprovingEmail] = useState("")
   const [marketingEmail, setMarketingEmail] = useState("")
+  const [currency, setCurrency] = useState("SGD")
   const [users, setUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingMarketing, setSavingMarketing] = useState(false)
+  const [savingCurrency, setSavingCurrency] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
 
   useEffect(() => {
-    Promise.all([fetchSettings(), fetchUsers()])
+    Promise.all([fetchSettings(), fetchUsers(), fetchCurrency()])
   }, [])
 
   const fetchSettings = async () => {
@@ -31,6 +34,17 @@ export default function Settings() {
       }
     } catch { /* table may not exist yet — use defaults */ }
     setLoading(false)
+  }
+
+  const fetchCurrency = async () => {
+    try {
+      const { data } = await supabase
+        .from("system_settings")
+        .select("currency")
+        .eq("id", "global")
+        .single()
+      if (data?.currency) setCurrency(data.currency)
+    } catch { /* table may not exist yet — use default */ }
   }
 
   const fetchUsers = async () => {
@@ -80,6 +94,25 @@ export default function Settings() {
       setError(err.message || "Failed to save settings.")
     }
     setSavingMarketing(false)
+  }
+
+  const handleSaveCurrency = async (e) => {
+    e.preventDefault()
+    setSavingCurrency(true)
+    setError("")
+    try {
+      const { error: upsertError } = await supabase.from("system_settings").upsert({
+        id: "global",
+        currency,
+        updated_at: new Date().toISOString(),
+      })
+      if (upsertError) throw upsertError
+      setSuccess(true)
+      setTimeout(() => setSuccess(false), 3000)
+    } catch (err) {
+      setError(err.message || "Failed to save currency settings.")
+    }
+    setSavingCurrency(false)
   }
 
   if (!isAdmin) {
@@ -170,6 +203,46 @@ export default function Settings() {
               className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
             >
               {saving ? "Saving…" : "Save Settings"}
+            </button>
+          </form>
+        )}
+      </div>
+
+      {/* Currency Settings */}
+      <div className="bg-gray-900/80 rounded-xl border border-gray-800 p-5 mb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">💱</span>
+          <h2 className="text-white font-semibold">Currency Settings</h2>
+        </div>
+        <p className="text-gray-500 text-sm mb-4 ml-8">
+          Choose the currency used for cost and value fields across the portal.
+        </p>
+
+        {loading ? (
+          <div className="animate-pulse h-12 bg-gray-800 rounded-lg" />
+        ) : (
+          <form onSubmit={handleSaveCurrency}>
+            <label className="text-gray-400 text-sm mb-2 block">Currency</label>
+
+            <select
+              value={currency}
+              onChange={e => setCurrency(e.target.value)}
+              required
+              className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-4 truncate"
+            >
+              {CURRENCIES.map(c => (
+                <option key={c.code} value={c.code}>
+                  {c.code} ({c.symbol})
+                </option>
+              ))}
+            </select>
+
+            <button
+              type="submit"
+              disabled={savingCurrency}
+              className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
+            >
+              {savingCurrency ? "Saving…" : "Save Currency"}
             </button>
           </form>
         )}

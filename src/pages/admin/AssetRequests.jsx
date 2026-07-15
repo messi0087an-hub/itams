@@ -6,6 +6,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { sendAssetRequestNotification, sendApprovalDecisionEmail, getApprovingOfficerProfile } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
 import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
+import { useCurrency } from "../../lib/useCurrency"
 
 const PRIORITY_STYLES = {
   low:    { pill: "bg-gray-500/20 text-gray-400 border-gray-500/30",       label: "Low" },
@@ -37,6 +38,7 @@ const EMPTY_FORM = {
 
 export default function AssetRequests() {
   const { userProfile, isAdmin, canSubmitRequests } = useAuth()
+  const { symbol: currencySymbol } = useCurrency()
   const [requests, setRequests]     = useState([])
   const [loading, setLoading]       = useState(true)
   const [showForm, setShowForm]     = useState(false)
@@ -378,9 +380,9 @@ export default function AssetRequests() {
 
               {/* Cost per unit */}
               <div>
-                <label className="text-gray-400 text-sm mb-2 block">Cost per Unit (SGD) *</label>
+                <label className="text-gray-400 text-sm mb-2 block">Cost per Unit ({currencySymbol}) *</label>
                 <div className="relative">
-                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">SGD</span>
+                  <span className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400 text-sm font-medium">{currencySymbol}</span>
                   <input type="number" min="0" step="0.01"
                     value={form.cost_per_unit}
                     onChange={e => setForm({ ...form, cost_per_unit: e.target.value })}
@@ -621,7 +623,7 @@ export default function AssetRequests() {
                         <span className="text-gray-500 text-xs">🏢 {req.department}</span>
                       )}
                       {req.cost_per_unit != null && (
-                        <span className="text-gray-500 text-xs">💰 SGD {Number(req.cost_per_unit).toLocaleString("en-SG", { minimumFractionDigits: 2 })}</span>
+                        <span className="text-gray-500 text-xs">💰 {currencySymbol}{Number(req.cost_per_unit).toLocaleString("en-SG", { minimumFractionDigits: 2 })}</span>
                       )}
                     </div>
 
