@@ -1,8 +1,23 @@
 import { useEffect, useState } from "react"
+import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { CURRENCIES } from "../../lib/useCurrency"
+
+const BACKUP_TABLES = [
+  "assets", "user_profiles", "borrow_history", "issues",
+  "maintenance_schedules", "asset_requests", "notifications", "system_settings",
+]
+
+async function fetchBackupData() {
+  const results = await Promise.all(
+    BACKUP_TABLES.map(table => supabase.from(table).select("*"))
+  )
+  const data = {}
+  BACKUP_TABLES.forEach((table, i) => { data[table] = results[i].data || [] })
+  return data
+}
 
 export default function Settings() {
   const { isAdmin } = useAuth()
@@ -14,6 +29,8 @@ export default function Settings() {
   const [saving, setSaving] = useState(false)
   const [savingMarketing, setSavingMarketing] = useState(false)
   const [savingCurrency, setSavingCurrency] = useState(false)
+  const [backingUp, setBackingUp] = useState(false)
+  const [backingUpExcel, setBackingUpExcel] = useState(false)
   const [success, setSuccess] = useState(false)
   const [error, setError] = useState("")
 
@@ -113,6 +130,46 @@ export default function Settings() {
       setError(err.message || "Failed to save currency settings.")
     }
     setSavingCurrency(false)
+  }
+
+  const handleExportBackup = async () => {
+    setBackingUp(true)
+    setError("")
+    try {
+      const data = await fetchBackupData()
+      const payload = {
+        exported_at: new Date().toISOString(),
+        source: "Trainocate Asset Portal",
+        tables: data,
+      }
+      const blob = new Blob([JSON.stringify(payload, null, 2)], { type: "application/json" })
+      const url = URL.createObjectURL(blob)
+      const a = document.createElement("a")
+      a.href = url
+      a.download = `tap-backup-${new Date().toISOString().split("T")[0]}.json`
+      a.click()
+      URL.revokeObjectURL(url)
+    } catch (err) {
+      setError(err.message || "Failed to export backup.")
+    }
+    setBackingUp(false)
+  }
+
+  const handleExportBackupExcel = async () => {
+    setBackingUpExcel(true)
+    setError("")
+    try {
+      const data = await fetchBackupData()
+      const wb = XLSX.utils.book_new()
+      BACKUP_TABLES.forEach(table => {
+        const ws = XLSX.utils.json_to_sheet(data[table])
+        XLSX.utils.book_append_sheet(wb, ws, table)
+      })
+      XLSX.writeFile(wb, `tap-backup-${new Date().toISOString().split("T")[0]}.xlsx`)
+    } catch (err) {
+      setError(err.message || "Failed to export Excel backup.")
+    }
+    setBackingUpExcel(false)
   }
 
   if (!isAdmin) {
@@ -299,6 +356,38 @@ export default function Settings() {
             </button>
           </form>
         )}
+      </div>
+
+      {/* Backup & Restore */}
+      <div className="bg-gray-900/80 rounded-xl border border-gray-800 p-5 mb-4">
+        <div className="flex items-center gap-2 mb-1">
+          <span className="text-xl">🗄️</span>
+          <h2 className="text-white font-semibold">Backup & Restore</h2>
+        </div>
+        <p className="text-gray-500 text-sm mb-4 ml-8">
+          Download a full copy of your portal data for safekeeping.
+        </p>
+
+        <div className="flex flex-wrap gap-3 mb-4">
+          <button
+            onClick={handleExportBackup}
+            disabled={backingUp}
+            className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
+          >
+            {backingUp ? "Exporting…" : "📥 Export Full Backup"}
+          </button>
+          <button
+            onClick={handleExportBackupExcel}
+            disabled={backingUpExcel}
+            className="bg-green-600 hover:bg-green-700 disabled:opacity-50 text-white px-6 py-2 rounded-lg text-sm font-medium transition-all"
+          >
+            {backingUpExcel ? "Exporting…" : "📊 Export to Excel"}
+          </button>
+        </div>
+
+        <p className="text-gray-500 text-xs">
+          Backup includes all assets, users, borrows, issues, maintenance and settings data. Does not include passwords or authentication data.
+        </p>
       </div>
 
     </div>
