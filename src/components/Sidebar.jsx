@@ -5,18 +5,6 @@ import { useAuth } from "../context/AuthContext"
 import { useTranslation } from "react-i18next"
 import NotificationBell from "./NotificationBell"
 
-const languages = [
-  { code: "en", label: "EN", flag: "🇸🇬" },
-  { code: "ms", label: "MS", flag: "🇲🇾" },
-  { code: "zh", label: "中文", flag: "🇨🇳" },
-  { code: "hi", label: "हिं", flag: "🇮🇳" },
-  { code: "tl", label: "TL", flag: "🇵🇭" },
-  { code: "th", label: "ไทย", flag: "🇹🇭" },
-  { code: "id", label: "ID", flag: "🇮🇩" },
-  { code: "vi", label: "VI", flag: "🇻🇳" },
-  { code: "ko", label: "한국", flag: "🇰🇷" },
-]
-
 const roleColors = {
   admin: "bg-blue-500/20 text-blue-400 border border-blue-500/30",
   standard_user: "bg-green-500/20 text-green-400 border border-green-500/30",
@@ -33,7 +21,7 @@ const roleLabels = {
 export default function Sidebar() {
   const [open, setOpen] = useState(false)
   const [counts, setCounts] = useState({ assets: 0, openIssues: 0, pendingRequests: 0, activeBorrows: 0 })
-  const { t, i18n } = useTranslation()
+  const { t } = useTranslation()
   const { userProfile, role, isAdmin, isStandardUser, isMarketing, isGuest } = useAuth()
   const navigate = useNavigate()
 
@@ -73,7 +61,7 @@ export default function Sidebar() {
 
   // Standard User items
   const standardItems = [
-    { label: "📋 " + t("assetRequestsTitle"), path: "/admin/requests", count: counts.pendingRequests },
+    { label: "📋 New Asset Request", path: "/admin/requests", count: counts.pendingRequests },
     { label: t("borrowReturn"), path: "/admin/borrow", count: counts.activeBorrows },
     { label: t("issues"), path: "/admin/issues", count: counts.openIssues },
     { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
@@ -134,21 +122,30 @@ export default function Sidebar() {
         className={`fixed inset-y-0 left-0 z-40 w-64 bg-gray-900/70 backdrop-blur-sm border-r border-gray-800 transform transition-transform duration-200 ${open ? "translate-x-0" : "-translate-x-full md:translate-x-0"}`}
         style={{ display: "flex", flexDirection: "column", overflow: "hidden" }}
       >
-        {/* ── TOP: Logo (desktop) / spacer (mobile) — never scrolls ── */}
+        {/* ── TOP: Logo + User info — inline, never scrolls ── */}
         <div className="shrink-0">
-          <div className="p-6 border-b border-gray-800 hidden md:block">
-            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"140px", mixBlendMode:"multiply", background:"transparent", filter: "brightness(2.5) contrast(1.0)"}} />
+          <div className="hidden md:flex items-center gap-3 px-4 pt-4 pb-3 border-b border-gray-800/50">
+            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"80px", flexShrink: 0, mixBlendMode:"multiply", background:"transparent", filter: "brightness(2.5) contrast(1.0)"}} />
+            {userProfile && (
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                <img src="/trainocate-logo.png" style={{width:"32px", height:"32px", borderRadius:"50%", objectFit:"cover"}} />
+                <div className="min-w-0 flex-1">
+                  <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
+                    {roleLabels[role] || "👁 Guest"}
+                  </span>
+                </div>
+              </div>
+            )}
           </div>
           <div className="h-14 md:hidden" />
         </div>
 
-        {/* ── USER INFO — never scrolls ── */}
+        {/* ── USER INFO (mobile) — never scrolls ── */}
         {userProfile && (
-          <div className="shrink-0 px-4 pt-4 pb-2 border-b border-gray-800/50">
+          <div className="shrink-0 px-4 pt-4 pb-2 border-b border-gray-800/50 md:hidden">
             <div className="flex items-center gap-2">
-              <div className="w-7 h-7 rounded-full bg-gray-700 flex items-center justify-center text-white font-bold text-xs shrink-0">
-                {(userProfile.name || userProfile.email)[0].toUpperCase()}
-              </div>
+              <img src="/trainocate-logo.png" style={{width:"32px", height:"32px", borderRadius:"50%", objectFit:"cover"}} />
               <div className="min-w-0 flex-1">
                 <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
@@ -192,26 +189,6 @@ export default function Sidebar() {
             </div>
           </div>
         )}
-
-        {/* ── LANGUAGE SWITCHER — never scrolls ── */}
-        <div className="shrink-0 px-4 pt-4 pb-2">
-          <p className="text-gray-500 text-xs mb-2">Language</p>
-          <div className="grid grid-cols-3 gap-1">
-            {languages.map((lang) => (
-              <button
-                key={lang.code}
-                onClick={() => i18n.changeLanguage(lang.code)}
-                className={`py-1.5 rounded-lg text-xs font-medium transition-all ${
-                  i18n.language === lang.code
-                    ? "bg-blue-600 text-white"
-                    : "bg-gray-800 text-gray-400 hover:text-white"
-                }`}
-              >
-                {lang.flag} {lang.label}
-              </button>
-            ))}
-          </div>
-        </div>
 
         {/* ── NAV + SIGN OUT — scrollable, takes remaining height ── */}
         <nav className="p-4 space-y-1" style={{ flex: 1, overflowY: "auto" }}>
