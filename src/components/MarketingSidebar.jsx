@@ -2,7 +2,6 @@ import { useState, useEffect } from "react"
 import { NavLink, useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { useAuth } from "../context/AuthContext"
-import { useTranslation } from "react-i18next"
 import { motion, AnimatePresence } from "framer-motion"
 
 const MKT = {
@@ -16,18 +15,6 @@ const MKT = {
   hover:   "rgba(6,182,212,0.12)",
   active:  "rgba(6,182,212,0.18)",
 }
-
-const languages = [
-  { code: "en", label: "EN",  flag: "🇸🇬" },
-  { code: "ms", label: "MS",  flag: "🇲🇾" },
-  { code: "zh", label: "中文", flag: "🇨🇳" },
-  { code: "hi", label: "हिं",  flag: "🇮🇳" },
-  { code: "tl", label: "TL",  flag: "🇵🇭" },
-  { code: "th", label: "ไทย", flag: "🇹🇭" },
-  { code: "id", label: "ID",  flag: "🇮🇩" },
-  { code: "vi", label: "VI",  flag: "🇻🇳" },
-  { code: "ko", label: "한국", flag: "🇰🇷" },
-]
 
 const navItems = [
   { label: "Dashboard",    path: "/marketing/dashboard", icon: "🏠" },
@@ -53,7 +40,6 @@ export default function MarketingSidebar() {
   const [notifications, setNotifications] = useState([])
   const [showNotif, setShowNotif] = useState(false)
   const { userProfile, role, isAdmin, isMarketing } = useAuth()
-  const { i18n } = useTranslation()
   const navigate = useNavigate()
 
   const displayName = userProfile?.name || userProfile?.full_name || userProfile?.email || "Marketing User"
@@ -230,30 +216,6 @@ export default function MarketingSidebar() {
           </div>
         </div>
       )}
-
-      {/* Language switcher */}
-      <div style={{ padding: "10px 14px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0 }}>
-        <p style={{ color: MKT.sub, fontSize: "10px", marginBottom: "7px", textTransform: "uppercase", letterSpacing: "0.5px" }}>Language</p>
-        <div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: "4px" }}>
-          {languages.map(lang => (
-            <button
-              key={lang.code}
-              onClick={() => i18n.changeLanguage(lang.code)}
-              style={{
-                padding: "4px 2px", borderRadius: "6px", fontSize: "10px", fontWeight: "500",
-                background: i18n.language === lang.code ? "#2563eb" : "rgba(6,182,212,0.06)",
-                color: i18n.language === lang.code ? "#fff" : MKT.sub,
-                border: i18n.language === lang.code ? "1px solid #3b82f6" : `1px solid ${MKT.border}`,
-                cursor: "pointer", transition: "all 0.15s",
-              }}
-              onMouseEnter={e => { if (i18n.language !== lang.code) e.currentTarget.style.background = "rgba(6,182,212,0.15)" }}
-              onMouseLeave={e => { if (i18n.language !== lang.code) e.currentTarget.style.background = "rgba(6,182,212,0.06)" }}
-            >
-              {lang.flag} {lang.label}
-            </button>
-          ))}
-        </div>
-      </div>
 
       {/* Navigation */}
       <nav style={{ flex: 1, padding: "10px", overflowY: "auto" }}>
