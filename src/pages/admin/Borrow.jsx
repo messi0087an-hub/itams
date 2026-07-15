@@ -7,6 +7,7 @@ import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders } from "../../lib/emailService"
 import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
+import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -120,6 +121,8 @@ export default function Borrow() {
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
   const [filterBorrowStatus, setFilterBorrowStatus] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [monthFilter, setMonthFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -313,16 +316,28 @@ export default function Borrow() {
   const returnedBorrows = borrows.filter(b => b.returned_at)
   const todayStr = new Date().toISOString().split("T")[0]
 
+  const matchesSearchAndMonth = (b) => {
+    if (!matchesMonth(b.borrowed_at, monthFilter)) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const matches = b.assets?.name?.toLowerCase().includes(q) || b.borrower_name?.toLowerCase().includes(q)
+      if (!matches) return false
+    }
+    return true
+  }
+
   const filteredActiveBorrows = activeBorrows.filter(b => {
-    if (filterBorrowStatus === "all") return true
-    if (filterBorrowStatus === "active") return !isOverdueBorrow(b)
-    if (filterBorrowStatus === "overdue") return isOverdueBorrow(b)
-    return false
+    let statusMatch
+    if (filterBorrowStatus === "all") statusMatch = true
+    else if (filterBorrowStatus === "active") statusMatch = !isOverdueBorrow(b)
+    else if (filterBorrowStatus === "overdue") statusMatch = isOverdueBorrow(b)
+    else statusMatch = false
+    return statusMatch && matchesSearchAndMonth(b)
   })
 
-  const filteredReturnedBorrows = returnedBorrows.filter(() => {
-    if (filterBorrowStatus === "all" || filterBorrowStatus === "returned") return true
-    return false
+  const filteredReturnedBorrows = returnedBorrows.filter(b => {
+    const statusMatch = filterBorrowStatus === "all" || filterBorrowStatus === "returned"
+    return statusMatch && matchesSearchAndMonth(b)
   })
 
   const selectClass = "bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
@@ -528,11 +543,24 @@ export default function Borrow() {
 
       {/* Filter bar */}
       <div className="flex gap-2 mb-4 flex-wrap">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by asset or borrower name..."
+          className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm flex-1 min-w-[200px]"
+        />
         <select value={filterBorrowStatus} onChange={e => setFilterBorrowStatus(e.target.value)} className={selectClass}>
           <option value="all">All Borrows</option>
           <option value="active">Active</option>
           <option value="returned">Returned</option>
           <option value="overdue">Overdue</option>
+        </select>
+        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={selectClass}>
+          <option value="">All Months</option>
+          {getLastNMonths(12).map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
         </select>
       </div>
 

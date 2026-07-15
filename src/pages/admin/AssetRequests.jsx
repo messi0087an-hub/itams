@@ -5,6 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { sendAssetRequestNotification, sendApprovalDecisionEmail, getApprovingOfficerProfile } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
+import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
 
 const PRIORITY_STYLES = {
   low:    { pill: "bg-gray-500/20 text-gray-400 border-gray-500/30",       label: "Low" },
@@ -45,6 +46,8 @@ export default function AssetRequests() {
   const [actionReason, setActionReason] = useState("")
   const [actioning, setActioning]   = useState(false)
   const [tab, setTab]               = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [monthFilter, setMonthFilter] = useState("")
   const [form, setForm]             = useState(EMPTY_FORM)
   const [docFiles, setDocFiles]     = useState([])
   const [uploadingDocs, setUploadingDocs] = useState(false)
@@ -217,8 +220,17 @@ export default function AssetRequests() {
   }
 
   const filtered = requests.filter(r => {
-    if (tab === "pending") return r.status === "pending"
-    if (tab === "mine")    return r.requested_by_email === userProfile?.email
+    const matchesTab =
+      tab === "pending" ? r.status === "pending" :
+      tab === "mine"    ? r.requested_by_email === userProfile?.email :
+      true
+    if (!matchesTab) return false
+    if (!matchesMonth(r.created_at, monthFilter)) return false
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase()
+      const matches = r.asset_type?.toLowerCase().includes(q) || r.requested_by?.toLowerCase().includes(q)
+      if (!matches) return false
+    }
     return true
   })
 
@@ -520,6 +532,24 @@ export default function AssetRequests() {
             {t.label}
           </button>
         ))}
+      </div>
+
+      {/* ── Search + Month filter ─────────────────────────────────────────── */}
+      <div className="flex gap-2 mb-4 flex-wrap">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by asset or requester name..."
+          className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm flex-1 min-w-[200px]"
+        />
+        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
+          className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+          <option value="">All Months</option>
+          {getLastNMonths(12).map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
       </div>
 
       {/* ── Requests list ──────────────────────────────────────────────────── */}

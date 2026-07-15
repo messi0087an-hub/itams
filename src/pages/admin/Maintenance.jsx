@@ -6,6 +6,7 @@ import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
+import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -108,6 +109,8 @@ export default function Maintenance() {
   const [submitSuccess, setSubmitSuccess] = useState(false)
   const [filterStatus, setFilterStatus] = useState("all")
   const [filterPriority, setFilterPriority] = useState("all")
+  const [searchQuery, setSearchQuery] = useState("")
+  const [monthFilter, setMonthFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -293,6 +296,8 @@ export default function Maintenance() {
       if (filterStatus === "completed" && s.status !== "completed") return false
     }
     if (filterPriority !== "all" && s.priority !== filterPriority) return false
+    if (!matchesMonth(s.scheduled_date, monthFilter)) return false
+    if (searchQuery && !s.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
 
@@ -420,6 +425,13 @@ export default function Maintenance() {
 
       {/* Filters */}
       <div className="flex gap-2 mb-4 flex-wrap">
+        <input
+          type="text"
+          value={searchQuery}
+          onChange={e => setSearchQuery(e.target.value)}
+          placeholder="Search by asset name..."
+          className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm flex-1 min-w-[200px]"
+        />
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)} className={selectClass}>
           <option value="all">All Statuses</option>
           <option value="pending">Pending</option>
@@ -433,6 +445,12 @@ export default function Maintenance() {
           <option value="medium">Medium</option>
           <option value="high">High</option>
           <option value="critical">Critical</option>
+        </select>
+        <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={selectClass}>
+          <option value="">All Months</option>
+          {getLastNMonths(12).map(m => (
+            <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
         </select>
       </div>
 
