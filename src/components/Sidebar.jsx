@@ -128,7 +128,9 @@ export default function Sidebar() {
             <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"80px", flexShrink: 0, mixBlendMode:"multiply", background:"transparent", filter: "brightness(2.5) contrast(1.0)"}} />
             {userProfile && (
               <div className="flex items-center gap-2 min-w-0 flex-1">
-                <img src="/trainocate-logo.png" style={{width:"32px", height:"32px", borderRadius:"50%", objectFit:"cover"}} />
+                <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:"linear-gradient(135deg, #e8431a, #ff6b35)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold", fontSize:"13px", flexShrink:0 }}>
+                  {userProfile?.name?.charAt(0)?.toUpperCase() || "U"}
+                </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
                   <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
@@ -145,7 +147,9 @@ export default function Sidebar() {
         {userProfile && (
           <div className="shrink-0 px-4 pt-4 pb-2 border-b border-gray-800/50 md:hidden">
             <div className="flex items-center gap-2">
-              <img src="/trainocate-logo.png" style={{width:"32px", height:"32px", borderRadius:"50%", objectFit:"cover"}} />
+              <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:"linear-gradient(135deg, #e8431a, #ff6b35)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold", fontSize:"13px", flexShrink:0 }}>
+                {userProfile?.name?.charAt(0)?.toUpperCase() || "U"}
+              </div>
               <div className="min-w-0 flex-1">
                 <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
                 <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
