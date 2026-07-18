@@ -5,7 +5,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { sendAssetRequestNotification, sendApprovalDecisionEmail, getApprovingOfficerProfile } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
-import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
+import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 import { useCurrency } from "../../lib/useCurrency"
 
 const PRIORITY_STYLES = {
@@ -50,6 +50,7 @@ export default function AssetRequests() {
   const [tab, setTab]               = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [monthFilter, setMonthFilter] = useState("")
+  const [yearFilter, setYearFilter] = useState("")
   const [form, setForm]             = useState(EMPTY_FORM)
   const [docFiles, setDocFiles]     = useState([])
   const [uploadingDocs, setUploadingDocs] = useState(false)
@@ -227,7 +228,7 @@ export default function AssetRequests() {
       tab === "mine"    ? r.requested_by_email === userProfile?.email :
       true
     if (!matchesTab) return false
-    if (!matchesMonth(r.created_at, monthFilter)) return false
+    if (!matchesMonth(r.created_at, monthFilter, yearFilter)) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matches = r.asset_type?.toLowerCase().includes(q) || r.requested_by?.toLowerCase().includes(q)
@@ -548,8 +549,15 @@ export default function AssetRequests() {
         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)}
           className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
           <option value="">All Months</option>
-          {getLastNMonths(12).map(m => (
+          {getLastNMonths().map(m => (
             <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)}
+          className="bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm">
+          <option value="">All Years</option>
+          {getYears().map(y => (
+            <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
       </div>

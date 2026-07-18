@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
-import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
+import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -111,6 +111,7 @@ export default function Maintenance() {
   const [filterPriority, setFilterPriority] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [monthFilter, setMonthFilter] = useState("")
+  const [yearFilter, setYearFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -296,7 +297,7 @@ export default function Maintenance() {
       if (filterStatus === "completed" && s.status !== "completed") return false
     }
     if (filterPriority !== "all" && s.priority !== filterPriority) return false
-    if (!matchesMonth(s.scheduled_date, monthFilter)) return false
+    if (!matchesMonth(s.scheduled_date, monthFilter, yearFilter)) return false
     if (searchQuery && !s.asset_name?.toLowerCase().includes(searchQuery.toLowerCase())) return false
     return true
   })
@@ -448,8 +449,14 @@ export default function Maintenance() {
         </select>
         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={selectClass}>
           <option value="">All Months</option>
-          {getLastNMonths(12).map(m => (
+          {getLastNMonths().map(m => (
             <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} className={selectClass}>
+          <option value="">All Years</option>
+          {getYears().map(y => (
+            <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
       </div>

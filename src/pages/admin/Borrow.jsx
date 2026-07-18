@@ -7,7 +7,7 @@ import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders } from "../../lib/emailService"
 import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
+import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -123,6 +123,7 @@ export default function Borrow() {
   const [filterBorrowStatus, setFilterBorrowStatus] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [monthFilter, setMonthFilter] = useState("")
+  const [yearFilter, setYearFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
 
@@ -317,7 +318,7 @@ export default function Borrow() {
   const todayStr = new Date().toISOString().split("T")[0]
 
   const matchesSearchAndMonth = (b) => {
-    if (!matchesMonth(b.borrowed_at, monthFilter)) return false
+    if (!matchesMonth(b.borrowed_at, monthFilter, yearFilter)) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matches = b.assets?.name?.toLowerCase().includes(q) || b.borrower_name?.toLowerCase().includes(q)
@@ -558,8 +559,14 @@ export default function Borrow() {
         </select>
         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={selectClass}>
           <option value="">All Months</option>
-          {getLastNMonths(12).map(m => (
+          {getLastNMonths().map(m => (
             <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} className={selectClass}>
+          <option value="">All Years</option>
+          {getYears().map(y => (
+            <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
       </div>

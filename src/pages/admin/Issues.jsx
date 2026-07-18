@@ -7,7 +7,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
-import { getLastNMonths, matchesMonth } from "../../lib/dateFilters"
+import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
 
@@ -53,6 +53,7 @@ export default function Issues() {
   const [filterPriority, setFilterPriority] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [monthFilter, setMonthFilter] = useState("")
+  const [yearFilter, setYearFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [form, setForm] = useState({
     asset_id: "", issue_type: "", description: "", priority: "medium"
@@ -180,7 +181,7 @@ export default function Issues() {
   const filteredIssues = issues.filter(i => {
     if (filterStatus !== "all" && i.status !== filterStatus) return false
     if (filterPriority !== "all" && i.priority !== filterPriority) return false
-    if (!matchesMonth(i.created_at, monthFilter)) return false
+    if (!matchesMonth(i.created_at, monthFilter, yearFilter)) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
       const matches = i.assets?.name?.toLowerCase().includes(q) || i.reported_by?.toLowerCase().includes(q)
@@ -326,8 +327,14 @@ export default function Issues() {
         </select>
         <select value={monthFilter} onChange={e => setMonthFilter(e.target.value)} className={selectClass}>
           <option value="">All Months</option>
-          {getLastNMonths(12).map(m => (
+          {getLastNMonths().map(m => (
             <option key={m.value} value={m.value}>{m.label}</option>
+          ))}
+        </select>
+        <select value={yearFilter} onChange={e => setYearFilter(e.target.value)} className={selectClass}>
+          <option value="">All Years</option>
+          {getYears().map(y => (
+            <option key={y} value={String(y)}>{y}</option>
           ))}
         </select>
       </div>
