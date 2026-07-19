@@ -53,23 +53,28 @@ export default function ImportAssets() {
 
       for (let i = 1; i < rows.length; i++) {
         const row = rows[i]
-        if (!row[0] || row[0] === "ITEM") continue
+        const headerVal = typeof row[0] === "string" ? row[0].trim().toLowerCase() : ""
+        if (!row[0] || headerVal === "item" || headerVal === "name" || headerVal === "asset name") continue
 
         const name = row[0]
         if (!name || typeof name !== "string") continue
 
         let serial = row[1] ? String(row[1]).trim() : null
+        const category = row[2] ? String(row[2]).trim() : "Laptop"
+        const status = row[3] ? String(row[3]).trim() : "available"
         const usage = row[4] ? String(row[4]).trim() : null
         const assetTag = row[5] ? String(row[5]).trim() : null
         const remarks = row[6] ? String(row[6]).trim() : null
+        const location = row[7] ? String(row[7]).trim() : null
+        const warrantyExpiry = row[8] ? String(row[8]).trim() : null
+        const purchasePrice = row[9] !== undefined && row[9] !== null && row[9] !== ""
+          ? parseFloat(row[9])
+          : null
 
         if (serial && seenSerials.has(serial)) {
           serial = `${serial}_${i}`
         }
         if (serial) seenSerials.add(serial)
-
-        const category =
-          name.toLowerCase().includes("desktop") ? "Desktop" : "Laptop"
 
         assets.push({
           name: name.trim(),
@@ -78,9 +83,11 @@ export default function ImportAssets() {
           asset_tag: assetTag || null,
           remarks: remarks || null,
           category,
-          status: "available",
+          status,
           country: userCountry || "Singapore",
-          location: userCountry || "Singapore"
+          location: location || userCountry || "Singapore",
+          warranty_expiry: warrantyExpiry || null,
+          purchase_price: Number.isNaN(purchasePrice) ? null : purchasePrice,
         })
       }
 
@@ -92,6 +99,21 @@ export default function ImportAssets() {
       window._importData = assets
     }
     reader.readAsBinaryString(file)
+  }
+
+  const downloadTemplate = () => {
+    const headers = [
+      "Asset Name", "Serial Number", "Category", "Status", "Assigned User",
+      "Asset Tag", "Remarks", "Location", "Warranty Expiry", "Purchase Price",
+    ]
+    const example = [
+      "MacBook Pro 14\"", "SN123456789", "Laptop", "available", "John Tan",
+      "AST-0001", "Assigned for development work", "Singapore", "2027-06-30", 2499,
+    ]
+    const ws = XLSX.utils.aoa_to_sheet([headers, example])
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, "Template")
+    XLSX.writeFile(wb, "asset_import_template.xlsx")
   }
 
   const downloadErrorReport = (errors) => {
@@ -218,7 +240,16 @@ export default function ImportAssets() {
           </div>
         </div>
 
-        <label className="text-gray-400 text-sm mb-3 block">Select Excel File (IT_Asset_Tracking.xlsx)</label>
+        <div className="flex items-center justify-between mb-3">
+          <label className="text-gray-400 text-sm block">Select Excel File (IT_Asset_Tracking.xlsx)</label>
+          <button
+            type="button"
+            onClick={downloadTemplate}
+            className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1 shrink-0"
+          >
+            📥 Download Template
+          </button>
+        </div>
         <input
           type="file"
           accept=".xlsx,.xls"
