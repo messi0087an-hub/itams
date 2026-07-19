@@ -55,24 +55,24 @@ export default function Sidebar() {
   const assetsItem  = { label: t("allAssets"), path: "/admin/assets", count: counts.assets }
   const reportsItem = { label: t("reports"), path: "/admin/reports" }
   const historyItem = { label: t("history"), path: "/admin/history" }
-  const guideItem   = { label: "📖 " + t("guide"), path: "/admin/guide" }
+  const guideItem   = { label: t("guide"), path: "/admin/guide" }
 
-  const scannerItem = { label: "🔍 " + t("scanner"), path: "/admin/scanner" }
+  const scannerItem = { label: t("scanner"), path: "/admin/scanner" }
 
   // Standard User items
   const standardItems = [
-    { label: "📋 New Asset Request", path: "/admin/requests", count: counts.pendingRequests },
+    { label: "New Asset Request", path: "/admin/requests", count: counts.pendingRequests },
     { label: t("borrowReturn"), path: "/admin/borrow", count: counts.activeBorrows },
     { label: t("issues"), path: "/admin/issues", count: counts.openIssues },
-    { label: "🔧 " + t("maintenanceTitle"), path: "/admin/maintenance" },
+    { label: t("maintenanceTitle"), path: "/admin/maintenance" },
   ]
 
   // Admin-only items
   const adminOnlyItems = [
     { label: t("addAsset"), path: "/admin/add-asset" },
     { label: t("importAssets"), path: "/admin/import" },
-    { label: "👥 " + t("manageUsersTitle"), path: "/admin/users" },
-    { label: "⚙️ Settings", path: "/admin/settings" },
+    { label: t("manageUsersTitle"), path: "/admin/users" },
+    { label: "Settings", path: "/admin/settings" },
   ]
 
   // Guest: Dashboard, All Assets, Reports, User Guide only
