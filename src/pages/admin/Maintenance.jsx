@@ -148,14 +148,16 @@ export default function Maintenance() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const assetId = params.get("asset_id")
-    if (assetId && assets.length > 0) {
-      const a = assets.find(x => x.id === assetId)
-      if (a) {
-        setForm(f => ({ ...f, asset_id: a.id, asset_name: a.name }))
-        setShowForm(true)
-      }
-    }
-  }, [assets, location.search])
+    if (!assetId || assets.length === 0) return
+    const match = assets.find(x => x.id === assetId)
+    if (!match) return
+    setForm(f => (f.asset_id === assetId ? f : { ...f, asset_id: match.id, asset_name: match.name }))
+    setShowForm(true)
+    setAssets(prev => {
+      if (prev[0]?.id === assetId) return prev
+      return [match, ...prev.filter(x => x.id !== assetId)]
+    })
+  }, [assets.length, location.search])
 
   const fetchAdminUsers = async () => {
     const { data } = await supabase.from("user_profiles").select("id, name, email").eq("role", "admin").order("name")
@@ -187,7 +189,7 @@ export default function Maintenance() {
         (x.assigned_user && userProfile?.name &&
           x.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
       )
-      setAssets(mine.length > 0 ? mine : all.filter(x => x.status === "available"))
+      setAssets(mine)
     } else {
       setAssets(all)
     }

@@ -72,11 +72,16 @@ export default function Issues() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const assetId = params.get("asset_id")
-    if (assetId && assets.length > 0) {
-      setForm(f => ({ ...f, asset_id: assetId }))
-      setShowForm(true)
-    }
-  }, [assets, location.search])
+    if (!assetId || assets.length === 0) return
+    const match = assets.find(a => a.id === assetId)
+    if (!match) return
+    setForm(f => (f.asset_id === assetId ? f : { ...f, asset_id: assetId }))
+    setShowForm(true)
+    setAssets(prev => {
+      if (prev[0]?.id === assetId) return prev
+      return [match, ...prev.filter(a => a.id !== assetId)]
+    })
+  }, [assets.length, location.search])
 
   const fetchIssues = async () => {
     const { data } = await supabase
@@ -108,7 +113,7 @@ export default function Issues() {
         (a.assigned_user && userProfile?.name &&
           a.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
       )
-      setAssets(mine.length > 0 ? mine : all.filter(a => a.status === "available"))
+      setAssets(mine)
     } else {
       setAssets(all)
     }
