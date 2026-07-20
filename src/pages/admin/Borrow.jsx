@@ -185,6 +185,8 @@ export default function Borrow() {
   }
 
   const fetchAssets = async () => {
+    const hasAssetIdParam = new URLSearchParams(location.search).has("asset_id")
+
     if (isStandardUser && userProfile) {
       let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
       if (userCountry) q = q.eq("country", userCountry)
@@ -197,7 +199,8 @@ export default function Borrow() {
       )
       setAssets(mine)
     } else {
-      let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").eq("status", "available").order("name")
+      let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").order("name")
+      if (!hasAssetIdParam) q = q.eq("status", "available")
       if (userCountry) q = q.eq("country", userCountry)
       const { data } = await q
       setAssets(data || [])
