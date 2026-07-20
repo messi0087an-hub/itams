@@ -133,7 +133,7 @@ export default function Sidebar() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
-                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
+                  <span className={`inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
                     {roleLabels[role] || "👁 Guest"}
                   </span>
                 </div>
@@ -152,7 +152,7 @@ export default function Sidebar() {
               </div>
               <div className="min-w-0 flex-1">
                 <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
-                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
+                <span className={`inline-block whitespace-nowrap text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
                   {roleLabels[role] || "👁 Guest"}
                 </span>
               </div>
