@@ -452,13 +452,13 @@ export default function Assets() {
             className="mb-4 bg-blue-600/10 border border-blue-500/30 rounded-xl px-4 py-3 flex flex-wrap items-center gap-3">
             <span className="text-blue-300 font-semibold text-sm">{selected.size} selected</span>
             <div className="flex flex-wrap gap-2 flex-1">
-              {!isGuest && (
+              {canEdit && !isGuest && (
                 <button onClick={() => { setBulkInput(""); setBulkModal("assign") }}
                   className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
                   👤 Assign
                 </button>
               )}
-              {!isGuest && (
+              {canEdit && !isGuest && (
                 <button onClick={() => { setBulkInput(""); setBulkModal("status") }}
                   className="text-xs px-3 py-1.5 rounded-lg bg-gray-800 hover:bg-gray-700 text-white border border-gray-700 transition-all">
                   🔄 Change Status

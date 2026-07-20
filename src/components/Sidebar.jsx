@@ -78,9 +78,9 @@ export default function Sidebar() {
   // Guest: Dashboard, All Assets, Reports, User Guide only
   let navItems = [dashItem, assetsItem, reportsItem, guideItem]
 
-  // Standard User: Dashboard, All Assets, Scanner, requests, borrow, issues, maintenance, history, guide
+  // Standard User: Dashboard, All Assets, Scanner, requests, borrow, issues, maintenance, guide
   if (isStandardUser) {
-    navItems = [dashItem, assetsItem, scannerItem, ...standardItems, historyItem, guideItem]
+    navItems = [dashItem, assetsItem, scannerItem, ...standardItems, guideItem]
   }
 
   // Admin: full access
