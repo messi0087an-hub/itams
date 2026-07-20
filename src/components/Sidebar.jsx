@@ -131,9 +131,9 @@ export default function Sidebar() {
                 <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:"linear-gradient(135deg, #e8431a, #ff6b35)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold", fontSize:"13px", flexShrink:0 }}>
                   {userProfile?.name?.charAt(0)?.toUpperCase() || "U"}
                 </div>
-                <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+                <div className="min-w-0 flex-1">
                   <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
-                  <span className={`block text-xs mt-0.5 ${roleColors[role] || roleColors.guest}`} style={{ fontSize: "11px", lineHeight: "1.2" }}>
+                  <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
                     {roleLabels[role] || "👁 Guest"}
                   </span>
                 </div>
@@ -150,9 +150,9 @@ export default function Sidebar() {
               <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:"linear-gradient(135deg, #e8431a, #ff6b35)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold", fontSize:"13px", flexShrink:0 }}>
                 {userProfile?.name?.charAt(0)?.toUpperCase() || "U"}
               </div>
-              <div style={{ minWidth: 0, flex: 1, overflow: "hidden" }}>
+              <div className="min-w-0 flex-1">
                 <p className="text-white text-sm font-medium truncate">{userProfile.name || userProfile.email}</p>
-                <span className={`block text-xs mt-0.5 ${roleColors[role] || roleColors.guest}`} style={{ fontSize: "11px", lineHeight: "1.2" }}>
+                <span className={`text-xs px-2 py-0.5 rounded-full font-medium ${roleColors[role] || roleColors.guest}`}>
                   {roleLabels[role] || "👁 Guest"}
                 </span>
               </div>
