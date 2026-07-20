@@ -917,7 +917,7 @@ function AdminLayout({ user }) {
 
       <div style={{ display: "flex", flex: 1, position: "relative", zIndex: 1 }}>
         <Sidebar />
-        <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-64">
+        <main className="flex-1 overflow-auto pt-14 md:pt-0 md:ml-72">
           <div className="sticky top-0 z-30 bg-gray-950/80 backdrop-blur-sm border-b border-gray-800/50 px-4 py-2 hidden md:flex items-center gap-2">
             <GlobalSearch />
             <TopBarBell />
