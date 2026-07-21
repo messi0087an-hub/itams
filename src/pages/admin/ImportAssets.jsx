@@ -200,12 +200,10 @@ export default function ImportAssets() {
     // Save import history
     const { error: histErr } = await supabase.from("import_history").insert([{
       file_name: fileName,
-      imported_by: userProfile?.name || userProfile?.email || "Unknown",
+      uploaded_by: userProfile?.name || userProfile?.email || "Unknown",
       imported_at: new Date().toISOString(),
-      total_count: data.length,
-      success_count: successCount,
-      fail_count: failCount,
-      updated_count: updateCount,
+      assets_added: successCount,
+      assets_updated: updateCount,
       status: "Success",
     }])
     if (histErr) console.error("import_history insert error:", histErr)
@@ -355,9 +353,9 @@ export default function ImportAssets() {
                     <td className="text-gray-400 py-2 px-3 text-xs whitespace-nowrap">
                       {h.created_at ? new Date(h.created_at).toLocaleString() : "—"}
                     </td>
-                    <td className="text-gray-400 py-2 px-3">{h.imported_by || "—"}</td>
-                    <td className="text-gray-400 py-2 px-3">{h.success_count ?? "—"}</td>
-                    <td className="text-gray-400 py-2 px-3">{h.updated_count ?? 0}</td>
+                    <td className="text-gray-400 py-2 px-3">{h.uploaded_by || "—"}</td>
+                    <td className="text-gray-400 py-2 px-3">{h.assets_added ?? "—"}</td>
+                    <td className="text-gray-400 py-2 px-3">{h.assets_updated ?? 0}</td>
                     <td className="py-2 px-3">
                       <span className={`text-xs px-2 py-0.5 rounded-full ${
                         h.status === "Success"
