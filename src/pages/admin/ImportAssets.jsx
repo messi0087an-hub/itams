@@ -5,6 +5,25 @@ import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { LoadingSkeleton, EmptyState } from "../../components/EmptyState"
 
+const excelDateToISO = (val) => {
+  if (!val) return null
+  // If it's already a string date, return as is
+  if (typeof val === 'string' && val.includes('-')) return val
+  if (typeof val === 'string' && val.includes('/')) {
+    // Handle MM/DD/YYYY format
+    const parts = val.split('/')
+    if (parts.length === 3) {
+      return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`
+    }
+  }
+  // Handle Excel serial number
+  if (typeof val === 'number') {
+    const date = new Date((val - 25569) * 86400 * 1000)
+    return date.toISOString().split('T')[0]
+  }
+  return null
+}
+
 export default function ImportAssets() {
   const { userCountry, userProfile } = useAuth()
   const [loading, setLoading] = useState(false)
@@ -66,7 +85,7 @@ export default function ImportAssets() {
         const assetTag = row[5] ? String(row[5]).trim() : null
         const remarks = row[6] ? String(row[6]).trim() : null
         const location = row[7] ? String(row[7]).trim() : null
-        const warrantyExpiry = row[8] ? String(row[8]).trim() : null
+        const warrantyExpiry = excelDateToISO(typeof row[8] === "string" ? row[8].trim() : row[8])
         const purchasePrice = row[9] !== undefined && row[9] !== null && row[9] !== ""
           ? parseFloat(row[9])
           : null
