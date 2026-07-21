@@ -36,6 +36,10 @@ const STATUS_COLORS = {
 
 const CHART_COLORS = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ef4444","#06b6d4","#f97316","#ec4899"]
 
+const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
+const currentYear = new Date().getFullYear()
+const DEP_YEARS = Array.from({ length: 21 }, (_, i) => currentYear - 15 + i)
+
 // ── Tooltip ───────────────────────────────────────────────────────────────────
 const DarkTooltip = ({ active, payload, label }) => {
   if (!active || !payload?.length) return null
@@ -121,6 +125,8 @@ export default function Reports() {
   const [dateTo, setDateTo] = useState("")
   const [warrantyDays, setWarrantyDays] = useState(90)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [depMonth, setDepMonth] = useState(new Date().getMonth() + 1)
+  const [depYear, setDepYear] = useState(new Date().getFullYear())
 
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, userCountry])
 
@@ -200,8 +206,9 @@ export default function Reports() {
     }
 
     if (reportType === "depreciation") {
+      const asOfDate = new Date(depYear, depMonth, 0) // last day of selected month
       const rows = assets
-        .map(a => ({ ...a, dep: calcDepreciation(a.purchase_price, a.purchase_date) }))
+        .map(a => ({ ...a, dep: calcDepreciation(a.purchase_price, a.purchase_date, a.useful_life, asOfDate) }))
         .filter(a => a.dep)
         .sort((a, b) => a.dep.percentRemaining - b.dep.percentRemaining)
       const totalOriginal = rows.reduce((s, a) => s + a.dep.originalPrice, 0)
@@ -210,7 +217,7 @@ export default function Reports() {
       const chartData = rows.slice(0, 10).map(a => ({
         name: a.name.length > 14 ? a.name.slice(0, 14) + "…" : a.name,
         remaining: a.dep.currentValue,
-        depreciated: a.dep.originalPrice - a.dep.currentValue,
+        depreciated: a.dep.accumulatedDepreciation,
       }))
       return { rows, chartData, stats: { totalOriginal, totalCurrent, fullyDep, loss: totalOriginal - totalCurrent } }
     }
@@ -304,7 +311,7 @@ export default function Reports() {
     }
 
     return {}
-  }, [reportType, assets, borrows, maintenance, overdueBorrowsData, dateFrom, dateTo, warrantyDays])
+  }, [reportType, assets, borrows, maintenance, overdueBorrowsData, dateFrom, dateTo, warrantyDays, depMonth, depYear])
 
   // ── Export PDF ───────────────────────────────────────────────────────────────
   const exportPDF = () => {
@@ -352,15 +359,15 @@ export default function Reports() {
     if (reportType === "depreciation") {
       const { rows, stats } = reportData
       doc.setFontSize(9)
-      doc.text(`Total Original Value: ${currencySymbol}${stats.totalOriginal.toLocaleString()}  |  Current Value: ${currencySymbol}${Math.round(stats.totalCurrent).toLocaleString()}  |  Fully Depreciated: ${stats.fullyDep}`, 14, y)
+      doc.text(`As of ${MONTHS[depMonth - 1]} ${depYear}  |  Total Original Value: ${currencySymbol}${stats.totalOriginal.toLocaleString()}  |  Current Value: ${currencySymbol}${Math.round(stats.totalCurrent).toLocaleString()}  |  Fully Depreciated: ${stats.fullyDep}`, 14, y)
       y += 6
       autoTable(doc, {
-        startY: y, head: [["Asset Name","Purchase Price","Current Value","% Remaining","Yrs Old","Status"]],
+        startY: y, head: [["Asset Tag","Asset Name","Purchase Date","Useful Life","Monthly Dep.","Accum. Dep.","Net Book Value"]],
         body: rows.map(a => [
-          a.name, `${currencySymbol}${a.dep.originalPrice.toLocaleString()}`,
+          a.asset_tag || "—", a.name, a.purchase_date || "—", `${a.dep.usefulLife}yr`,
+          `${currencySymbol}${a.dep.perMonth.toLocaleString()}`,
+          `${currencySymbol}${Math.round(a.dep.accumulatedDepreciation).toLocaleString()}`,
           `${currencySymbol}${Math.round(a.dep.currentValue).toLocaleString()}`,
-          `${a.dep.percentRemaining}%`, `${a.dep.yearsOld}yr`,
-          a.dep.fullyDepreciated ? "Fully Dep." : "Active",
         ]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
@@ -466,8 +473,11 @@ export default function Reports() {
       }))
     } else if (reportType === "depreciation") {
       rows = (reportData.rows || []).map(a => ({
-        "Asset Name": a.name, "Purchase Price": a.dep.originalPrice,
-        "Current Value": Math.round(a.dep.currentValue),
+        "Asset Tag": a.asset_tag || "", "Asset Name": a.name, "Purchase Date": a.purchase_date || "",
+        "Purchase Price": a.dep.originalPrice, "Useful Life (years)": a.dep.usefulLife,
+        "Monthly Depreciation": a.dep.perMonth,
+        [`Accumulated Depreciation as of ${MONTHS[depMonth - 1]} ${depYear}`]: Math.round(a.dep.accumulatedDepreciation),
+        "Net Book Value": Math.round(a.dep.currentValue),
         "% Remaining": a.dep.percentRemaining, "Years Old": a.dep.yearsOld,
         "Fully Depreciated": a.dep.fullyDepreciated ? "Yes" : "No",
       }))
@@ -637,6 +647,19 @@ export default function Reports() {
 
         {/* Filters */}
         <div className="flex flex-wrap gap-3 mb-5">
+          {reportType === "depreciation" && (
+            <div className="flex items-center gap-2">
+              <span className="text-gray-500 text-xs">As of</span>
+              <select value={depMonth} onChange={e => setDepMonth(parseInt(e.target.value))}
+                className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                {MONTHS.map((m, i) => <option key={m} value={i + 1}>{m}</option>)}
+              </select>
+              <select value={depYear} onChange={e => setDepYear(parseInt(e.target.value))}
+                className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500">
+                {DEP_YEARS.map(y => <option key={y} value={y}>{y}</option>)}
+              </select>
+            </div>
+          )}
           {(reportType === "warranty" || reportType === "license_expiry") && (
             <div className="flex gap-2">
               {[30, 60, 90].map(d => (
@@ -825,12 +848,16 @@ export default function Reports() {
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Asset Name","Original","Current","% Left"]}
+                  <p className="text-gray-500 text-xs mb-2">Accumulated depreciation shown as of {MONTHS[depMonth - 1]} {depYear}</p>
+                  <ReportTable headers={["Asset Tag","Asset Name","Purchase Date","Useful Life","Monthly Dep.","Accum. Dep.","Net Book Value"]}
                     rows={reportData.rows.map(a => [
+                      a.asset_tag || "—",
                       a.name,
-                      `${currencySymbol}${a.dep.originalPrice.toLocaleString()}`,
+                      a.purchase_date || "—",
+                      `${a.dep.usefulLife} yr`,
+                      `${currencySymbol}${a.dep.perMonth.toLocaleString()}`,
+                      `${currencySymbol}${Math.round(a.dep.accumulatedDepreciation).toLocaleString()}`,
                       `${currencySymbol}${Math.round(a.dep.currentValue).toLocaleString()}`,
-                      <span key="p" className={a.dep.percentRemaining > 60 ? "text-green-400" : a.dep.percentRemaining > 30 ? "text-yellow-400" : "text-red-400"}>{a.dep.percentRemaining}%</span>,
                     ])} />
                 </>
               )}

@@ -234,14 +234,14 @@ export default function Dashboard() {
   }
 
   const fetchDeprStats = async (country) => {
-    let q = supabase.from("assets").select("purchase_price, purchase_date")
+    let q = supabase.from("assets").select("purchase_price, purchase_date, useful_life")
       .not("purchase_price", "is", null).not("purchase_date", "is", null)
     if (country) q = q.eq("country", country)
     const { data } = await q
     if (!data?.length) { setDeprStats({ totalOriginal: 0, totalCurrent: 0, totalLost: 0, count: 0 }); return }
     let totalOriginal = 0, totalCurrent = 0
     data.forEach(a => {
-      const d = calcDepreciation(a.purchase_price, a.purchase_date)
+      const d = calcDepreciation(a.purchase_price, a.purchase_date, a.useful_life)
       if (d) { totalOriginal += d.originalPrice; totalCurrent += d.currentValue }
     })
     setDeprStats({

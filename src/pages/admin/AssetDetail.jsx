@@ -330,7 +330,7 @@ export default function AssetDetail() {
 
       {/* Depreciation Card */}
       {(() => {
-        const dep = calcDepreciation(asset.purchase_price, asset.purchase_date)
+        const dep = calcDepreciation(asset.purchase_price, asset.purchase_date, asset.useful_life)
         if (!dep) return (
           <div className="bg-gray-900 rounded-xl border border-gray-800 p-5 mb-6 flex items-center gap-3">
             <span className="text-2xl">📉</span>

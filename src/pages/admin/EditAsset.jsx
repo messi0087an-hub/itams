@@ -44,6 +44,7 @@ export default function EditAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
+    useful_life: 5,
     warranty_expiry: "", license_key: "", license_seats: "", license_expiry: "", licensed_to: "",
     remarks: "", country: "Singapore",
   })
@@ -67,6 +68,7 @@ export default function EditAsset() {
         status: data.status || "available",
         purchase_date: data.purchase_date || "",
         purchase_price: data.purchase_price || "",
+        useful_life: data.useful_life || 5,
         warranty_expiry: data.warranty_expiry || "",
         license_key: data.license_key || "",
         license_seats: data.license_seats || "",
@@ -101,6 +103,7 @@ export default function EditAsset() {
     if (form.department) cleanForm.department = form.department
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
+    cleanForm.useful_life = form.useful_life ? parseInt(form.useful_life) : 5
     const isSoftware = form.category === "Software License"
     if (!isSoftware && form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
     if (isSoftware) {
@@ -145,6 +148,7 @@ export default function EditAsset() {
     { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
+    { name: "useful_life", label: "Useful Life (years)", placeholder: "e.g. 5", type: "number", min: 1, max: 50 },
     ...(!isSoftwareEdit ? [{ name: "warranty_expiry", label: "Warranty Expiry", type: "date" }] : []),
     ...(isSoftwareEdit ? [
       { name: "license_key", label: "License Key", placeholder: "e.g. XXXXX-XXXXX-XXXXX" },
@@ -199,6 +203,8 @@ export default function EditAsset() {
                 onChange={handleChange}
                 placeholder={field.placeholder}
                 required={field.required}
+                min={field.min}
+                max={field.max}
                 className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
               />
             </div>

@@ -60,6 +60,7 @@ export default function AddAsset() {
     name: "", category: "", brand_model: "", serial_number: "",
     asset_tag: "", location: "", assigned_user: "", department: "",
     status: "available", purchase_date: "", purchase_price: "",
+    useful_life: 5,
     warranty_expiry: "", license_key: "", license_seats: "",
     license_expiry: "", licensed_to: "", remarks: "",
     country: userCountry || "Singapore",
@@ -90,6 +91,7 @@ export default function AddAsset() {
     if (form.department) cleanForm.department = form.department
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
+    cleanForm.useful_life = form.useful_life ? parseInt(form.useful_life) : 5
     if (!isSoftware && form.warranty_expiry) cleanForm.warranty_expiry = form.warranty_expiry
     if (isSoftware && form.license_expiry) cleanForm.license_expiry = form.license_expiry
     if (isSoftware && form.license_key) cleanForm.license_key = form.license_key
@@ -129,6 +131,7 @@ export default function AddAsset() {
     { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
+    { name: "useful_life", label: "Useful Life (years)", placeholder: "e.g. 5", type: "number", min: 1, max: 50 },
   ]
 
   if (success) {
@@ -265,6 +268,8 @@ export default function AddAsset() {
                 onChange={handleChange}
                 placeholder={field.placeholder}
                 required={field.required}
+                min={field.min}
+                max={field.max}
                 className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
               />
             </div>
