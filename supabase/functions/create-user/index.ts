@@ -127,7 +127,7 @@ serve(async (req) => {
     // ── 6. Send welcome email directly via Resend ──────────────────────────
     try {
       const resendKey = Deno.env.get("RESEND_API_KEY")
-      const fromEmail = Deno.env.get("FROM_EMAIL") ?? "ITAMS <onboarding@resend.dev>"
+      const fromEmail = Deno.env.get("FROM_EMAIL") ?? "TAP <tap@trainocate.com>"
 
       if (!resendKey) {
         console.error("[create-user] Step 7 — RESEND_API_KEY not set, skipping email")
