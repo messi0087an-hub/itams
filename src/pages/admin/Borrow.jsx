@@ -251,7 +251,7 @@ export default function Borrow() {
           sendNewBorrowAdminEmail(adminEmails, borrowerName || userProfile?.name || "A user", selectedAsset?.name || "an asset", form.due_date)
         }
       })
-      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, selectedAsset?.name || "Asset", "approved")
+      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, selectedAsset?.name || "Asset", "confirmed")
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })
