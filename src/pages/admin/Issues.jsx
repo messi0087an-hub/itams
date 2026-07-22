@@ -7,7 +7,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
-import { sendIssueResolvedEmail, sendEmail, getAdminEmails } from "../../lib/emailService"
+import { sendIssueResolvedEmail, sendNewIssueAdminEmail, getAdminEmails } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
@@ -143,8 +143,7 @@ export default function Issues() {
         console.log("[DEBUG] Admin emails:", adminEmails)
         if (adminEmails?.length) {
           console.log("[DEBUG] Sending email to admins...")
-          sendEmail(adminEmails, `⚠️ New Issue Reported: ${form.issue_type}`,
-            `<h2>New Issue Reported</h2><p>${userProfile?.name} reported a ${form.issue_type} issue for ${selectedAssetName}.</p><p>Priority: ${form.priority}</p><p>Description: ${form.description}</p><p>Please login to Trainocate Asset Portal to review and resolve.</p>`)
+          sendNewIssueAdminEmail(adminEmails, userProfile?.name, form.issue_type, selectedAssetName, form.priority, form.description)
         }
       })
       setShowForm(false)

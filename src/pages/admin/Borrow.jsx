@@ -4,7 +4,7 @@ import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
-import { checkBorrowReminders, sendBorrowUpdateEmail, sendEmail, getAdminEmails } from "../../lib/emailService"
+import { checkBorrowReminders, sendBorrowUpdateEmail, sendNewBorrowAdminEmail, getAdminEmails } from "../../lib/emailService"
 import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
@@ -248,8 +248,7 @@ export default function Borrow() {
       notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${selectedAsset?.name || "an asset"}"`, "info")
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendEmail(adminEmails, `📦 New Borrow: ${selectedAsset?.name || "Asset"}`,
-            `<h2>New Asset Borrowed</h2><p>${borrowerName || userProfile?.name || "A user"} borrowed "${selectedAsset?.name || "an asset"}".</p><p>Due date: ${form.due_date || "—"}</p><p>Please login to Trainocate Asset Portal to review.</p>`)
+          sendNewBorrowAdminEmail(adminEmails, borrowerName || userProfile?.name || "A user", selectedAsset?.name || "an asset", form.due_date)
         }
       })
       if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, selectedAsset?.name || "Asset", "approved")

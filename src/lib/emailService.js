@@ -711,12 +711,25 @@ export async function checkMarketingReminders() {
 // ---------------------------------------------------------------------------
 export async function sendIssueResolvedEmail(toEmail, assetName, actionedBy) {
   if (!toEmail) return
+  const loginUrl = `${window.location.origin}/login`
   const html = baseTemplate("#22c55e", `
-    <div style="text-align:center;">
+    <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">✅</div>
       <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Issue Resolved</div>
-      <p style="color:#9ca3af;font-size:14px;margin:0;">Your reported issue for ${assetName} has been resolved by ${actionedBy}.</p>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your reported issue for <strong style="color:#f9fafb;">${assetName}</strong> has been resolved.</p>
     </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Resolution Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Status", "Resolved", "#22c55e")}
+        ${detailRow("Resolved by", actionedBy)}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">View in Trainocate Asset Portal →</a>
+    </div>
+    <p style="color:#6b7280;font-size:13px;text-align:center;margin:0;">If you have further questions about this issue, please contact your IT administrator.</p>
   `)
   await sendEmail(toEmail, "Your Issue has been Resolved", html)
 }
@@ -726,11 +739,22 @@ export async function sendIssueResolvedEmail(toEmail, assetName, actionedBy) {
 // ---------------------------------------------------------------------------
 export async function sendMaintenanceCompletedEmail(toEmail, assetName) {
   if (!toEmail) return
+  const loginUrl = `${window.location.origin}/login`
   const html = baseTemplate("#22c55e", `
-    <div style="text-align:center;">
+    <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">🔧</div>
       <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Maintenance Completed</div>
-      <p style="color:#9ca3af;font-size:14px;margin:0;">Maintenance for ${assetName} has been completed.</p>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Maintenance for <strong style="color:#f9fafb;">${assetName}</strong> has been completed.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Maintenance Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Status", "Completed", "#22c55e")}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">View in Trainocate Asset Portal →</a>
     </div>
   `)
   await sendEmail(toEmail, "Maintenance Completed", html)
@@ -741,12 +765,106 @@ export async function sendMaintenanceCompletedEmail(toEmail, assetName) {
 // ---------------------------------------------------------------------------
 export async function sendBorrowUpdateEmail(toEmail, assetName, action) {
   if (!toEmail) return
+  const loginUrl = `${window.location.origin}/login`
   const html = baseTemplate("#3b82f6", `
-    <div style="text-align:center;">
+    <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">📦</div>
       <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Asset Borrow Update</div>
-      <p style="color:#9ca3af;font-size:14px;margin:0;">Your borrow request for ${assetName} has been ${action}.</p>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your borrow request for <strong style="color:#f9fafb;">${assetName}</strong> has been ${action}.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Borrow Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Status", action.charAt(0).toUpperCase() + action.slice(1))}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">View in Trainocate Asset Portal →</a>
     </div>
   `)
   await sendEmail(toEmail, "Asset Borrow Update", html)
+}
+
+// ---------------------------------------------------------------------------
+// New Issue Reported — sent to ALL admins when a user reports an issue
+// ---------------------------------------------------------------------------
+export async function sendNewIssueAdminEmail(adminEmails, reportedBy, issueType, assetName, priority, description) {
+  if (!adminEmails?.length) return
+  const loginUrl = `${window.location.origin}/login`
+  const html = baseTemplate("#f59e0b", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">⚠️</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">New Issue Reported</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${reportedBy} reported a ${issueType} issue for <strong style="color:#f9fafb;">${assetName}</strong>.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Issue Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Issue Type", issueType)}
+        ${detailRow("Priority", priority)}
+        ${detailRow("Description", description)}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Review & Resolve →</a>
+    </div>
+  `)
+  await sendEmail(adminEmails, `⚠️ New Issue Reported: ${issueType}`, html)
+}
+
+// ---------------------------------------------------------------------------
+// New Maintenance Scheduled — sent to ALL admins when maintenance is scheduled
+// ---------------------------------------------------------------------------
+export async function sendNewMaintenanceAdminEmail(adminEmails, scheduledBy, maintenanceType, assetName, priority, scheduledDate) {
+  if (!adminEmails?.length) return
+  const loginUrl = `${window.location.origin}/login`
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">🔧</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">New Maintenance Scheduled</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${scheduledBy} scheduled a ${maintenanceType} for <strong style="color:#f9fafb;">${assetName}</strong>.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Maintenance Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Type", maintenanceType)}
+        ${detailRow("Priority", priority)}
+        ${detailRow("Scheduled Date", scheduledDate)}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Review in Portal →</a>
+    </div>
+  `)
+  await sendEmail(adminEmails, `🔧 New Maintenance Scheduled: ${assetName}`, html)
+}
+
+// ---------------------------------------------------------------------------
+// New Borrow — sent to ALL admins when a user borrows an asset
+// ---------------------------------------------------------------------------
+export async function sendNewBorrowAdminEmail(adminEmails, borrowerName, assetName, dueDate) {
+  if (!adminEmails?.length) return
+  const loginUrl = `${window.location.origin}/login`
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">📦</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">New Asset Borrowed</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${borrowerName} borrowed <strong style="color:#f9fafb;">${assetName}</strong>.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Borrow Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Borrowed By", borrowerName)}
+        ${detailRow("Due Date", dueDate || "—")}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Review in Portal →</a>
+    </div>
+  `)
+  await sendEmail(adminEmails, `📦 New Borrow: ${assetName}`, html)
 }

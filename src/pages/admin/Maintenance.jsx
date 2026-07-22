@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
-import { sendMaintenanceCompletedEmail, sendEmail, getAdminEmails } from "../../lib/emailService"
+import { sendMaintenanceCompletedEmail, sendNewMaintenanceAdminEmail, getAdminEmails } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
@@ -224,8 +224,7 @@ export default function Maintenance() {
       notifyAdmins(userProfile?.country, "🔧 New Maintenance Request", `${userProfile?.name || userProfile?.email || "A user"} scheduled maintenance for "${form.asset_name}"`, "info")
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendEmail(adminEmails, `🔧 New Maintenance Scheduled: ${form.asset_name}`,
-            `<h2>New Maintenance Scheduled</h2><p>${userProfile?.name || userProfile?.email || "A user"} scheduled a ${form.maintenance_type} for "${form.asset_name}".</p><p>Priority: ${form.priority}</p><p>Scheduled date: ${form.scheduled_date}</p><p>Please login to Trainocate Asset Portal to review.</p>`)
+          sendNewMaintenanceAdminEmail(adminEmails, userProfile?.name || userProfile?.email || "A user", form.maintenance_type, form.asset_name, form.priority, form.scheduled_date)
         }
       })
       setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
