@@ -30,7 +30,7 @@ export default function Dashboard() {
   // Every user (including admin) is locked to their own country
   const countryFilter = userCountry || null
 
-  const [stats, setStats] = useState({ totalAssets: 0, available: 0, assigned: 0, issues: 0 })
+  const [stats, setStats] = useState({ totalAssets: 0, available: 0, assigned: 0, issues: 0, retired: 0 })
   const [categoryData, setCategoryData] = useState([])
   const [statusData, setStatusData] = useState([])
   const [recentAssets, setRecentAssets] = useState([])
@@ -81,8 +81,9 @@ export default function Dashboard() {
     const total = data?.length || 0
     const available = data?.filter(a => a.status === "available").length || 0
     const assigned = data?.filter(a => a.status === "assigned").length || 0
+    const retired = data?.filter(a => a.status === "retired").length || 0
     const { data: issuesData } = await supabase.from("issues").select("status").eq("status", "open")
-    setStats({ totalAssets: total, available, assigned, issues: issuesData?.length || 0 })
+    setStats({ totalAssets: total, available, assigned, issues: issuesData?.length || 0, retired })
 
     const catCount = data?.reduce((acc, a) => {
       const cat = a.category || "Unknown"
@@ -282,7 +283,7 @@ export default function Dashboard() {
     { label: t("totalAssets"), value: stats.totalAssets, bg: "bg-blue-600", shadow: "shadow-blue-500/20", emoji: "📦" },
     { label: t("available"), value: stats.available, bg: "bg-green-600", shadow: "shadow-green-500/20", emoji: "✅" },
     { label: t("assigned"), value: stats.assigned, bg: "bg-purple-600", shadow: "shadow-purple-500/20", emoji: "👤" },
-    { label: t("openIssues"), value: stats.issues, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "⚠️" },
+    { label: "Retired", value: stats.retired, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "🗃️" },
   ]
 
   return (
@@ -320,6 +321,16 @@ export default function Dashboard() {
           }`}
         >
           📈 Analytics
+        </button>
+        <button
+          onClick={() => setActiveTab("warranty")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-all ${
+            activeTab === "warranty"
+              ? "bg-blue-600 text-white shadow"
+              : "text-gray-400 hover:text-white"
+          }`}
+        >
+          🛡️ Warranty
         </button>
       </div>
 
@@ -370,10 +381,9 @@ export default function Dashboard() {
             <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
               className="bg-orange-600/20 border border-orange-500/30 rounded-2xl p-4 md:p-5">
               <div className="flex items-center justify-between mb-2">
-                <span className="text-white/70 text-xs md:text-sm font-medium">⏰ Expiring Warranties</span>
+                <span className="text-white/70 text-xs md:text-sm font-medium">⚠️ Open Issues</span>
               </div>
-              <p className="text-3xl md:text-4xl font-bold text-orange-400">{loading ? "..." : expiringAssets.length}</p>
-              <p className="text-orange-400/60 text-xs mt-1">within 30 days</p>
+              <p className="text-3xl md:text-4xl font-bold text-orange-400">{loading ? "..." : stats.issues}</p>
             </motion.div>
           </div>
 
@@ -389,57 +399,6 @@ export default function Dashboard() {
               🔄 Borrow Asset
             </button>
           </div>
-
-          {/* Warranty Status */}
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.25 }}
-            className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
-            {!warrantyStats ? (
-              <div className="animate-pulse space-y-4">
-                <div className="h-4 bg-gray-700 rounded w-36" />
-                <div className="grid grid-cols-2 gap-3">
-                  {[0,1].map(i => <div key={i} className="h-20 bg-gray-700 rounded-xl" />)}
-                </div>
-              </div>
-            ) : warrantyStats.valid === 0 && warrantyStats.expired === 0 ? (
-              <>
-                <div className="flex items-center gap-2 mb-3">
-                  <span className="text-xl">🛡️</span>
-                  <h2 className="text-white font-semibold">Warranty Status</h2>
-                </div>
-                <div className="text-center py-6">
-                  <p className="text-gray-400 text-sm">No warranty dates recorded yet.</p>
-                  <p className="text-gray-600 text-xs mt-1">Add warranty dates when editing assets!</p>
-                </div>
-              </>
-            ) : (
-              <>
-                <div className="flex items-center gap-2 mb-4">
-                  <span className="text-xl">🛡️</span>
-                  <h2 className="text-white font-semibold">Warranty Status</h2>
-                  <span className="text-gray-500 text-xs">({warrantyStats.total} total assets)</span>
-                </div>
-                <div className="grid grid-cols-2 gap-3">
-                  <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/20 flex items-center gap-3">
-                    <span className="text-2xl">✅</span>
-                    <div>
-                      <p className="text-green-400 text-2xl font-bold">{warrantyStats.valid}</p>
-                      <p className="text-green-400/70 text-xs mt-0.5">Valid Warranty</p>
-                    </div>
-                  </div>
-                  <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/20 flex items-center gap-3">
-                    <span className="text-2xl">❌</span>
-                    <div>
-                      <p className="text-red-400 text-2xl font-bold">{warrantyStats.expired}</p>
-                      <p className="text-red-400/70 text-xs mt-0.5">Expired Warranty</p>
-                    </div>
-                  </div>
-                </div>
-                {warrantyStats.none > 0 && (
-                  <p className="text-gray-600 text-xs mt-2 text-center">{warrantyStats.none} assets have no warranty date recorded</p>
-                )}
-              </>
-            )}
-          </motion.div>
 
           {/* Pending Asset Requests */}
           {pendingRequests.length > 0 && (
@@ -603,60 +562,32 @@ export default function Dashboard() {
             </motion.div>
           </div>
 
-          {/* Row 3 — Condition + Category Distribution */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-            <motion.div initial={{ opacity: 0, x: -20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.3 }}
-              className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
-              <h2 className="text-white font-semibold mb-1">Asset Condition</h2>
-              <p className="text-gray-500 text-xs mb-4">Based on warranty status</p>
-              {conditionData.length === 0 ? (
-                <p className="text-gray-600 text-sm text-center py-16">No warranty data yet</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={conditionData} cx="50%" cy="50%" outerRadius={80} paddingAngle={2} dataKey="value">
-                      {conditionData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
-                    </Pie>
-                    <Tooltip {...CHART_TOOLTIP} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-              <div className="flex flex-wrap gap-3 mt-2">
-                {conditionData.map((d) => (
-                  <div key={d.name} className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
-                    <span className="text-gray-400 text-xs">{d.name} ({d.value})</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-
-            <motion.div initial={{ opacity: 0, x: 20 }} animate={{ opacity: 1, x: 0 }} transition={{ delay: 0.35 }}
-              className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6">
-              <h2 className="text-white font-semibold mb-1">Category Distribution</h2>
-              <p className="text-gray-500 text-xs mb-4">Asset count by type</p>
-              {categoryData.length === 0 ? (
-                <p className="text-gray-600 text-sm text-center py-16">No asset data yet</p>
-              ) : (
-                <ResponsiveContainer width="100%" height={200}>
-                  <PieChart>
-                    <Pie data={categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="value">
-                      {categoryData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
-                    </Pie>
-                    <Tooltip {...CHART_TOOLTIP} />
-                  </PieChart>
-                </ResponsiveContainer>
-              )}
-              <div className="flex flex-wrap gap-3 mt-2">
-                {categoryData.map((d, i) => (
-                  <div key={d.name} className="flex items-center gap-1">
-                    <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
-                    <span className="text-gray-400 text-xs">{d.name} ({d.value})</span>
-                  </div>
-                ))}
-              </div>
-            </motion.div>
-          </div>
+          {/* Category Distribution */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3 }}
+            className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6 mb-6">
+            <h2 className="text-white font-semibold mb-1">Category Distribution</h2>
+            <p className="text-gray-500 text-xs mb-4">Asset count by type</p>
+            {categoryData.length === 0 ? (
+              <p className="text-gray-600 text-sm text-center py-16">No asset data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={categoryData} cx="50%" cy="50%" innerRadius={45} outerRadius={80} paddingAngle={3} dataKey="value">
+                    {categoryData.map((_, i) => <Cell key={i} fill={DONUT_COLORS[i % DONUT_COLORS.length]} />)}
+                  </Pie>
+                  <Tooltip {...CHART_TOOLTIP} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+            <div className="flex flex-wrap gap-3 mt-2">
+              {categoryData.map((d, i) => (
+                <div key={d.name} className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: DONUT_COLORS[i % DONUT_COLORS.length] }} />
+                  <span className="text-gray-400 text-xs">{d.name} ({d.value})</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
 
           {/* Fleet Depreciation (analytics tab) */}
           {deprStats && deprStats.count > 0 && (
@@ -694,9 +625,93 @@ export default function Dashboard() {
             </motion.div>
           )}
 
-          {/* Warranty Expiry Alerts (analytics tab) */}
+        </>
+      )}
+
+      {/* ── WARRANTY TAB ── */}
+      {activeTab === "warranty" && (
+        <>
+          {/* Warranty Status */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.1 }}
+            className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-5 mb-6">
+            {!warrantyStats ? (
+              <div className="animate-pulse space-y-4">
+                <div className="h-4 bg-gray-700 rounded w-36" />
+                <div className="grid grid-cols-2 gap-3">
+                  {[0,1].map(i => <div key={i} className="h-20 bg-gray-700 rounded-xl" />)}
+                </div>
+              </div>
+            ) : warrantyStats.valid === 0 && warrantyStats.expired === 0 ? (
+              <>
+                <div className="flex items-center gap-2 mb-3">
+                  <span className="text-xl">🛡️</span>
+                  <h2 className="text-white font-semibold">Warranty Status</h2>
+                </div>
+                <div className="text-center py-6">
+                  <p className="text-gray-400 text-sm">No warranty dates recorded yet.</p>
+                  <p className="text-gray-600 text-xs mt-1">Add warranty dates when editing assets!</p>
+                </div>
+              </>
+            ) : (
+              <>
+                <div className="flex items-center gap-2 mb-4">
+                  <span className="text-xl">🛡️</span>
+                  <h2 className="text-white font-semibold">Warranty Status</h2>
+                  <span className="text-gray-500 text-xs">({warrantyStats.total} total assets)</span>
+                </div>
+                <div className="grid grid-cols-2 gap-3">
+                  <div className="bg-green-500/10 rounded-xl p-4 border border-green-500/20 flex items-center gap-3">
+                    <span className="text-2xl">✅</span>
+                    <div>
+                      <p className="text-green-400 text-2xl font-bold">{warrantyStats.valid}</p>
+                      <p className="text-green-400/70 text-xs mt-0.5">Valid Warranty</p>
+                    </div>
+                  </div>
+                  <div className="bg-red-500/10 rounded-xl p-4 border border-red-500/20 flex items-center gap-3">
+                    <span className="text-2xl">❌</span>
+                    <div>
+                      <p className="text-red-400 text-2xl font-bold">{warrantyStats.expired}</p>
+                      <p className="text-red-400/70 text-xs mt-0.5">Expired Warranty</p>
+                    </div>
+                  </div>
+                </div>
+                {warrantyStats.none > 0 && (
+                  <p className="text-gray-600 text-xs mt-2 text-center">{warrantyStats.none} assets have no warranty date recorded</p>
+                )}
+              </>
+            )}
+          </motion.div>
+
+          {/* Asset Condition */}
+          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.15 }}
+            className="bg-gray-900/80 backdrop-blur-sm rounded-2xl border border-gray-800 p-6 mb-6">
+            <h2 className="text-white font-semibold mb-1">Asset Condition</h2>
+            <p className="text-gray-500 text-xs mb-4">Based on warranty status</p>
+            {conditionData.length === 0 ? (
+              <p className="text-gray-600 text-sm text-center py-16">No warranty data yet</p>
+            ) : (
+              <ResponsiveContainer width="100%" height={200}>
+                <PieChart>
+                  <Pie data={conditionData} cx="50%" cy="50%" outerRadius={80} paddingAngle={2} dataKey="value">
+                    {conditionData.map((entry, i) => <Cell key={i} fill={entry.color} />)}
+                  </Pie>
+                  <Tooltip {...CHART_TOOLTIP} />
+                </PieChart>
+              </ResponsiveContainer>
+            )}
+            <div className="flex flex-wrap gap-3 mt-2">
+              {conditionData.map((d) => (
+                <div key={d.name} className="flex items-center gap-1">
+                  <div className="w-3 h-3 rounded-full" style={{ backgroundColor: d.color }} />
+                  <span className="text-gray-400 text-xs">{d.name} ({d.value})</span>
+                </div>
+              ))}
+            </div>
+          </motion.div>
+
+          {/* Warranty Expiry Alerts */}
           {(expiredAssets.length > 0 || expiringAssets.length > 0) && (
-            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.2 }}
               className="rounded-2xl border mb-6 overflow-hidden"
               style={{ borderColor: expiredAssets.length > 0 ? "rgba(239,68,68,0.4)" : "rgba(234,179,8,0.3)" }}>
               <div className={`flex items-center gap-3 px-4 md:px-6 py-4 ${
