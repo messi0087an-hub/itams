@@ -147,7 +147,7 @@ serve(async (req) => {
       <div style="display:inline-flex;align-items:center;justify-content:center;width:48px;height:48px;background:#3b82f6;border-radius:12px;margin-bottom:10px;">
         <span style="color:#fff;font-size:18px;font-weight:800;letter-spacing:-1px;">IT</span>
       </div>
-      <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">ITAMS</div>
+      <div style="color:#fff;font-size:22px;font-weight:700;letter-spacing:-0.5px;">Trainocate Asset Portal</div>
       <div style="color:#4b5563;font-size:11px;margin-top:2px;">IT Asset Management · Trainocate</div>
     </div>
     <div style="background:#0d1526;border:1px solid #1a2744;border-radius:16px;overflow:hidden;">
@@ -155,7 +155,7 @@ serve(async (req) => {
       <div style="padding:28px 28px 24px;">
         <div style="text-align:center;margin-bottom:24px;">
           <div style="font-size:44px;margin-bottom:10px;">👋</div>
-          <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to Trainocate ITAMS!</div>
+          <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to Trainocate Asset Portal!</div>
           <p style="color:#9ca3af;font-size:14px;margin:0;">Your account has been created by your administrator.</p>
         </div>
         <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
@@ -163,7 +163,7 @@ serve(async (req) => {
           <table style="width:100%;border-collapse:collapse;">
             <tr>
               <td style="color:#6b7280;font-size:13px;padding:7px 0;border-bottom:1px solid #1a2744;">Login URL</td>
-              <td style="font-size:13px;font-weight:600;text-align:right;padding:7px 0;border-bottom:1px solid #1a2744;"><a href="https://itams-seven.vercel.app" style="color:#3b82f6;text-decoration:none;">https://itams-seven.vercel.app</a></td>
+              <td style="font-size:13px;font-weight:600;text-align:right;padding:7px 0;border-bottom:1px solid #1a2744;"><a href="https://tap-trainocate.vercel.app" style="color:#3b82f6;text-decoration:none;">https://tap-trainocate.vercel.app</a></td>
             </tr>
             <tr>
               <td style="color:#6b7280;font-size:13px;padding:7px 0;border-bottom:1px solid #1a2744;">Email</td>
@@ -180,13 +180,13 @@ serve(async (req) => {
           </table>
         </div>
         <div style="text-align:center;margin-bottom:20px;">
-          <a href="https://itams-seven.vercel.app" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Login to ITAMS →</a>
+          <a href="https://tap-trainocate.vercel.app" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Login to Trainocate Asset Portal →</a>
         </div>
         <p style="color:#6b7280;font-size:12px;text-align:center;margin:0;">Best regards, Trainocate IT Team</p>
       </div>
     </div>
     <div style="text-align:center;margin-top:20px;">
-      <p style="color:#374151;font-size:11px;margin:0;">Automated notification from ITAMS · © 2026 Trainocate Singapore</p>
+      <p style="color:#374151;font-size:11px;margin:0;">Automated notification from Trainocate Asset Portal · © 2026 Trainocate Singapore</p>
     </div>
   </div>
 </body>
@@ -201,7 +201,7 @@ serve(async (req) => {
           body: JSON.stringify({
             from: fromEmail,
             to: [email],
-            subject: "Welcome to Trainocate ITAMS — Your Login Details",
+            subject: "Welcome to Trainocate Asset Portal — Your Login Details",
             html: welcomeHtml,
           }),
         })
