@@ -140,7 +140,9 @@ export default function Issues() {
       createNotification(userProfile?.id, "⚠️ Issue Submitted", `Your ${form.issue_type} issue for ${selectedAssetName} was submitted successfully`, "warning", userProfile?.country, userProfile?.id)
       notifyAdmins(userProfile?.country, "⚠️ New Issue Reported", `${userProfile?.name} reported a ${form.issue_type} issue for ${selectedAssetName}`, "warning")
       getAdminEmails().then(adminEmails => {
+        console.log("[DEBUG] Admin emails:", adminEmails)
         if (adminEmails?.length) {
+          console.log("[DEBUG] Sending email to admins...")
           sendEmail(adminEmails, `⚠️ New Issue Reported: ${form.issue_type}`,
             `<h2>New Issue Reported</h2><p>${userProfile?.name} reported a ${form.issue_type} issue for ${selectedAssetName}.</p><p>Priority: ${form.priority}</p><p>Description: ${form.description}</p><p>Please login to Trainocate Asset Portal to review and resolve.</p>`)
         }
