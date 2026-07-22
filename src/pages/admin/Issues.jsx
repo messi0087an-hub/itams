@@ -140,9 +140,7 @@ export default function Issues() {
       createNotification(userProfile?.id, "⚠️ Issue Submitted", `Your ${form.issue_type} issue for ${selectedAssetName} was submitted successfully`, "warning", userProfile?.country, userProfile?.id)
       notifyAdmins(userProfile?.country, "⚠️ New Issue Reported", `${userProfile?.name} reported a ${form.issue_type} issue for ${selectedAssetName}`, "warning")
       getAdminEmails().then(adminEmails => {
-        console.log("[DEBUG] Admin emails:", adminEmails)
         if (adminEmails?.length) {
-          console.log("[DEBUG] Sending email to admins...")
           sendNewIssueAdminEmail(adminEmails, userProfile?.name, form.issue_type, selectedAssetName, form.priority, form.description)
         }
       })

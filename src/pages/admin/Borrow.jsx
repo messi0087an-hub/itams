@@ -4,7 +4,7 @@ import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
-import { checkBorrowReminders, sendBorrowUpdateEmail, sendNewBorrowAdminEmail, getAdminEmails } from "../../lib/emailService"
+import { checkBorrowReminders, sendBorrowUpdateEmail, sendNewBorrowAdminEmail, sendBorrowStatusAdminEmail, getAdminEmails } from "../../lib/emailService"
 import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
@@ -277,6 +277,11 @@ export default function Borrow() {
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
     const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
     if (returnedByEmail) sendBorrowUpdateEmail(returnedByEmail, borrow.assets?.name || "Asset", "returned")
+    getAdminEmails().then(adminEmails => {
+      if (adminEmails?.length) {
+        sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", "returned")
+      }
+    })
 
     setReturnSuccess(true)
     setTimeout(() => {
@@ -303,6 +308,11 @@ export default function Borrow() {
 
     if (!error) {
       notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${borrow.assets?.name || "an asset"}" to ${extendDate}`, "info")
+      getAdminEmails().then(adminEmails => {
+        if (adminEmails?.length) {
+          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", `extended until ${extendDate}`)
+        }
+      })
       setExtendingId(null)
       setExtendDate("")
       showToast("Return date extended successfully!")

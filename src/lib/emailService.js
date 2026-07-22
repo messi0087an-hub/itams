@@ -868,3 +868,30 @@ export async function sendNewBorrowAdminEmail(adminEmails, borrowerName, assetNa
   `)
   await sendEmail(adminEmails, `📦 New Borrow: ${assetName}`, html)
 }
+
+// ---------------------------------------------------------------------------
+// Borrow Status Update — sent to ALL admins when a borrow is returned or extended
+// ---------------------------------------------------------------------------
+export async function sendBorrowStatusAdminEmail(adminEmails, borrowerName, assetName, action) {
+  if (!adminEmails?.length) return
+  const loginUrl = `${window.location.origin}/login`
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;margin-bottom:24px;">
+      <div style="font-size:44px;margin-bottom:10px;">📦</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Asset Borrow Update</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> has been ${action}.</p>
+    </div>
+    <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
+      <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Borrow Details</div>
+      <table style="width:100%;border-collapse:collapse;">
+        ${detailRow("Asset", assetName)}
+        ${detailRow("Borrower", borrowerName)}
+        ${detailRow("Update", action)}
+      </table>
+    </div>
+    <div style="text-align:center;margin-bottom:20px;">
+      <a href="${loginUrl}" style="display:inline-block;background:#3b82f6;color:#fff;font-size:14px;font-weight:600;padding:12px 32px;border-radius:10px;text-decoration:none;">Review in Portal →</a>
+    </div>
+  `)
+  await sendEmail(adminEmails, `📦 Asset Borrow Update: ${assetName}`, html)
+}
