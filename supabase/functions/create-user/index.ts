@@ -155,7 +155,7 @@ serve(async (req) => {
       <div style="padding:28px 28px 24px;">
         <div style="text-align:center;margin-bottom:24px;">
           <div style="font-size:44px;margin-bottom:10px;">👋</div>
-          <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to Trainocate Asset Portal!</div>
+          <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Welcome to Trainocate Asset Portal, ${name || email}!</div>
           <p style="color:#9ca3af;font-size:14px;margin:0;">Your account has been created by your administrator.</p>
         </div>
         <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
