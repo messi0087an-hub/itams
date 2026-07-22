@@ -3,7 +3,7 @@ import { supabase } from "./supabase"
 // ---------------------------------------------------------------------------
 // Core send (calls Edge Function — keeps API key server-side)
 // ---------------------------------------------------------------------------
-async function sendEmail(to, subject, html) {
+export async function sendEmail(to, subject, html) {
   const recipients = (Array.isArray(to) ? to : [to]).filter(Boolean)
   if (!recipients.length) return
 
@@ -20,7 +20,7 @@ async function sendEmail(to, subject, html) {
 // ---------------------------------------------------------------------------
 // Helpers
 // ---------------------------------------------------------------------------
-async function getAdminEmails() {
+export async function getAdminEmails() {
   try {
     const { data } = await supabase
       .from("user_profiles")
