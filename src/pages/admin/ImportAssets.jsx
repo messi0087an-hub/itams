@@ -80,7 +80,7 @@ export default function ImportAssets() {
 
         let serial = row[1] ? String(row[1]).trim() : null
         const category = row[2] ? String(row[2]).trim() : "Laptop"
-        const status = row[3] ? String(row[3]).trim() : "available"
+        const status = row[3] ? String(row[3]).trim().toLowerCase() : "available"
         const usage = row[4] ? String(row[4]).trim() : null
         const assetTag = row[5] ? String(row[5]).trim() : null
         const remarks = row[6] ? String(row[6]).trim() : null

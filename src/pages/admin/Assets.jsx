@@ -221,7 +221,7 @@ export default function Assets() {
       a.location?.toLowerCase().includes(q) ||
       a.category?.toLowerCase().includes(q)
     )
-    const matchStatus = !filterStatus || a.status === filterStatus
+    const matchStatus = !filterStatus || a.status?.toLowerCase() === filterStatus?.toLowerCase()
     const matchCat = !filterCategory || a.category === filterCategory
     return matchSearch && matchStatus && matchCat
   })
