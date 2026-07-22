@@ -4,7 +4,7 @@ import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
-import { checkBorrowReminders } from "../../lib/emailService"
+import { checkBorrowReminders, sendBorrowUpdateEmail } from "../../lib/emailService"
 import { createNotification, notifyAdmins } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
@@ -246,6 +246,7 @@ export default function Borrow() {
 
       createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info", userProfile?.country)
       notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${selectedAsset?.name || "an asset"}"`, "info")
+      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, selectedAsset?.name || "Asset", "approved")
       setBorrowedAssetName(selectedAsset?.name || "Asset")
       setShowForm(false)
       setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })
@@ -269,6 +270,8 @@ export default function Borrow() {
       assigned_user: null
     }).eq("id", borrow.asset_id)
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
+    const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
+    if (returnedByEmail) sendBorrowUpdateEmail(returnedByEmail, borrow.assets?.name || "Asset", "returned")
 
     setReturnSuccess(true)
     setTimeout(() => {

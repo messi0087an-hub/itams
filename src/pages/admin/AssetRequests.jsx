@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { sendAssetRequestNotification, sendApprovalDecisionEmail, getApprovingOfficerProfile } from "../../lib/emailService"
+import { sendAssetRequestNotification, sendApprovalDecisionEmail, sendNewRequestAdminEmail, getApprovingOfficerProfile } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 import { useCurrency } from "../../lib/useCurrency"
@@ -37,7 +37,7 @@ const EMPTY_FORM = {
 }
 
 export default function AssetRequests() {
-  const { userProfile, isAdmin, canSubmitRequests } = useAuth()
+  const { userProfile, isAdmin, canSubmitRequests, profileLoading } = useAuth()
   const { symbol: currencySymbol } = useCurrency()
   const [requests, setRequests]     = useState([])
   const [loading, setLoading]       = useState(true)
@@ -56,13 +56,21 @@ export default function AssetRequests() {
   const [uploadingDocs, setUploadingDocs] = useState(false)
   const fileInputRef = useRef()
 
-  useEffect(() => { fetchRequests() }, [])
+  useEffect(() => {
+    if (!profileLoading) fetchRequests()
+  }, [profileLoading, isAdmin, userProfile?.id])
 
   const fetchRequests = async () => {
-    const { data } = await supabase
+    let query = supabase
       .from("asset_requests")
       .select("*")
       .order("created_at", { ascending: false })
+
+    if (!isAdmin) {
+      query = query.or(`requested_by.eq.${userProfile?.name},requested_by_email.eq.${userProfile?.email}`)
+    }
+
+    const { data } = await query
     setRequests(data || [])
     setLoading(false)
   }
@@ -166,6 +174,22 @@ export default function AssetRequests() {
         )
       }
 
+      // Bell notification + email to ALL admin users
+      supabase.from("user_profiles").select("id, email").eq("role", "admin").then(({ data: admins }) => {
+        if (!admins?.length) return
+        admins.forEach(admin => {
+          createNotification(
+            admin.id,
+            "New Asset Request 📋",
+            `${requestedBy} requested ${form.asset_type} — needs your approval`,
+            "request",
+            inserted?.id,
+            admin.id
+          )
+        })
+        sendNewRequestAdminEmail(admins.map(a => a.email).filter(Boolean), requestedBy, form.asset_type)
+      })
+
       setTimeout(() => { setSubmitSuccess(false); fetchRequests() }, 2500)
     } else {
       alert(error.message)
@@ -203,12 +227,14 @@ export default function AssetRequests() {
       getUserIdByEmail(actionModal.request.requested_by_email).then(requesterId => {
         if (requesterId) {
           const approved = actionModal.type === "approve"
+          const adminName = userProfile?.name || userProfile?.email
           createNotification(
             requesterId,
-            approved ? "✅ Request Approved" : "❌ Request Not Approved",
-            `Your request for ${actionModal.request.asset_type} was ${approved ? "approved" : "not approved"}${actionReason ? `: "${actionReason}"` : "."}`,
+            approved ? "Request Approved ✅" : "Request Rejected ❌",
+            `Your request for ${actionModal.request.asset_type} was ${approved ? "approved" : "rejected"} by ${adminName}${actionReason ? `: ${actionReason}` : ""}`,
             approved ? "success" : "warning",
-            actionModal.request.id
+            actionModal.request.id,
+            requesterId
           )
         }
       })

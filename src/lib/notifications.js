@@ -85,6 +85,23 @@ export async function notifyUserByIdentifier(identifier, title, body, type = "in
   } catch {}
 }
 
+// Find a user's email by identifier (email or name) — used to send direct
+// emails when only a name/email string (e.g. reported_by, created_by) is on hand
+export async function getEmailByIdentifier(identifier) {
+  if (!identifier) return null
+  try {
+    const { data } = await supabase
+      .from("user_profiles")
+      .select("email")
+      .or(`email.eq.${identifier},name.eq.${identifier}`)
+      .limit(1)
+      .single()
+    return data?.email || null
+  } catch {
+    return null
+  }
+}
+
 // Find a user profile by email — used to get the user_id for in-app notifications
 export async function getUserIdByEmail(email) {
   if (!email) return null

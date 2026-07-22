@@ -33,6 +33,35 @@ export function NotificationProvider({ children }) {
     return () => clearInterval(interval)
   }, [userId, load])
 
+  // Realtime: push new notifications into state the instant they're inserted,
+  // instead of waiting for the next 30s poll.
+  useEffect(() => {
+    if (!userId || userRole === "guest") return
+
+    const handleInsert = (payload) => {
+      setNotifications(prev => {
+        if (prev.some(n => n.id === payload.new.id)) return prev
+        return [payload.new, ...prev].slice(0, 20)
+      })
+    }
+
+    const channel = supabase
+      .channel(`notifications-${userId}`)
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `target_user_id=eq.${userId}` },
+        handleInsert
+      )
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications", filter: `user_id=eq.${userId}` },
+        handleInsert
+      )
+      .subscribe()
+
+    return () => { supabase.removeChannel(channel) }
+  }, [userId, userRole])
+
   const markOne = useCallback(async (notifId) => {
     await markNotificationRead(notifId)
     setNotifications(prev => prev.map(n => n.id === notifId ? { ...n, is_read: true } : n))

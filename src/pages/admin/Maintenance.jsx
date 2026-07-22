@@ -5,7 +5,8 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
+import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
+import { sendMaintenanceCompletedEmail } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
@@ -264,6 +265,9 @@ export default function Maintenance() {
     const adminName = userProfile?.name || userProfile?.email || "Admin"
     if (schedule.created_by && schedule.created_by !== "Auto (recurring)") {
       notifyUserByIdentifier(schedule.created_by, "✅ Maintenance Completed", `Your maintenance for "${schedule.asset_name}" has been completed by ${adminName}`, "success")
+      getEmailByIdentifier(schedule.created_by).then(email => {
+        if (email) sendMaintenanceCompletedEmail(email, schedule.asset_name || "an asset")
+      })
     }
     notifyAdmins(userProfile?.country, "✅ Maintenance Completed", `${adminName} completed maintenance for "${schedule.asset_name}"`, "success")
     setCompleteModal(null)

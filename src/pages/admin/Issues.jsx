@@ -6,7 +6,8 @@ import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
-import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
+import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
+import { sendIssueResolvedEmail } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
@@ -156,7 +157,12 @@ export default function Issues() {
       resolved_at: new Date().toISOString()
     }).eq("id", id)
     createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
-    if (reportedBy) notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", `Your issue for "${assetName || "an asset"}" has been resolved by admin`, "success")
+    if (reportedBy) {
+      notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", `Your issue for "${assetName || "an asset"}" has been resolved by admin`, "success")
+      getEmailByIdentifier(reportedBy).then(email => {
+        if (email) sendIssueResolvedEmail(email, assetName || "an asset", userProfile?.name || userProfile?.email || "Admin")
+      })
+    }
     setResolveSuccess(true)
     setTimeout(() => {
       setResolveSuccess(false)

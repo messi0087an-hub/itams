@@ -252,16 +252,29 @@ export async function sendAssetRequestNotification({ requestedBy, assetType, rea
 }
 
 // ---------------------------------------------------------------------------
+// New Asset Request — sent to ALL admin users (in addition to the approving officer)
+// ---------------------------------------------------------------------------
+export async function sendNewRequestAdminEmail(adminEmails, requestedBy, assetType) {
+  if (!adminEmails?.length) return
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">📋</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">New Asset Request</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${requestedBy} has submitted an asset request for ${assetType}. Please login to approve or reject.</p>
+    </div>
+  `)
+  await sendEmail(adminEmails, "New Asset Request — Action Required", html)
+}
+
+// ---------------------------------------------------------------------------
 // Approval Decision email — sent to requester when approved or rejected
 // ---------------------------------------------------------------------------
 function approvalDecisionHtml({ status, requestedBy, assetType, adminResponse, actionedBy }) {
   const approved = status === "approved"
   const accentColor = approved ? "#22c55e" : "#ef4444"
   const emoji = approved ? "✅" : "❌"
-  const title = approved ? "Request Approved!" : "Request Not Approved"
-  const subtitle = approved
-    ? `Good news! Your request for <strong style="color:#f9fafb;">${assetType}</strong> has been approved.`
-    : `Your request for <strong style="color:#f9fafb;">${assetType}</strong> was not approved at this time.`
+  const title = approved ? "Request Approved!" : "Request Rejected"
+  const subtitle = `Your request for <strong style="color:#f9fafb;">${assetType}</strong> has been ${approved ? "approved" : "rejected"} by ${actionedBy || "your admin"}. Notes: ${adminResponse || "None"}`
 
   return baseTemplate(accentColor, `
     <div style="text-align:center;margin-bottom:24px;">
@@ -290,9 +303,7 @@ function approvalDecisionHtml({ status, requestedBy, assetType, adminResponse, a
 export async function sendApprovalDecisionEmail({ status, requestedByEmail, requestedBy, assetType, adminResponse, actionedBy }) {
   if (!requestedByEmail) return
   const approved = status === "approved"
-  const subject = approved
-    ? `✅ Asset Request Approved: ${assetType}`
-    : `❌ Asset Request Not Approved: ${assetType}`
+  const subject = `Your Asset Request has been ${approved ? "Approved" : "Rejected"}`
   const html = approvalDecisionHtml({ status, requestedBy, assetType, adminResponse, actionedBy })
   await sendEmail(requestedByEmail, subject, html)
 }
@@ -693,4 +704,49 @@ export async function checkMarketingReminders() {
       }
     }
   } catch { /* silently skip if marketing tables not yet created */ }
+}
+
+// ---------------------------------------------------------------------------
+// Issue Resolved — sent to the reporter when an admin resolves their issue
+// ---------------------------------------------------------------------------
+export async function sendIssueResolvedEmail(toEmail, assetName, actionedBy) {
+  if (!toEmail) return
+  const html = baseTemplate("#22c55e", `
+    <div style="text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">✅</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Issue Resolved</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your reported issue for ${assetName} has been resolved by ${actionedBy}.</p>
+    </div>
+  `)
+  await sendEmail(toEmail, "Your Issue has been Resolved", html)
+}
+
+// ---------------------------------------------------------------------------
+// Maintenance Completed — sent to the requester when their schedule is completed
+// ---------------------------------------------------------------------------
+export async function sendMaintenanceCompletedEmail(toEmail, assetName) {
+  if (!toEmail) return
+  const html = baseTemplate("#22c55e", `
+    <div style="text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">🔧</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Maintenance Completed</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Maintenance for ${assetName} has been completed.</p>
+    </div>
+  `)
+  await sendEmail(toEmail, "Maintenance Completed", html)
+}
+
+// ---------------------------------------------------------------------------
+// Borrow Update — sent to the borrower when their borrow is approved or returned
+// ---------------------------------------------------------------------------
+export async function sendBorrowUpdateEmail(toEmail, assetName, action) {
+  if (!toEmail) return
+  const html = baseTemplate("#3b82f6", `
+    <div style="text-align:center;">
+      <div style="font-size:44px;margin-bottom:10px;">📦</div>
+      <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Asset Borrow Update</div>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">Your borrow request for ${assetName} has been ${action}.</p>
+    </div>
+  `)
+  await sendEmail(toEmail, "Asset Borrow Update", html)
 }
