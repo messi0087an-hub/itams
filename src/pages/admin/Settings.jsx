@@ -25,6 +25,7 @@ export default function Settings() {
   const [marketingEmail, setMarketingEmail] = useState("")
   const [currency, setCurrency] = useState("SGD")
   const [users, setUsers] = useState([])
+  const [adminUsers, setAdminUsers] = useState([])
   const [loading, setLoading] = useState(true)
   const [saving, setSaving] = useState(false)
   const [savingMarketing, setSavingMarketing] = useState(false)
@@ -35,7 +36,7 @@ export default function Settings() {
   const [error, setError] = useState("")
 
   useEffect(() => {
-    Promise.all([fetchSettings(), fetchUsers(), fetchCurrency()])
+    Promise.all([fetchSettings(), fetchUsers(), fetchAdminUsers(), fetchCurrency()])
   }, [])
 
   const fetchSettings = async () => {
@@ -71,6 +72,19 @@ export default function Settings() {
         .select("id, name, email, role")
         .order("name")
       setUsers(data || [])
+    } catch {}
+  }
+
+  // Asset Request Approving Officer must be an admin — separate from the
+  // Marketing officer dropdown below, which still picks from all users.
+  const fetchAdminUsers = async () => {
+    try {
+      const { data } = await supabase
+        .from("user_profiles")
+        .select("id, name, email, role")
+        .eq("role", "admin")
+        .order("name")
+      setAdminUsers(data || [])
     } catch {}
   }
 
@@ -182,7 +196,7 @@ export default function Settings() {
     )
   }
 
-  const selectedUser = users.find(u => u.email === approvingEmail)
+  const selectedUser = adminUsers.find(u => u.email === approvingEmail)
   const selectedMarketingUser = users.find(u => u.email === marketingEmail)
 
   return (
@@ -233,7 +247,7 @@ export default function Settings() {
               className="w-full min-w-0 bg-gray-800 text-white rounded-lg px-3 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm mb-3 truncate"
             >
               <option value="">Select a user…</option>
-              {users.map(u => (
+              {adminUsers.map(u => (
                 <option key={u.id} value={u.email}>
                   {u.name || u.email} — {u.email}
                 </option>
