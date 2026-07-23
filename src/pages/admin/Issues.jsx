@@ -162,7 +162,6 @@ export default function Issues() {
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
-    createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
     const resolvedMessage = `${reportedBy || "Someone"}'s ${issueType || "issue"} issue for ${assetName || "an asset"} has been resolved`
     notifyAdmins(userProfile?.country, "✅ Issue Resolved", resolvedMessage, "success")
     getAdminEmails().then(adminEmails => {
