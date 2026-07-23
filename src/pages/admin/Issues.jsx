@@ -7,7 +7,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
-import { sendIssueResolvedEmail, sendNewIssueAdminEmail, getAdminEmails } from "../../lib/emailService"
+import { sendIssueResolvedEmail, sendNewIssueAdminEmail, getAdminEmails, sendEmail } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 const slideInStyle = `@keyframes slideInFromTop { from { transform: translateY(-10px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }`
@@ -146,6 +146,7 @@ export default function Issues() {
       })
       setShowForm(false)
       setForm({ asset_id: "", issue_type: "", description: "", priority: "medium" })
+      sendEmail(userProfile?.email, "Issue Submitted Successfully", "<p>Your issue has been submitted and will be reviewed by the IT team shortly.</p>")
       setSubmitSuccess(true)
       fetchIssues()
       setTimeout(() => {
@@ -156,12 +157,19 @@ export default function Issues() {
     }
   }
 
-  const handleResolve = async (id, reportedBy, assetName) => {
+  const handleResolve = async (id, reportedBy, assetName, issueType) => {
     await supabase.from("issues").update({
       status: "resolved",
       resolved_at: new Date().toISOString()
     }).eq("id", id)
     createNotification(userProfile?.id, "✅ Issue Resolved", "An issue has been resolved", "success", userProfile?.country)
+    const resolvedMessage = `${reportedBy || "Someone"}'s ${issueType || "issue"} issue for ${assetName || "an asset"} has been resolved`
+    notifyAdmins(userProfile?.country, "✅ Issue Resolved", resolvedMessage, "success")
+    getAdminEmails().then(adminEmails => {
+      if (adminEmails?.length) {
+        sendEmail(adminEmails, "Issue Resolved", `<p>${resolvedMessage}</p>`)
+      }
+    })
     if (reportedBy) {
       notifyUserByIdentifier(reportedBy, "✅ Issue Resolved", `Your issue for "${assetName || "an asset"}" has been resolved by admin`, "success")
       getEmailByIdentifier(reportedBy).then(email => {
@@ -173,12 +181,6 @@ export default function Issues() {
       setResolveSuccess(false)
       fetchIssues()
     }, 2500)
-  }
-
-  const handleArchive = async (issue) => {
-    await supabase.from("issues").update({ archived: true }).eq("id", issue.id)
-    if (issue.reported_by) notifyUserByIdentifier(issue.reported_by, "🔒 Issue Closed", `Your issue for "${issue.assets?.name || "an asset"}" has been closed`, "info")
-    fetchIssues()
   }
 
   const statusColor = {
@@ -470,19 +472,11 @@ export default function Issues() {
                   <motion.button
                     whileHover={{ scale: 1.05 }}
                     whileTap={{ scale: 0.95 }}
-                    onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name)}
+                    onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name, issue.issue_type)}
                     className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                   >
                     Resolve
                   </motion.button>
-                )}
-                {isAdmin && issue.status === "resolved" && !issue.archived && (
-                  <button
-                    onClick={() => handleArchive(issue)}
-                    className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
-                  >
-                    Archive
-                  </button>
                 )}
               </div>
             </motion.div>
@@ -535,19 +529,11 @@ export default function Issues() {
                         <motion.button
                           whileHover={{ scale: 1.05 }}
                           whileTap={{ scale: 0.95 }}
-                          onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name)}
+                          onClick={() => handleResolve(issue.id, issue.reported_by, issue.assets?.name, issue.issue_type)}
                           className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
                         >
                           Resolve
                         </motion.button>
-                      )}
-                      {isAdmin && issue.status === "resolved" && !issue.archived && (
-                        <button
-                          onClick={() => handleArchive(issue)}
-                          className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all"
-                        >
-                          Archive
-                        </button>
                       )}
                     </div>
                   </td>
