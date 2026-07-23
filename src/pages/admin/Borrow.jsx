@@ -275,6 +275,7 @@ export default function Borrow() {
       status: "assigned"
     }).eq("id", borrow.asset_id)
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
+    createNotification(userProfile?.id, "🔄 Asset Returned", `Your borrow of "${borrow.assets?.name || "asset"}" has been returned successfully`, "info", userProfile?.country, userProfile?.id)
     const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
     if (returnedByEmail) sendBorrowUpdateEmail(returnedByEmail, borrow.assets?.name || "Asset", "returned")
     getAdminEmails().then(adminEmails => {
@@ -308,6 +309,7 @@ export default function Borrow() {
 
     if (!error) {
       notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${borrow.assets?.name || "an asset"}" to ${extendDate}`, "info")
+      createNotification(userProfile?.id, "📅 Borrow Extended", `Your borrow of "${borrow.assets?.name || "asset"}" has been extended until ${extendDate}`, "info", userProfile?.country, userProfile?.id)
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
           sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", `extended until ${extendDate}`)
