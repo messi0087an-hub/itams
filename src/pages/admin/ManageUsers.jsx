@@ -226,7 +226,7 @@ const emailMap = {}
     const { data } = await supabase
       .from("assets")
       .select("id, name, asset_tag, category, status")
-      .eq("assigned_user", u.name || u.email)
+      .ilike("assigned_user", u.name || u.email)
     setDetailAssets(data || [])
     setDetailLoading(false)
   }
