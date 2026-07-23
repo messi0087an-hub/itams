@@ -1098,8 +1098,9 @@ const emailMap = {}
                         <span className={`text-xs px-2 py-0.5 rounded-full shrink-0 ${
                           a.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
                           a.status === "available" ? "bg-green-500/20 text-green-400" :
+                          a.status === "retired" ? "bg-red-500/20 text-red-400" :
                           "bg-gray-500/20 text-gray-400"
-                        }`}>{a.status}</span>
+                        }`}>{a.status === "retired" ? "Retired" : a.status}</span>
                       </div>
                     ))}
                   </div>
