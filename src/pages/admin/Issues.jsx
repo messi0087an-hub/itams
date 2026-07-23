@@ -82,7 +82,7 @@ export default function Issues() {
       if (prev[0]?.id === assetId) return prev
       return [match, ...prev.filter(a => a.id !== assetId)]
     })
-  }, [assets.length, location.search])
+  }, [assets, location.search])
 
   const fetchIssues = async () => {
     const { data } = await supabase
