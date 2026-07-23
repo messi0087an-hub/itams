@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { sendAssetRequestNotification, sendApprovalDecisionEmail, sendNewRequestAdminEmail, getApprovingOfficerProfile } from "../../lib/emailService"
+import { sendAssetRequestNotification, sendApprovalDecisionEmail, sendNewRequestAdminEmail, getApprovingOfficerProfile, sendEmail } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 import { useCurrency } from "../../lib/useCurrency"
@@ -154,6 +154,9 @@ export default function AssetRequests() {
       // Email to approving officer
       sendAssetRequestNotification({ requestedBy, assetType: form.asset_type, reason: form.reason, priority: form.priority, createdAt })
 
+      // Confirmation email to submitter
+      sendEmail(userProfile?.email, "Asset Request Submitted Successfully", "<p>Your asset request has been submitted and is pending approval.</p>")
+
       // In-app notification to submitter
       createNotification(
         userProfile?.id,
@@ -238,6 +241,8 @@ export default function AssetRequests() {
           )
         }
       })
+
+      createNotification(userProfile?.id, "✅ Asset Request Actioned", `${actionModal.request.requested_by}'s request for ${actionModal.request.asset_type} has been ${actionModal.type === 'approve' ? 'approved' : 'rejected'}`, "success", userProfile?.country, userProfile?.id)
 
       setActionModal(null)
       setActionReason("")
