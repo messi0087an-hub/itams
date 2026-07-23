@@ -315,6 +315,9 @@ export default function Borrow() {
           sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", `extended until ${extendDate}`)
         }
       })
+      if (borrow.borrower_email) {
+        sendBorrowUpdateEmail(borrow.borrower_email, borrow.assets?.name || "Asset", `extended until ${extendDate}`)
+      }
       setExtendingId(null)
       setExtendDate("")
       showToast("Return date extended successfully!")
