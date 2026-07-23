@@ -73,8 +73,10 @@ export default function Issues() {
   useEffect(() => {
     const params = new URLSearchParams(location.search)
     const assetId = params.get("asset_id")
+    console.log("[Scanner] asset_id:", assetId, "assets count:", assets.length)
     if (!assetId || assets.length === 0) return
     const match = assets.find(a => a.id === assetId)
+    console.log("[Scanner] match found:", match)
     if (!match) return
     setForm(f => (f.asset_id === assetId ? f : { ...f, asset_id: assetId }))
     setShowForm(true)
