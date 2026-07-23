@@ -271,8 +271,7 @@ export default function Borrow() {
       extension_pending: false
     }).eq("id", borrow.id)
     await supabase.from("assets").update({
-      status: "available",
-      assigned_user: null
+      status: "assigned"
     }).eq("id", borrow.asset_id)
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
     const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
