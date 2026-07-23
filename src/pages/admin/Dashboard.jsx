@@ -280,10 +280,10 @@ export default function Dashboard() {
     Math.ceil((new Date(date) - new Date()) / (1000 * 60 * 60 * 24))
 
   const cards = [
-    { label: t("totalAssets"), value: stats.totalAssets, bg: "bg-blue-600", shadow: "shadow-blue-500/20", emoji: "📦" },
-    { label: t("available"), value: stats.available, bg: "bg-green-600", shadow: "shadow-green-500/20", emoji: "✅" },
-    { label: t("assigned"), value: stats.assigned, bg: "bg-purple-600", shadow: "shadow-purple-500/20", emoji: "👤" },
-    { label: "Retired", value: stats.retired, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "🗃️" },
+    { label: t("totalAssets"), value: stats.totalAssets, bg: "bg-blue-600", shadow: "shadow-blue-500/20", emoji: "📦", to: "/admin/assets" },
+    { label: t("available"), value: stats.available, bg: "bg-green-600", shadow: "shadow-green-500/20", emoji: "✅", to: "/admin/assets?status=available" },
+    { label: t("assigned"), value: stats.assigned, bg: "bg-purple-600", shadow: "shadow-purple-500/20", emoji: "👤", to: "/admin/assets?status=assigned" },
+    { label: "Retired", value: stats.retired, bg: "bg-red-600", shadow: "shadow-red-500/20", emoji: "🗃️", to: "/admin/assets?status=retired" },
   ]
 
   return (
@@ -358,6 +358,7 @@ export default function Dashboard() {
               {cards.map((card, i) => (
                 <motion.div key={card.label} initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
                   transition={{ delay: i * 0.1 }} whileHover={{ scale: 1.05, transition: { duration: 0.2 } }}
+                  onClick={() => navigate(card.to)}
                   className={`${card.bg} rounded-2xl p-4 md:p-6 shadow-lg ${card.shadow} cursor-pointer`}>
                   <div className="flex items-center justify-between mb-2">
                     <span className="text-white/70 text-xs md:text-sm font-medium">{card.label}</span>

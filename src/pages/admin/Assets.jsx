@@ -1,7 +1,7 @@
 import { useEffect, useState, useRef } from "react"
 import * as XLSX from "xlsx"
 import { supabase } from "../../lib/supabase"
-import { useNavigate, useSearchParams } from "react-router-dom"
+import { useNavigate, useSearchParams, useLocation } from "react-router-dom"
 import { motion, AnimatePresence } from "framer-motion"
 import { logHistory } from "../../lib/logHistory"
 import { notifyUserByIdentifier } from "../../lib/notifications"
@@ -95,6 +95,7 @@ export default function Assets() {
   const [loading, setLoading] = useState(true)
   const [deleteModal, setDeleteModal] = useState(null)
   const navigate = useNavigate()
+  const location = useLocation()
 
   // Bulk state
   const [selected, setSelected] = useState(new Set())
@@ -108,6 +109,11 @@ export default function Assets() {
   const [showLabelModal, setShowLabelModal] = useState(false)
 
   useEffect(() => { if (!profileLoading) fetchAssets() }, [profileLoading, userCountry])
+  useEffect(() => {
+    const params = new URLSearchParams(location.search)
+    const statusParam = params.get("status")
+    if (statusParam) setFilterStatus(statusParam)
+  }, [location.search])
   useEffect(() => setCurrentPage(1), [search, filterStatus, filterCategory, sortCol])
   useEffect(() => {
     supabase.from("user_profiles").select("id, name, email").order("name").then(({ data }) => setAssignUsers(data || []))
