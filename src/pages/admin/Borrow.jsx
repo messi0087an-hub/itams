@@ -466,7 +466,7 @@ export default function Borrow() {
 
       {/* Extension Request Alert Banner */}
       <AnimatePresence>
-        {pendingExtensions.length > 0 && !dismissedExtAlert && (
+        {isAdmin && pendingExtensions.length > 0 && !dismissedExtAlert && (
           <motion.div
             initial={{ opacity: 0, y: -10 }}
             animate={{ opacity: 1, y: 0 }}
