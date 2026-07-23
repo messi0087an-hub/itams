@@ -332,12 +332,6 @@ export default function Borrow() {
     fetchBorrows()
   }
 
-  const handleArchiveBorrow = async (borrow) => {
-    await supabase.from("borrow_history").update({ archived: true }).eq("id", borrow.id)
-    notifyAdmins(userProfile?.country, "🗂️ Borrow Archived", `Borrow record for "${borrow.assets?.name || "an asset"}" was archived`, "info")
-    fetchBorrows()
-  }
-
   const activeBorrows = borrows.filter(b => !b.returned_at)
   const returnedBorrows = borrows.filter(b => b.returned_at)
   const todayStr = new Date().toISOString().split("T")[0]
@@ -960,14 +954,6 @@ export default function Borrow() {
                       </p>
                     </div>
                   </div>
-                  {isAdmin && !borrow.archived && (
-                    <button
-                      onClick={() => handleArchiveBorrow(borrow)}
-                      className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all shrink-0"
-                    >
-                      Archive
-                    </button>
-                  )}
                 </div>
               </div>
             ))}
