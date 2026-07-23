@@ -3,7 +3,7 @@ import { supabase } from "../../lib/supabase"
 import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
-import { sendAssetRequestNotification, sendApprovalDecisionEmail, sendNewRequestAdminEmail, getApprovingOfficerProfile, sendEmail, getAdminEmails } from "../../lib/emailService"
+import { sendAssetRequestNotification, sendApprovalDecisionEmail, sendNewRequestAdminEmail, getApprovingOfficerProfile, sendEmail } from "../../lib/emailService"
 import { createNotification, getUserIdByEmail } from "../../lib/notifications"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 import { useCurrency } from "../../lib/useCurrency"
@@ -243,14 +243,6 @@ export default function AssetRequests() {
       })
 
       createNotification(userProfile?.id, "✅ Asset Request Actioned", `${actionModal.request.requested_by}'s request for ${actionModal.request.asset_type} has been ${actionModal.type === 'approve' ? 'approved' : 'rejected'}`, "success", userProfile?.country, userProfile?.id)
-
-      getAdminEmails().then(adminEmails => {
-        if (adminEmails?.length) {
-          const status = actionModal.type === 'approve' ? 'approved' : 'rejected'
-          sendEmail(adminEmails, `Asset Request ${status.charAt(0).toUpperCase() + status.slice(1)}`,
-            `<p>${actionModal.request.requested_by}'s request for ${actionModal.request.asset_type} has been ${status} by ${userProfile?.name || 'Admin'}.</p>`)
-        }
-      })
 
       setActionModal(null)
       setActionReason("")
