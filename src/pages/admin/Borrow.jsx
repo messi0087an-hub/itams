@@ -192,10 +192,11 @@ export default function Borrow() {
       if (userCountry) q = q.eq("country", userCountry)
       const { data, error } = await q
       const mine = (data || []).filter(a =>
-        a.assigned_user === userProfile?.email ||
+        a.status !== "retired" &&
+        (a.assigned_user === userProfile?.email ||
         a.assigned_user === userProfile?.name ||
         (a.assigned_user && userProfile?.name &&
-          a.assigned_user.toLowerCase() === userProfile.name.toLowerCase())
+          a.assigned_user.toLowerCase() === userProfile.name.toLowerCase()))
       )
       setAssets(mine)
     } else {
