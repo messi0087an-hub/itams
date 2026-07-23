@@ -6,7 +6,7 @@ import { useAuth } from "../../context/AuthContext"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { createNotification, notifyAdmins, notifyUserByIdentifier, getEmailByIdentifier } from "../../lib/notifications"
-import { sendMaintenanceCompletedEmail, sendNewMaintenanceAdminEmail, getAdminEmails } from "../../lib/emailService"
+import { sendMaintenanceCompletedEmail, sendNewMaintenanceAdminEmail, getAdminEmails, sendEmail } from "../../lib/emailService"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
 function SuccessToast({ message }) {
@@ -227,6 +227,7 @@ export default function Maintenance() {
           sendNewMaintenanceAdminEmail(adminEmails, userProfile?.name || userProfile?.email || "A user", form.maintenance_type, form.asset_name, form.priority, form.scheduled_date)
         }
       })
+      sendEmail(userProfile?.email, "Maintenance Scheduled Successfully", "<p>Your maintenance request has been submitted and will be reviewed by the IT team shortly.</p>")
       setForm({ asset_id: "", asset_name: "", maintenance_type: "service", scheduled_date: "", assigned_to: "", recurrence: "none", priority: "medium", notes: "" })
       setAssetSearch("")
       setShowForm(false)
@@ -287,11 +288,6 @@ export default function Maintenance() {
     if (schedule.created_by && schedule.created_by !== "Auto (recurring)") {
       notifyUserByIdentifier(schedule.created_by, "❌ Maintenance Cancelled", `Your maintenance request for "${schedule.asset_name || "an asset"}" was cancelled by admin`, "warning")
     }
-    fetchAll()
-  }
-
-  const handleArchive = async (id) => {
-    await supabase.from("maintenance_schedules").update({ archived: true }).eq("id", id)
     fetchAll()
   }
 
@@ -676,13 +672,6 @@ export default function Maintenance() {
                           Cancel
                         </motion.button>
                       </>
-                    )}
-                    {canEdit && s.status === "completed" && !s.archived && (
-                      <button
-                        onClick={() => handleArchive(s.id)}
-                        className="text-gray-400 hover:text-gray-300 text-sm px-3 py-1 rounded border border-gray-600/30 transition-all">
-                        Archive
-                      </button>
                     )}
                   </div>
                 </div>
