@@ -10,12 +10,13 @@ const guides = [
     color: "blue",
     steps: [
       "The Dashboard is your home page after logging in — showing live system stats",
-      "Total Assets, Available, Assigned, and Open Issues are shown as coloured stat cards",
-      "Overdue Borrows and Expiring Warranties (within 30 days) are highlighted with alerts",
+      "Total Assets, Available, Assigned, and Retired are shown as coloured stat cards",
+      "Click any stat card to jump straight to All Assets, pre-filtered by that status",
+      "Overdue Borrows and Open Issues are highlighted with alerts",
       "Pending Asset Requests appear on the dashboard for quick admin action",
       "Recently Added Assets section shows the last 5 assets added to the system",
       "Warranty Status shows a breakdown of valid vs expired warranties",
-      "Click Overview or Analytics tabs to switch between summary and chart views",
+      "Click Overview, Analytics, or Warranty tabs to switch between summary, chart and warranty views",
       "Quick action buttons: Add Asset, Report Issue, Borrow Asset"
     ]
   },
@@ -147,7 +148,7 @@ const guides = [
       "Go to Import Assets to bulk upload assets from an Excel file",
       "Choose Import Mode: Add new assets only (skip duplicates) or Add new + update existing",
       "Upload your Excel file — the system reads the first sheet automatically regardless of sheet name",
-      "Required columns: name, serial_number, category, status, assigned_user, location, country, warranty_expiry, condition",
+      "Required columns: name, serial_number, category, status, assigned_user, location, country, warranty_expiry, condition, purchase_price, useful_life (years)",
       "A preview of detected records is shown before importing",
       "After import, a summary shows how many were imported, skipped or failed",
       "Import History below shows all previous imports with date, user and counts",
@@ -186,7 +187,7 @@ const guides = [
       "Full Asset Inventory: complete list with status and category charts, filter by date range",
       "Warranty Expiry: shows assets expiring within 30/60/90 days with visual breakdown",
       "Department Assets: assets grouped by department with assigned vs available breakdown",
-      "Asset Depreciation: calculates current value based on straight-line depreciation over 5 years",
+      "Asset Depreciation: calculates current value based on straight-line depreciation using each asset's own Useful Life (years) field — filter by month/year to see accumulated depreciation as of that date",
       "License Usage: tracks software license status and expiry",
       "Maintenance History: all maintenance records with status breakdown chart",
       "Borrow History: all borrow records with active vs returned counts",
@@ -202,9 +203,9 @@ const guides = [
     title: "Asset History",
     color: "gray",
     steps: [
-      "Go to History to see a complete audit trail of all asset activities",
-      "Every action is logged: asset created, updated, assigned, borrowed, returned, issues reported etc",
-      "Filter by Action Type (Created/Updated/Borrowed/Returned/Issue/Maintenance)",
+      "Go to History to see an audit trail of admin changes to asset records",
+      "Logs asset record changes only: Created, Updated (including assign and status change), and Deleted — borrow, issue and maintenance activity is not shown here",
+      "Filter by Action Type (Created/Updated/Deleted)",
       "Filter by User — type a username to see only actions by that person",
       "Filter by Asset Name to see history for a specific asset",
       "Filter by Date Range using the date pickers",
@@ -227,7 +228,8 @@ const guides = [
       "Clear All removes all notifications from your list",
       "Admins receive notifications when users borrow, return, extend, report issues or schedule maintenance",
       "Standard Users receive notifications when their requests are approved, issues resolved or maintenance completed",
-      "Email notifications are also sent directly to your office email for important actions"
+      "You'll also receive a confirmation email for your own actions: submitting an issue, scheduling maintenance, borrowing an asset, extending or returning a borrow, and submitting an asset request",
+      "Asset request decisions (approved or rejected) are emailed to you as well"
     ]
   },
   {
@@ -239,6 +241,8 @@ const guides = [
       "Go to Settings (Admin only) to configure system-wide options",
       "Asset Request Approvals: set which admin receives notifications and approves asset requests",
       "Marketing Distribution Approvals: set the approving officer for marketing distribution requests",
+      "Currency Settings: choose your portal's display currency from 8 supported currencies",
+      "Backup & Restore: download a full backup of all assets, users, borrows, issues, maintenance and settings data as JSON or Excel",
       "Changes take effect immediately after clicking Save Settings"
     ]
   },
@@ -356,7 +360,6 @@ export default function UserGuide() {
             { emoji: "🌐", text: "Live at tap-trainocate.vercel.app" },
             { emoji: "📱", text: "Works on mobile + desktop" },
             { emoji: "🔒", text: "Secure Supabase auth" },
-            { emoji: "🌍", text: "9 languages supported" },
           ].map((item, i) => (
             <div key={i} className="bg-blue-500/10 rounded-xl p-3 text-center">
               <p className="text-xl mb-1">{item.emoji}</p>
