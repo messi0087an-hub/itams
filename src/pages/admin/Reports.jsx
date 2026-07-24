@@ -36,6 +36,21 @@ const STATUS_COLORS = {
 
 const CHART_COLORS = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ef4444","#06b6d4","#f97316","#ec4899"]
 
+const PRODUCT_IDS = {
+  "P001": "Laptop",
+  "P002": "Desktop",
+  "P003": "Monitor",
+  "P004": "Printer",
+  "P005": "Server",
+  "P006": "Networking",
+  "P007": "Mobile Device",
+  "P008": "Tablet",
+  "P009": "Peripheral",
+  "P010": "Software License",
+  "P011": "Furniture",
+  "P012": "Other",
+}
+
 const MONTHS = ["January","February","March","April","May","June","July","August","September","October","November","December"]
 const currentYear = new Date().getFullYear()
 const DEP_YEARS = Array.from({ length: 21 }, (_, i) => currentYear - 15 + i)
@@ -127,6 +142,7 @@ export default function Reports() {
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [depMonth, setDepMonth] = useState(new Date().getMonth() + 1)
   const [depYear, setDepYear] = useState(new Date().getFullYear())
+  const [productIdFilter, setProductIdFilter] = useState("")
 
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, userCountry])
 
@@ -148,12 +164,19 @@ export default function Reports() {
     setLoading(false)
   }
 
+  // ── Product ID filtering ─────────────────────────────────────────────────────
+  const filteredAssets = useMemo(() => {
+    if (!productIdFilter) return assets
+    const cat = PRODUCT_IDS[productIdFilter]
+    return assets.filter(a => a.category === cat)
+  }, [assets, productIdFilter])
+
   // ── Per-report data ──────────────────────────────────────────────────────────
   const reportData = useMemo(() => {
     const todayStr = today()
 
     if (reportType === "inventory") {
-      let rows = [...assets]
+      let rows = [...filteredAssets]
       if (dateFrom) rows = rows.filter(a => (a.purchase_date || "") >= dateFrom)
       if (dateTo)   rows = rows.filter(a => (a.purchase_date || "") <= dateTo)
       const byStatus = Object.entries(
@@ -174,7 +197,7 @@ export default function Reports() {
 
     if (reportType === "warranty") {
       const cutoff = daysFromNow(warrantyDays)
-      let rows = assets.filter(a => a.warranty_expiry && a.warranty_expiry >= todayStr && a.warranty_expiry <= cutoff)
+      let rows = filteredAssets.filter(a => a.warranty_expiry && a.warranty_expiry >= todayStr && a.warranty_expiry <= cutoff)
       if (dateFrom) rows = rows.filter(a => a.warranty_expiry >= dateFrom)
       if (dateTo)   rows = rows.filter(a => a.warranty_expiry <= dateTo)
       rows = rows.sort((a, b) => a.warranty_expiry.localeCompare(b.warranty_expiry))
@@ -190,7 +213,7 @@ export default function Reports() {
     }
 
     if (reportType === "department") {
-      const deptMap = assets.reduce((acc, a) => {
+      const deptMap = filteredAssets.reduce((acc, a) => {
         const dept = a.department || "Unassigned"
         if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0, assets: [] }
         acc[dept].total++
@@ -202,12 +225,12 @@ export default function Reports() {
         name, total: v.total, available: v.available, assigned: v.assigned,
       })).sort((a, b) => b.total - a.total).slice(0, 8)
       const depts = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
-      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: assets.length } }
+      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: filteredAssets.length } }
     }
 
     if (reportType === "depreciation") {
       const asOfDate = new Date(depYear, depMonth, 0) // last day of selected month
-      const rows = assets
+      const rows = filteredAssets
         .map(a => ({ ...a, dep: calcDepreciation(a.purchase_price, a.purchase_date, a.useful_life, asOfDate) }))
         .filter(a => a.dep)
         .sort((a, b) => a.dep.percentRemaining - b.dep.percentRemaining)
@@ -286,7 +309,7 @@ export default function Reports() {
     }
 
     if (reportType === "dept_count") {
-      const deptMap = assets.reduce((acc, a) => {
+      const deptMap = filteredAssets.reduce((acc, a) => {
         const dept = a.department || "Unassigned"
         if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0 }
         acc[dept].total++
@@ -295,7 +318,7 @@ export default function Reports() {
       }, {})
       const rows = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
       const chartData = rows.slice(0, 8).map(([name, v]) => ({ name, count: v.total }))
-      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: assets.length } }
+      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: filteredAssets.length } }
     }
 
     if (reportType === "license_expiry") {
@@ -311,7 +334,7 @@ export default function Reports() {
     }
 
     return {}
-  }, [reportType, assets, borrows, maintenance, overdueBorrowsData, dateFrom, dateTo, warrantyDays, depMonth, depYear])
+  }, [reportType, assets, filteredAssets, productIdFilter, borrows, maintenance, overdueBorrowsData, dateFrom, dateTo, warrantyDays, depMonth, depYear])
 
   // ── Export PDF ───────────────────────────────────────────────────────────────
   const exportPDF = () => {
@@ -642,6 +665,48 @@ export default function Reports() {
               <span className="md:hidden">📊</span>
               <span className="hidden md:inline">📊 Excel</span>
             </motion.button>
+          </div>
+        </div>
+
+        {/* Product ID Reference & Filter */}
+        <div className="bg-gray-900 rounded-xl border border-gray-800 p-4 mb-5">
+          <div className="flex items-center justify-between mb-3 flex-wrap gap-2">
+            <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide">Product ID Reference</p>
+            {productIdFilter && (
+              <span className="bg-blue-600/20 border border-blue-500/40 text-blue-300 text-xs px-3 py-1 rounded-full font-medium">
+                Filtering: {productIdFilter} — {PRODUCT_IDS[productIdFilter]}
+              </span>
+            )}
+          </div>
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
+            {Object.entries(PRODUCT_IDS).map(([id, cat]) => (
+              <div key={id} className={`rounded-lg border px-3 py-2 text-xs ${
+                productIdFilter === id
+                  ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
+                  : "bg-gray-800/60 border-gray-700 text-gray-400"
+              }`}>
+                <span className="font-semibold">{id}</span> — {cat}
+              </div>
+            ))}
+          </div>
+          <div className="flex items-center gap-2 flex-wrap">
+            <label className="text-gray-500 text-xs shrink-0">Filter by Product ID</label>
+            <select
+              value={productIdFilter}
+              onChange={e => setProductIdFilter(e.target.value)}
+              className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
+            >
+              <option value="">All</option>
+              {Object.entries(PRODUCT_IDS).map(([id, cat]) => (
+                <option key={id} value={id}>{id} - {cat}</option>
+              ))}
+            </select>
+            {productIdFilter && (
+              <button onClick={() => setProductIdFilter("")}
+                className="text-gray-500 hover:text-white text-xs px-2 py-1.5 rounded-lg hover:bg-gray-800 transition-all">
+                ✕ Clear
+              </button>
+            )}
           </div>
         </div>
 
