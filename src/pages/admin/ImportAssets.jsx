@@ -10,10 +10,34 @@ const excelDateToISO = (val) => {
   // If it's already a string date, return as is
   if (typeof val === 'string' && val.includes('-')) return val
   if (typeof val === 'string' && val.includes('/')) {
-    // Handle MM/DD/YYYY format
+    // Handle DD/MM/YYYY and DD/MM/YY formats (e.g. Ariff's file: 20/6/19 = 20 Jun 2019)
     const parts = val.split('/')
     if (parts.length === 3) {
-      return `${parts[2]}-${parts[0].padStart(2,'0')}-${parts[1].padStart(2,'0')}`
+      let [first, second, year] = parts
+      const firstNum = parseInt(first, 10)
+      const secondNum = parseInt(second, 10)
+
+      // Month can't exceed 12, so whichever part is >12 must be the day
+      let day, month
+      if (firstNum > 12) {
+        day = first
+        month = second
+      } else if (secondNum > 12) {
+        day = second
+        month = first
+      } else {
+        // Ambiguous — default to DD/MM (this file's format)
+        day = first
+        month = second
+      }
+
+      // Handle 2-digit years (e.g. 19 = 2019, 21 = 2021, 23 = 2023)
+      if (year.length === 2) {
+        const yearNum = parseInt(year, 10)
+        year = yearNum <= 68 ? `20${year.padStart(2,'0')}` : `19${year.padStart(2,'0')}`
+      }
+
+      return `${year}-${month.padStart(2,'0')}-${day.padStart(2,'0')}`
     }
   }
   // Handle Excel serial number
