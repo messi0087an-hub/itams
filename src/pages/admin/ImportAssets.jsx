@@ -89,9 +89,7 @@ export default function ImportAssets() {
         const purchasePrice = row[9] !== undefined && row[9] !== null && row[9] !== ""
           ? parseFloat(row[9])
           : null
-        const usefulLife = row[10] !== undefined && row[10] !== null && row[10] !== ""
-          ? parseInt(row[10])
-          : null
+        const purchaseDate = excelDateToISO(typeof row[10] === "string" ? row[10].trim() : row[10])
 
         if (serial && seenSerials.has(serial)) {
           serial = `${serial}_${i}`
@@ -110,7 +108,8 @@ export default function ImportAssets() {
           location: location || userCountry || "Singapore",
           warranty_expiry: warrantyExpiry || null,
           purchase_price: Number.isNaN(purchasePrice) ? null : purchasePrice,
-          useful_life: (usefulLife && !Number.isNaN(usefulLife)) ? usefulLife : 5,
+          purchase_date: purchaseDate || null,
+          useful_life: 5,
         })
       }
 
