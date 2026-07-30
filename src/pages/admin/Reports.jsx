@@ -548,6 +548,35 @@ export default function Reports() {
     XLSX.writeFile(wb, `Trainocate_${reportType}_${today()}.xlsx`)
   }
 
+  // ── Export Full Year Depreciation (Excel) ────────────────────────────────────
+  const exportFullYearExcel = () => {
+    const rows = filteredAssets
+      .filter(a => a.purchase_price && a.purchase_date)
+      .map(a => {
+        const dep = calcDepreciation(a.purchase_price, a.purchase_date, a.useful_life, new Date(depYear, 11, 31))
+        const row = {
+          "Asset Tag": a.asset_tag || "",
+          "Asset Name": a.name,
+          "Category": a.category || "",
+          "Purchase Date": a.purchase_date || "",
+          "Useful Life (years)": dep.usefulLife,
+          "Monthly Depreciation": dep.perMonth,
+        }
+        MONTHS.forEach((m, i) => {
+          const asOfDate = new Date(depYear, i + 1, 0) // last day of month i+1
+          const monthDep = calcDepreciation(a.purchase_price, a.purchase_date, a.useful_life, asOfDate)
+          row[`${m} Accumulated Depreciation`] = monthDep ? Math.round(monthDep.accumulatedDepreciation) : ""
+          row[`${m} Net Book Value`] = monthDep ? Math.round(monthDep.currentValue) : ""
+        })
+        return row
+      })
+
+    const ws = XLSX.utils.json_to_sheet(rows)
+    const wb = XLSX.utils.book_new()
+    XLSX.utils.book_append_sheet(wb, ws, `FY ${depYear}`)
+    XLSX.writeFile(wb, `Trainocate_depreciation_fullyear_${depYear}.xlsx`)
+  }
+
   const rt = REPORT_TYPES.find(r => r.id === reportType)
 
   const selectReport = (id) => { setReportType(id); setDateFrom(""); setDateTo("") }
@@ -665,6 +694,14 @@ export default function Reports() {
               <span className="md:hidden">📊</span>
               <span className="hidden md:inline">📊 Excel</span>
             </motion.button>
+            {reportType === "depreciation" && (
+              <motion.button whileHover={{ scale: 1.05 }} whileTap={{ scale: 0.95 }}
+                onClick={exportFullYearExcel}
+                className="bg-emerald-600/80 hover:bg-emerald-600 text-white px-2 md:px-3 py-1.5 rounded-lg text-xs font-medium transition-all">
+                <span className="md:hidden">📊</span>
+                <span className="hidden md:inline">📊 Full Year Excel</span>
+              </motion.button>
+            )}
           </div>
         </div>
 
