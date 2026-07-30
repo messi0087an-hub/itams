@@ -36,7 +36,8 @@ const STATUS_COLORS = {
 
 const CHART_COLORS = ["#3b82f6","#22c55e","#a855f7","#f59e0b","#ef4444","#06b6d4","#f97316","#ec4899"]
 
-const PRODUCT_IDS = {
+// Fallback used only until the product_ids table has loaded (or if it's unreachable)
+const DEFAULT_PRODUCT_IDS = {
   "P001": "Laptop",
   "P002": "Desktop",
   "P003": "Monitor",
@@ -143,8 +144,21 @@ export default function Reports() {
   const [depMonth, setDepMonth] = useState(new Date().getMonth() + 1)
   const [depYear, setDepYear] = useState(new Date().getFullYear())
   const [productIdFilter, setProductIdFilter] = useState("")
+  const [productIds, setProductIds] = useState(DEFAULT_PRODUCT_IDS)
 
   useEffect(() => { if (!profileLoading) fetchAll() }, [profileLoading, userCountry])
+  useEffect(() => { fetchProductIds() }, [])
+
+  const fetchProductIds = async () => {
+    try {
+      const { data } = await supabase.from("product_ids").select("code, category").order("code")
+      if (data && data.length) {
+        const map = {}
+        data.forEach(p => { map[p.code] = p.category })
+        setProductIds(map)
+      }
+    } catch { /* table may not exist yet — use defaults */ }
+  }
 
   const fetchAll = async () => {
     setLoading(true)
@@ -167,9 +181,9 @@ export default function Reports() {
   // ── Product ID filtering ─────────────────────────────────────────────────────
   const filteredAssets = useMemo(() => {
     if (!productIdFilter) return assets
-    const cat = PRODUCT_IDS[productIdFilter]
+    const cat = productIds[productIdFilter]
     return assets.filter(a => a.category === cat)
-  }, [assets, productIdFilter])
+  }, [assets, productIdFilter, productIds])
 
   // ── Per-report data ──────────────────────────────────────────────────────────
   const reportData = useMemo(() => {
@@ -711,12 +725,12 @@ export default function Reports() {
             <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide">Product ID Reference</p>
             {productIdFilter && (
               <span className="bg-blue-600/20 border border-blue-500/40 text-blue-300 text-xs px-3 py-1 rounded-full font-medium">
-                Filtering: {productIdFilter} — {PRODUCT_IDS[productIdFilter]}
+                Filtering: {productIdFilter} — {productIds[productIdFilter]}
               </span>
             )}
           </div>
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-2 mb-4">
-            {Object.entries(PRODUCT_IDS).map(([id, cat]) => (
+            {Object.entries(productIds).map(([id, cat]) => (
               <div key={id} className={`rounded-lg border px-3 py-2 text-xs ${
                 productIdFilter === id
                   ? "bg-blue-600/20 border-blue-500/40 text-blue-300"
@@ -734,7 +748,7 @@ export default function Reports() {
               className="bg-gray-800 border border-gray-700 text-white text-xs rounded-lg px-3 py-1.5 focus:outline-none focus:border-blue-500"
             >
               <option value="">All</option>
-              {Object.entries(PRODUCT_IDS).map(([id, cat]) => (
+              {Object.entries(productIds).map(([id, cat]) => (
                 <option key={id} value={id}>{id} - {cat}</option>
               ))}
             </select>
