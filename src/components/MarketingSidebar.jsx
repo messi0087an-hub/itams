@@ -168,7 +168,7 @@ export default function MarketingSidebar() {
 
       {/* Logo — desktop only */}
       <div className="hidden md:block" style={{ padding: "28px 18px 16px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0, textAlign: "center" }}>
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "120px", filter: "brightness(1.3)", display: "block", margin: "12px 0 0 16px" }} />
+        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "80px", filter: "brightness(2.5) contrast(1.0)", mixBlendMode: "multiply", background: "transparent", display: "block", margin: "12px 0 0 16px" }} />
       </div>
       {/* Mobile spacer (height matches mobile top bar) */}
       <div className="md:hidden" style={{ height: "56px", flexShrink: 0 }} />
