@@ -166,33 +166,32 @@ export default function MarketingSidebar() {
       {/* Cyan accent stripe */}
       <div style={{ height: "3px", background: `linear-gradient(90deg, ${MKT.accent}, ${MKT.teal})`, flexShrink: 0 }} />
 
-      {/* Logo — desktop only */}
-      <div className="hidden md:block" style={{ padding: "28px 18px 16px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0, textAlign: "center" }}>
-        <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "80px", filter: "brightness(0) invert(1)", background: "transparent", display: "block", margin: "12px 0 0 16px" }} />
-      </div>
-      {/* Mobile spacer (height matches mobile top bar) */}
-      <div className="md:hidden" style={{ height: "56px", flexShrink: 0 }} />
-
-      {/* User info + bell */}
-      <div style={{ padding: "12px 14px", borderBottom: `1px solid ${MKT.border}`, flexShrink: 0 }}>
-        <div style={{ display: "flex", alignItems: "center", gap: "10px" }}>
-          <div style={{
-            width: "32px", height: "32px", borderRadius: "50%",
-            background: `linear-gradient(135deg, ${MKT.accent}, ${MKT.teal})`,
-            display: "flex", alignItems: "center", justifyContent: "center",
-            color: "#fff", fontWeight: "700", fontSize: "13px", flexShrink: 0,
-          }}>
-            {firstLetter}
-          </div>
-          <div style={{ minWidth: 0, flex: 1 }}>
-            <p style={{ color: MKT.text, fontSize: "13px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>
-              {displayName}
-            </p>
-            <span style={{ display: "inline-block", background: "rgba(6,182,212,0.15)", border: "1px solid rgba(6,182,212,0.3)", color: MKT.accent, fontSize: "10px", padding: "1px 7px", borderRadius: "6px", fontWeight: "600", marginTop: "2px" }}>
-              {userProfile?.marketing_role || (role === "admin" ? "IT Admin" : "Marketing")}
-            </span>
-          </div>
+      {/* ── TOP: Logo + User info — inline, never scrolls (matches IT Sidebar layout) ── */}
+      <div className="shrink-0">
+        <div className="hidden md:flex items-center gap-3 px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${MKT.border}` }}>
+          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "80px", flexShrink: 0, mixBlendMode: "multiply", background: "transparent", filter: "brightness(2.5) contrast(1.0)" }} />
+          {userProfile && (
+            <div className="flex items-center gap-2 min-w-0 flex-1">
+              <div style={{
+                width: "32px", height: "32px", borderRadius: "50%",
+                background: `linear-gradient(135deg, ${MKT.accent}, ${MKT.teal})`,
+                display: "flex", alignItems: "center", justifyContent: "center",
+                color: "#fff", fontWeight: "700", fontSize: "13px", flexShrink: 0,
+              }}>
+                {firstLetter}
+              </div>
+              <div className="min-w-0 flex-1">
+                <p style={{ color: MKT.text, fontSize: "13px", fontWeight: "600", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", margin: 0 }}>
+                  {displayName}
+                </p>
+                <span style={{ display: "inline-block", background: "rgba(6,182,212,0.15)", border: "1px solid rgba(6,182,212,0.3)", color: MKT.accent, fontSize: "10px", padding: "1px 7px", borderRadius: "6px", fontWeight: "600", marginTop: "2px" }}>
+                  {userProfile?.marketing_role || (role === "admin" ? "IT Admin" : "Marketing")}
+                </span>
+              </div>
+            </div>
+          )}
         </div>
+        <div className="h-14 md:hidden" />
       </div>
 
       {/* Module toggle — admin only */}
