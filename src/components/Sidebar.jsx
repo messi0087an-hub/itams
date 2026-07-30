@@ -125,7 +125,7 @@ export default function Sidebar() {
         {/* ── TOP: Logo + User info — inline, never scrolls ── */}
         <div className="shrink-0">
           <div className="hidden md:flex items-center gap-3 px-4 pt-4 pb-3 border-b border-gray-800/50">
-            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"80px", flexShrink: 0, mixBlendMode:"multiply", background:"transparent", filter: "brightness(2.5) contrast(1.0)"}} />
+            <img src="/trainocate-logo.png" alt="Trainocate" style={{width:"80px", flexShrink: 0, mixBlendMode:"multiply", background:"transparent", filter: "none"}} />
             {userProfile && (
               <div className="flex items-center gap-2 min-w-0 flex-1">
                 <div style={{ width:"32px", height:"32px", borderRadius:"50%", background:"linear-gradient(135deg, #e8431a, #ff6b35)", display:"flex", alignItems:"center", justifyContent:"center", color:"white", fontWeight:"bold", fontSize:"13px", flexShrink:0 }}>

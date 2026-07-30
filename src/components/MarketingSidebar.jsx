@@ -162,7 +162,7 @@ export default function MarketingSidebar() {
   )
 
   const SidebarBody = () => (
-    <div style={{ width: "256px", height: "100%", backgroundColor: MKT.bg, borderRight: `1px solid ${MKT.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
+    <div style={{ width: "288px", height: "100%", backgroundColor: MKT.bg, borderRight: `1px solid ${MKT.border}`, display: "flex", flexDirection: "column", overflow: "hidden" }}>
       {/* Cyan accent stripe */}
       <div style={{ height: "3px", background: `linear-gradient(90deg, ${MKT.accent}, ${MKT.teal})`, flexShrink: 0 }} />
 
@@ -311,10 +311,10 @@ export default function MarketingSidebar() {
         {open && (
           <motion.div
             key="drawer"
-            initial={{ x: -270 }} animate={{ x: 0 }} exit={{ x: -270 }}
+            initial={{ x: -288 }} animate={{ x: 0 }} exit={{ x: -288 }}
             transition={{ type: "spring", stiffness: 320, damping: 32 }}
             className="md:hidden"
-            style={{ position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 40, width: "256px" }}
+            style={{ position: "fixed", top: 0, left: 0, bottom: 0, zIndex: 40, width: "288px" }}
           >
             <SidebarBody />
           </motion.div>
@@ -324,7 +324,7 @@ export default function MarketingSidebar() {
       {/* ── Desktop sidebar (always visible) ──────────────────────────────── */}
       <div
         className="hidden md:block"
-        style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: "256px", zIndex: 40 }}
+        style={{ position: "fixed", top: 0, left: 0, bottom: 0, width: "288px", zIndex: 40 }}
       >
         <SidebarBody />
       </div>
