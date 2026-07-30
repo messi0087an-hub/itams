@@ -7,6 +7,20 @@ import { motion, AnimatePresence } from "framer-motion"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 import { useTranslation } from "react-i18next"
 import QRLabelModal from "../../components/QRLabelModal"
+import { logHistory } from "../../lib/logHistory"
+
+// ── Asset Details field config (label + db column + input type) ─────────────
+const DETAIL_FIELDS = [
+  { key: "serial_number",   label: "Serial Number",   type: "text" },
+  { key: "asset_tag",       label: "Asset Tag",       type: "text" },
+  { key: "location",        label: "Location",        type: "text" },
+  { key: "assigned_user",   label: "Assigned To",     type: "text" },
+  { key: "department",      label: "Department",      type: "text" },
+  { key: "purchase_date",   label: "Purchase Date",   type: "date" },
+  { key: "purchase_price",  label: "Purchase Price",  type: "number" },
+  { key: "warranty_expiry", label: "Warranty Expiry", type: "date" },
+  { key: "remarks",         label: "Remarks",         type: "text" },
+]
 
 // ── Timeline config ──────────────────────────────────────────────────────────
 const EVENT_CFG = {
@@ -157,6 +171,7 @@ function AssetTimeline({ asset, history }) {
 function PhotoGallery({ assetId }) {
   const [photos, setPhotos] = useState([])
   const [uploading, setUploading] = useState(false)
+  const [uploadError, setUploadError] = useState("")
   const [lightbox, setLightbox] = useState(null)
 
   useEffect(() => { loadPhotos() }, [assetId])
@@ -181,11 +196,19 @@ function PhotoGallery({ assetId }) {
     const file = e.target.files[0]
     if (!file) return
     setUploading(true)
+    setUploadError("")
     const ext = file.name.split(".").pop()
     const path = `${assetId}/${Date.now()}.${ext}`
-    await supabase.storage.from("asset-photos").upload(path, file)
+    const { error } = await supabase.storage.from("asset-photos").upload(path, file)
+    if (error) {
+      setUploadError(error.message || "Failed to upload photo.")
+      setUploading(false)
+      e.target.value = ""
+      return
+    }
     await loadPhotos()
     setUploading(false)
+    e.target.value = ""
   }
 
   const handleDelete = async (name) => {
@@ -209,6 +232,16 @@ function PhotoGallery({ assetId }) {
           <input type="file" accept="image/*" onChange={handleUpload} className="hidden" disabled={uploading} />
         </label>
       </div>
+
+      <AnimatePresence>
+        {uploadError && (
+          <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+            className="mb-4 bg-red-500/10 border border-red-500/40 rounded-lg p-2.5 flex items-center justify-between gap-2">
+            <span className="text-red-400 text-xs font-medium flex items-center gap-2">❌ Upload failed: {uploadError}</span>
+            <button onClick={() => setUploadError("")} className="text-red-400 hover:text-red-300 text-xs shrink-0">✕</button>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {photos.length === 0 ? (
         <p className="text-gray-600 text-sm text-center py-6">No photos yet. Click "Add Photo" to upload.</p>
@@ -258,7 +291,7 @@ function PhotoGallery({ assetId }) {
 // ── Main page ─────────────────────────────────────────────────────────────────
 export default function AssetDetail() {
   const { t } = useTranslation()
-  const { isAdmin, isStandardUser } = useAuth()
+  const { isAdmin, isStandardUser, userProfile } = useAuth()
   const { id } = useParams()
   const navigate = useNavigate()
   const [asset, setAsset] = useState(null)
@@ -266,6 +299,12 @@ export default function AssetDetail() {
   const [loading, setLoading] = useState(true)
   const [showLabelModal, setShowLabelModal] = useState(false)
   const [timeline, setTimeline] = useState([])
+
+  const [editingDetails, setEditingDetails] = useState(false)
+  const [detailsForm, setDetailsForm] = useState({})
+  const [savingDetails, setSavingDetails] = useState(false)
+  const [detailsError, setDetailsError] = useState("")
+  const [detailsSuccess, setDetailsSuccess] = useState(false)
 
   useEffect(() => { fetchAll() }, [id])
 
@@ -294,6 +333,62 @@ export default function AssetDetail() {
       ...(hist.data || []).map(h => ({ ...h, _type: "history", _date: h.created_at })),
     ].sort((a, b) => new Date(b._date) - new Date(a._date))
     setTimeline(items)
+  }
+
+  const startEditDetails = () => {
+    setDetailsForm({
+      serial_number: asset.serial_number || "",
+      asset_tag: asset.asset_tag || "",
+      location: asset.location || "",
+      assigned_user: asset.assigned_user || "",
+      department: asset.department || "",
+      purchase_date: asset.purchase_date || "",
+      purchase_price: asset.purchase_price || "",
+      warranty_expiry: asset.warranty_expiry || "",
+      remarks: asset.remarks || "",
+    })
+    setDetailsError("")
+    setEditingDetails(true)
+  }
+
+  const cancelEditDetails = () => {
+    setEditingDetails(false)
+    setDetailsError("")
+  }
+
+  const handleSaveDetails = async () => {
+    setSavingDetails(true)
+    setDetailsError("")
+    const cleanForm = {
+      serial_number: detailsForm.serial_number.trim() || null,
+      asset_tag: detailsForm.asset_tag.trim() || null,
+      location: detailsForm.location.trim() || null,
+      assigned_user: detailsForm.assigned_user.trim() || null,
+      department: detailsForm.department.trim() || null,
+      purchase_date: detailsForm.purchase_date || null,
+      purchase_price: detailsForm.purchase_price ? parseFloat(detailsForm.purchase_price) : null,
+      warranty_expiry: detailsForm.warranty_expiry || null,
+      remarks: detailsForm.remarks.trim() || null,
+    }
+    const { error } = await supabase.from("assets").update(cleanForm).eq("id", id)
+    if (error) {
+      const msg = error.message || ""
+      if (msg.includes("serial_number")) {
+        setDetailsError(`Serial number "${detailsForm.serial_number}" already exists on another asset.`)
+      } else if (msg.includes("asset_tag")) {
+        setDetailsError(`Asset tag "${detailsForm.asset_tag}" already exists on another asset.`)
+      } else {
+        setDetailsError(msg || "Failed to save changes.")
+      }
+      setSavingDetails(false)
+      return
+    }
+    await logHistory(id, "Updated", `Asset "${asset.name}" details were updated`, userProfile?.name || userProfile?.email)
+    await fetchAll()
+    setEditingDetails(false)
+    setSavingDetails(false)
+    setDetailsSuccess(true)
+    setTimeout(() => setDetailsSuccess(false), 3000)
   }
 
   const statusColor = {
@@ -393,25 +488,87 @@ export default function AssetDetail() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {/* Asset Details */}
         <div className="bg-gray-900 rounded-xl border border-gray-800 p-6">
-          <h2 className="text-white font-semibold mb-4">{t("assetDetails")}</h2>
-          <div className="space-y-3">
-            {[
-              { label: "Serial Number",  value: asset.serial_number },
-              { label: "Asset Tag",      value: asset.asset_tag },
-              { label: "Location",       value: asset.location },
-              { label: "Assigned To",    value: asset.assigned_user },
-              { label: "Department",     value: asset.department },
-              { label: "Purchase Date",  value: asset.purchase_date },
-              { label: "Purchase Price", value: asset.purchase_price ? `SGD ${Number(asset.purchase_price).toLocaleString()}` : null },
-              { label: "Warranty Expiry",value: asset.warranty_expiry },
-              { label: "Remarks",        value: asset.remarks },
-            ].map(({ label, value }) => (
-              <div key={label} className="flex justify-between gap-2">
-                <span className="text-gray-500 text-sm shrink-0">{label}</span>
-                <span className="text-white text-sm text-right">{value || "—"}</span>
-              </div>
-            ))}
+          <div className="flex items-center justify-between mb-4">
+            <h2 className="text-white font-semibold">{t("assetDetails")}</h2>
+            {!editingDetails && (isAdmin || isStandardUser) && (
+              <button
+                onClick={startEditDetails}
+                className="text-blue-400 hover:text-blue-300 text-sm font-medium flex items-center gap-1"
+              >
+                ✏️ Edit Details
+              </button>
+            )}
           </div>
+
+          <AnimatePresence>
+            {detailsSuccess && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                className="mb-3 bg-green-500/10 border border-green-500/40 rounded-lg p-2.5 flex items-center gap-2">
+                <span>✅</span>
+                <p className="text-green-400 text-xs font-medium">Asset details saved successfully.</p>
+              </motion.div>
+            )}
+            {detailsError && (
+              <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -6 }}
+                className="mb-3 bg-red-500/10 border border-red-500/40 rounded-lg p-2.5 flex items-center gap-2">
+                <span>❌</span>
+                <p className="text-red-400 text-xs font-medium">{detailsError}</p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+
+          {editingDetails ? (
+            <div className="space-y-3">
+              {DETAIL_FIELDS.map(({ key, label, type }) => (
+                <div key={key} className="flex items-center justify-between gap-3">
+                  <label className="text-gray-500 text-sm shrink-0">{label}</label>
+                  <input
+                    type={type}
+                    step={type === "number" ? "0.01" : undefined}
+                    value={detailsForm[key] ?? ""}
+                    onChange={e => setDetailsForm(f => ({ ...f, [key]: e.target.value }))}
+                    className="flex-1 min-w-0 bg-gray-800 text-white text-sm text-right rounded-lg px-3 py-1.5 border border-gray-700 focus:border-blue-500 focus:outline-none"
+                  />
+                </div>
+              ))}
+
+              <div className="flex gap-2 pt-2">
+                <button
+                  onClick={handleSaveDetails}
+                  disabled={savingDetails}
+                  className="bg-blue-600 hover:bg-blue-700 disabled:opacity-50 text-white px-4 py-2 rounded-lg text-sm font-medium transition-all"
+                >
+                  {savingDetails ? "Saving…" : "💾 Save"}
+                </button>
+                <button
+                  onClick={cancelEditDetails}
+                  disabled={savingDetails}
+                  className="text-gray-400 hover:text-white px-4 py-2 rounded-lg text-sm font-medium transition-all disabled:opacity-50"
+                >
+                  Cancel
+                </button>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              {[
+                { label: "Serial Number",  value: asset.serial_number },
+                { label: "Asset Tag",      value: asset.asset_tag },
+                { label: "Location",       value: asset.location },
+                { label: "Assigned To",    value: asset.assigned_user },
+                { label: "Department",     value: asset.department },
+                { label: "Purchase Date",  value: asset.purchase_date },
+                { label: "Purchase Price", value: asset.purchase_price ? `SGD ${Number(asset.purchase_price).toLocaleString()}` : null },
+                { label: "Warranty Expiry",value: asset.warranty_expiry },
+                { label: "Remarks",        value: asset.remarks },
+              ].map(({ label, value }) => (
+                <div key={label} className="flex justify-between gap-2">
+                  <span className="text-gray-500 text-sm shrink-0">{label}</span>
+                  <span className="text-white text-sm text-right">{value || "—"}</span>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
         {/* QR Code */}
