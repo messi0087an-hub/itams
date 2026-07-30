@@ -169,7 +169,7 @@ export default function MarketingSidebar() {
       {/* ── TOP: Logo + User info — inline, never scrolls (matches IT Sidebar layout) ── */}
       <div className="shrink-0">
         <div className="hidden md:flex items-center gap-3 px-4 pt-4 pb-3" style={{ borderBottom: `1px solid ${MKT.border}` }}>
-          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "80px", flexShrink: 0, background: "transparent", filter: "brightness(10)" }} />
+          <img src="/trainocate-logo.png" alt="Trainocate" style={{ width: "80px", flexShrink: 0, background: "transparent", filter: "none" }} />
           {userProfile && (
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <div style={{
