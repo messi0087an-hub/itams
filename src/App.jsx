@@ -488,8 +488,9 @@ function LoginPage({ onVerified }) {
       className="w-full max-w-md relative z-10"
     >
       {/* Trainocate logo — top center of login form area (desktop only, left panel removed) */}
-      <div className="hidden md:flex justify-center mb-6">
+      <div className="hidden md:flex flex-col items-center mb-6">
         <img src="/trainocate-logo.png" width="160" style={{filter: "none"}} />
+        <p className="text-white text-2xl font-semibold tracking-tight mt-3">Trainocate Asset Portal</p>
       </div>
 
       {/* Brand shown only on mobile (hidden on desktop where left panel shows it) */}
