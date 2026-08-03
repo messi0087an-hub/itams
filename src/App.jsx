@@ -487,6 +487,11 @@ function LoginPage({ onVerified }) {
       transition={{ duration: 0.5 }}
       className="w-full max-w-md relative z-10"
     >
+      {/* Trainocate logo — top center of login form area (desktop only, left panel removed) */}
+      <div className="hidden md:flex justify-center mb-6">
+        <img src="/trainocate-logo.png" width="160" style={{filter: "none"}} />
+      </div>
+
       {/* Brand shown only on mobile (hidden on desktop where left panel shows it) */}
       <div className="md:hidden">
         <Brand />
@@ -674,25 +679,8 @@ function LoginPage({ onVerified }) {
         )}
       </AnimatePresence>
 
-      {/* ── Desktop LEFT panel (hidden on mobile) ── */}
-      <div
-        className="hidden md:flex flex-col items-center justify-center w-2/5 p-12 relative z-10 overflow-hidden"
-        style={{
-          backgroundImage: "url('/login-bg.png')",
-          backgroundSize: "cover",
-          backgroundPosition: "center",
-        }}
-      >
-        <div style={{position:"absolute", inset:0, background:"rgba(3,7,18,0.75)"}} />
-        <div className="relative z-10 flex flex-col items-center">
-          <img src="/trainocate-logo.png" width="220" style={{display:"block", margin:"0 auto"}} alt="Trainocate" />
-          <h1 style={{color:"#fff",fontSize:"2.2rem",fontWeight:800,textAlign:"center",marginTop:28,marginBottom:8,letterSpacing:"-0.5px"}}>Trainocate Asset Portal</h1>
-          <p style={{color:"#fff",fontSize:"1rem",textAlign:"center",marginTop:28,maxWidth:280,lineHeight:1.7}}>Manage your IT assets efficiently with real-time tracking, maintenance scheduling, and comprehensive reporting.</p>
-        </div>
-      </div>
-
-      {/* ── Mobile: centered layout / Desktop: right 60% ── */}
-      <div className="flex-1 flex items-center justify-center p-4 relative z-10 md:w-3/5">
+      {/* ── Centered login layout (left panel removed, uses bg-gray-950 from outer container) ── */}
+      <div className="flex-1 flex items-center justify-center p-4 relative z-10">
         {FormSection}
       </div>
     </div>
