@@ -226,6 +226,13 @@ export default function Borrow() {
     if (isForCustomer) notesParts.push(`for customer: ${form.customer_name}`)
     if (form.notes) notesParts.push(form.notes)
 
+    // Snapshot the asset's pre-borrow status/owner so handleReturn can restore it correctly
+    const { data: assetBefore } = await supabase
+      .from("assets")
+      .select("status, assigned_user")
+      .eq("id", form.asset_id)
+      .single()
+
     const { error } = await supabase.from("borrow_history").insert([{
       asset_id:         form.asset_id,
       borrowed_at:      form.borrow_date ? new Date(form.borrow_date).toISOString() : new Date().toISOString(),
@@ -237,6 +244,8 @@ export default function Borrow() {
       signed_off_by:    signedOffBy,
       signed_off_email: signedOffEmail,
       notes:            notesParts.join(" — "),
+      prev_status:        assetBefore?.status || null,
+      prev_assigned_user: assetBefore?.assigned_user || null,
     }])
 
     if (!error) {
@@ -271,10 +280,12 @@ export default function Borrow() {
       returned_at: new Date().toISOString(),
       extension_pending: false
     }).eq("id", borrow.id)
-    await supabase.from("assets").update({
-      status: "available",
-      assigned_user: null
-    }).eq("id", borrow.asset_id)
+    const hadPermanentOwner = borrow.prev_status === "assigned" && borrow.prev_assigned_user
+    await supabase.from("assets").update(
+      hadPermanentOwner
+        ? { status: "assigned", assigned_user: borrow.prev_assigned_user }
+        : { status: "available", assigned_user: null }
+    ).eq("id", borrow.asset_id)
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
     createNotification(userProfile?.id, "🔄 Asset Returned", `Your borrow of "${borrow.assets?.name || "asset"}" has been returned successfully`, "info", userProfile?.country, userProfile?.id)
     const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
