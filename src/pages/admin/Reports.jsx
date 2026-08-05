@@ -241,7 +241,8 @@ export default function Reports() {
         name, total: v.total, available: v.available, assigned: v.assigned,
       })).sort((a, b) => b.total - a.total).slice(0, 8)
       const depts = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
-      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: deptAssets.length } }
+      const deptCount = depts.filter(([name]) => name !== "No Department").length
+      return { depts, chartData, stats: { deptCount, totalAssets: deptAssets.length } }
     }
 
     if (reportType === "depreciation") {
@@ -335,7 +336,8 @@ export default function Reports() {
       }, {})
       const rows = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
       const chartData = rows.slice(0, 8).map(([name, v]) => ({ name, count: v.total }))
-      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: deptAssets.length } }
+      const deptCount = rows.filter(([name]) => name !== "No Department").length
+      return { rows, chartData, stats: { deptCount, totalAssets: deptAssets.length } }
     }
 
     if (reportType === "license_expiry") {
