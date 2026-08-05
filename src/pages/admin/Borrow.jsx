@@ -889,7 +889,7 @@ export default function Borrow() {
                         </AnimatePresence>
                       </div>
 
-                      {(isAdmin || (isStandardUser && borrow.signed_off_email === userProfile?.email)) && (
+                      {(isAdmin || isStandardUser) && borrow.signed_off_email === userProfile?.email && (
                         <div className="flex flex-col gap-2 shrink-0">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
