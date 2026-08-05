@@ -6,6 +6,7 @@ import { logHistory } from "../../lib/logHistory"
 import { useTranslation } from "react-i18next"
 import { useAuth } from "../../context/AuthContext"
 import { createNotification } from "../../lib/notifications"
+import { DEPARTMENTS } from "../../lib/departments"
 
 const COUNTRIES = ["Singapore", "Malaysia", "Thailand", "Indonesia", "Philippines", "Vietnam", "Taiwan", "Hong Kong", "India", "Japan", "Sri Lanka", "Gulf (UAE)"]
 
@@ -145,7 +146,6 @@ export default function EditAsset() {
     { name: "serial_number", label: "Serial Number", placeholder: "e.g. ABC123XYZ" },
     { name: "asset_tag", label: "Asset Tag", placeholder: "e.g. COM/2024/0001" },
     { name: "location", label: "Location", placeholder: "e.g. Level 19, Singapore" },
-    { name: "department", label: "Department", placeholder: "e.g. IT, Finance" },
     { name: "purchase_date", label: "Purchase Date", type: "date" },
     { name: "purchase_price", label: "Purchase Price (SGD)", placeholder: "e.g. 1500", type: "number" },
     { name: "useful_life", label: "Useful Life (years)", placeholder: "e.g. 5", type: "number", min: 1, max: 50 },
@@ -273,6 +273,20 @@ export default function EditAsset() {
               <option value="assigned">Assigned</option>
               <option value="maintenance">Maintenance</option>
               <option value="retired">Retired</option>
+            </select>
+          </div>
+          <div>
+            <label className="text-gray-400 text-sm mb-2 block">Department</label>
+            <select
+              name="department"
+              value={form.department}
+              onChange={handleChange}
+              className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+            >
+              <option value="">Select department…</option>
+              {DEPARTMENTS.map(d => (
+                <option key={d} value={d}>{d}</option>
+              ))}
             </select>
           </div>
           <div>

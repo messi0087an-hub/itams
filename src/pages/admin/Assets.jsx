@@ -10,6 +10,7 @@ import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
 import { useCurrency } from "../../lib/useCurrency"
 import { statusLabel } from "../../lib/statusLabel"
+import { DEPARTMENTS } from "../../lib/departments"
 
 const CATEGORIES = ["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"]
 const PAGE_SIZE = 20
@@ -90,6 +91,7 @@ export default function Assets() {
   const [search, setSearch] = useState(searchParams.get("q") || "")
   const [filterStatus, setFilterStatus] = useState("")
   const [filterCategory, setFilterCategory] = useState("")
+  const [filterDepartment, setFilterDepartment] = useState("")
   const [sortCol, setSortCol] = useState("")
   const [sortDir, setSortDir] = useState("asc")
   const [currentPage, setCurrentPage] = useState(1)
@@ -115,7 +117,7 @@ export default function Assets() {
     const statusParam = params.get("status")
     if (statusParam) setFilterStatus(statusParam)
   }, [location.search])
-  useEffect(() => setCurrentPage(1), [search, filterStatus, filterCategory, sortCol])
+  useEffect(() => setCurrentPage(1), [search, filterStatus, filterCategory, filterDepartment, sortCol])
   useEffect(() => {
     supabase.from("user_profiles").select("id, name, email").order("name").then(({ data }) => setAssignUsers(data || []))
   }, [])
@@ -230,7 +232,8 @@ export default function Assets() {
     )
     const matchStatus = !filterStatus || a.status?.toLowerCase() === filterStatus?.toLowerCase()
     const matchCat = !filterCategory || a.category === filterCategory
-    return matchSearch && matchStatus && matchCat
+    const matchDept = !filterDepartment || a.department === filterDepartment
+    return matchSearch && matchStatus && matchCat && matchDept
   })
 
   const sorted = [...filtered].sort((a, b) => {
@@ -441,6 +444,11 @@ export default function Assets() {
           className="bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none text-sm">
           <option value="">All Categories</option>
           {CATEGORIES.map(c => <option key={c} value={c}>{c}</option>)}
+        </select>
+        <select value={filterDepartment} onChange={e => setFilterDepartment(e.target.value)}
+          className="bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none text-sm">
+          <option value="">All Departments</option>
+          {DEPARTMENTS.map(d => <option key={d} value={d}>{d}</option>)}
         </select>
         {sortCol && (
           <button

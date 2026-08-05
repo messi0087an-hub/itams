@@ -9,6 +9,7 @@ import { useTranslation } from "react-i18next"
 import QRLabelModal from "../../components/QRLabelModal"
 import { logHistory } from "../../lib/logHistory"
 import { statusLabel } from "../../lib/statusLabel"
+import { DEPARTMENTS } from "../../lib/departments"
 
 // ── Asset Details field config (label + db column + input type) ─────────────
 const DETAIL_FIELDS = [
@@ -16,7 +17,7 @@ const DETAIL_FIELDS = [
   { key: "asset_tag",       label: "Asset Tag",       type: "text" },
   { key: "location",        label: "Location",        type: "text" },
   { key: "assigned_user",   label: "Assigned To",     type: "text" },
-  { key: "department",      label: "Department",      type: "text" },
+  { key: "department",      label: "Department",      type: "select" },
   { key: "purchase_date",   label: "Purchase Date",   type: "date" },
   { key: "purchase_price",  label: "Purchase Price",  type: "number" },
   { key: "warranty_expiry", label: "Warranty Expiry", type: "date" },
@@ -523,13 +524,26 @@ export default function AssetDetail() {
               {DETAIL_FIELDS.map(({ key, label, type }) => (
                 <div key={key} className="flex items-center justify-between gap-3">
                   <label className="text-gray-500 text-sm shrink-0">{label}</label>
-                  <input
-                    type={type}
-                    step={type === "number" ? "0.01" : undefined}
-                    value={detailsForm[key] ?? ""}
-                    onChange={e => setDetailsForm(f => ({ ...f, [key]: e.target.value }))}
-                    className="flex-1 min-w-0 bg-gray-800 text-white text-sm text-right rounded-lg px-3 py-1.5 border border-gray-700 focus:border-blue-500 focus:outline-none"
-                  />
+                  {type === "select" ? (
+                    <select
+                      value={detailsForm[key] ?? ""}
+                      onChange={e => setDetailsForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="flex-1 min-w-0 bg-gray-800 text-white text-sm text-right rounded-lg px-3 py-1.5 border border-gray-700 focus:border-blue-500 focus:outline-none"
+                    >
+                      <option value="">Select department…</option>
+                      {DEPARTMENTS.map(d => (
+                        <option key={d} value={d}>{d}</option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      type={type}
+                      step={type === "number" ? "0.01" : undefined}
+                      value={detailsForm[key] ?? ""}
+                      onChange={e => setDetailsForm(f => ({ ...f, [key]: e.target.value }))}
+                      className="flex-1 min-w-0 bg-gray-800 text-white text-sm text-right rounded-lg px-3 py-1.5 border border-gray-700 focus:border-blue-500 focus:outline-none"
+                    />
+                  )}
                 </div>
               ))}
 
