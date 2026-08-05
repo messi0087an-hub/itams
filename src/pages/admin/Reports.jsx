@@ -228,8 +228,9 @@ export default function Reports() {
     }
 
     if (reportType === "department") {
-      const deptMap = filteredAssets.reduce((acc, a) => {
-        const dept = a.department || "Unassigned"
+      const deptAssets = filteredAssets.filter(a => a.department !== "Marketing")
+      const deptMap = deptAssets.reduce((acc, a) => {
+        const dept = a.department || "No Department"
         if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0, assets: [] }
         acc[dept].total++
         acc[dept][a.status] = (acc[dept][a.status] || 0) + 1
@@ -240,7 +241,7 @@ export default function Reports() {
         name, total: v.total, available: v.available, assigned: v.assigned,
       })).sort((a, b) => b.total - a.total).slice(0, 8)
       const depts = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
-      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: filteredAssets.length } }
+      return { depts, chartData, stats: { deptCount: depts.length, totalAssets: deptAssets.length } }
     }
 
     if (reportType === "depreciation") {
@@ -324,8 +325,9 @@ export default function Reports() {
     }
 
     if (reportType === "dept_count") {
-      const deptMap = filteredAssets.reduce((acc, a) => {
-        const dept = a.department || "Unassigned"
+      const deptAssets = filteredAssets.filter(a => a.department !== "Marketing")
+      const deptMap = deptAssets.reduce((acc, a) => {
+        const dept = a.department || "No Department"
         if (!acc[dept]) acc[dept] = { total: 0, available: 0, assigned: 0, maintenance: 0, retired: 0 }
         acc[dept].total++
         if (a.status) acc[dept][a.status] = (acc[dept][a.status] || 0) + 1
@@ -333,7 +335,7 @@ export default function Reports() {
       }, {})
       const rows = Object.entries(deptMap).sort((a, b) => b[1].total - a[1].total)
       const chartData = rows.slice(0, 8).map(([name, v]) => ({ name, count: v.total }))
-      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: filteredAssets.length } }
+      return { rows, chartData, stats: { deptCount: rows.length, totalAssets: deptAssets.length } }
     }
 
     if (reportType === "license_expiry") {
