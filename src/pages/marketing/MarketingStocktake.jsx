@@ -261,7 +261,7 @@ export default function MarketingStocktake() {
                 <h3 style={{ color: C.accent, fontSize: "15px", fontWeight: "700", marginBottom: "14px" }}>
                   📍 {location.name}
                 </h3>
-                <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch" }}>
+                <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%" }}>
                   <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "600px" }}>
                     <thead>
                       <tr>
