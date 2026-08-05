@@ -53,7 +53,7 @@ CREATE TABLE IF NOT EXISTS marketing_locations (
 
 INSERT INTO marketing_locations (name) VALUES
   ('Marketing Room'),
-  ('Sales Port'),
+  ('Sales Pod'),
   ('Level 19 Cabinet'),
   ('Port Room 1'),
   ('Port Room 2'),
