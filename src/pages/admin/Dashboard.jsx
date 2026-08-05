@@ -12,6 +12,7 @@ import { checkWarrantyAlerts, checkLicenseAlerts, checkApprovalReminders, checkM
 import { calculateHealthScore, HEALTH_COLORS } from "../../lib/healthScore"
 import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 import { useAuth } from "../../context/AuthContext"
+import { statusLabel } from "../../lib/statusLabel"
 
 const CHART_TOOLTIP = {
   contentStyle: { backgroundColor: "#1f2937", border: "1px solid #374151", borderRadius: "8px" },
@@ -472,7 +473,7 @@ export default function Dashboard() {
                     asset.status === "available" ? "bg-green-500/20 text-green-400" :
                     asset.status === "assigned" ? "bg-blue-500/20 text-blue-400" :
                     "bg-gray-500/20 text-gray-400"
-                  }`}>{asset.status}</span>
+                  }`}>{statusLabel(asset.status)}</span>
                 </div>
               ))}
             </div>

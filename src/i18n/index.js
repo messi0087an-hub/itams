@@ -11,7 +11,7 @@ const t = {
     manageUsers: "Manage Users",
 
     // Dashboard
-    totalAssets: "Total Assets", available: "Available", assigned: "Assigned",
+    totalAssets: "Total Assets", available: "Unassigned", assigned: "Assigned",
     openIssues: "Open Issues", welcomeMessage: "Welcome to Trainocate Asset Portal",
     recentAssets: "Recently Added Assets", warrantyExpiring: "Warranty Expiring Soon",
     daysLeft: "days left", fleetHealthScore: "Fleet Health Score",
@@ -35,7 +35,7 @@ const t = {
     optional: "optional", required: "required",
 
     // Status
-    statusAvailable: "Available", statusAssigned: "Assigned",
+    statusAvailable: "Unassigned", statusAssigned: "Assigned",
     statusMaintenance: "Maintenance", statusRetired: "Retired",
 
     // Assets page
@@ -354,7 +354,7 @@ const t = {
     issues: "Mga Isyu", reports: "Mga Ulat", history: "Kasaysayan", guide: "Gabay ng Gumagamit",
     lightMode: "Light Mode", darkMode: "Dark Mode", signOut: "Mag-sign Out",
     manageUsers: "Pamahalaan ang mga Gumagamit",
-    totalAssets: "Kabuuang Assets", available: "Available", assigned: "Itinalaga",
+    totalAssets: "Kabuuang Assets", available: "Unassigned", assigned: "Itinalaga",
     openIssues: "Mga Bukas na Isyu", welcomeMessage: "Maligayang pagdating sa Trainocate Asset Portal",
     recentAssets: "Mga Bagong Asset", warrantyExpiring: "Malapit nang Mag-expire ang Warranty",
     daysLeft: "araw na natitira", fleetHealthScore: "Fleet Health Score",
@@ -371,7 +371,7 @@ const t = {
     back: "Bumalik", search: "Maghanap", all: "Lahat", add: "Magdagdag", submit: "Isumite",
     yes: "Oo", no: "Hindi", actions: "Mga Aksyon", status: "Status", name: "Pangalan",
     date: "Petsa", notes: "Mga Tala", by: "Ni", type: "Uri", none: "Wala",
-    statusAvailable: "Available", statusAssigned: "Itinalaga",
+    statusAvailable: "Unassigned", statusAssigned: "Itinalaga",
     statusMaintenance: "Sa Pagpapanatili", statusRetired: "Nagretiro",
     allAssetsTitle: "Lahat ng Assets", searchAssets: "Maghanap ng assets...",
     serialNo: "Serial No.", assignedTo: "Itinalaga Kay", location: "Lokasyon",

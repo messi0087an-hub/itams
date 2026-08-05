@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion"
 import { useTranslation } from "react-i18next"
 import { createNotification } from "../../lib/notifications"
 import { LoadingSkeleton, EmptyState } from "../../components/EmptyState"
+import { statusLabel } from "../../lib/statusLabel"
 
 function SuccessToast({ message }) {
   if (!message) return null
@@ -1100,7 +1101,7 @@ const emailMap = {}
                           a.status === "available" ? "bg-green-500/20 text-green-400" :
                           a.status === "retired" ? "bg-red-500/20 text-red-400" :
                           "bg-gray-500/20 text-gray-400"
-                        }`}>{a.status === "retired" ? "Retired" : a.status}</span>
+                        }`}>{statusLabel(a.status)}</span>
                       </div>
                     ))}
                   </div>

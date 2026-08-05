@@ -10,7 +10,7 @@ const guides = [
     color: "blue",
     steps: [
       "The Dashboard is your home page after logging in — showing live system stats",
-      "Total Assets, Available, Assigned, and Retired are shown as coloured stat cards",
+      "Total Assets, Unassigned, Assigned, and Retired are shown as coloured stat cards",
       "Click any stat card to jump straight to All Assets, pre-filtered by that status",
       "Overdue Borrows and Open Issues are highlighted with alerts",
       "Pending Asset Requests appear on the dashboard for quick admin action",
@@ -28,7 +28,7 @@ const guides = [
     steps: [
       "Go to All Assets to view the complete list of all assets in the system",
       "Search assets by name, serial number, or assigned user using the search bar",
-      "Filter by Status (Available, Assigned, Maintenance, Retired) or Category",
+      "Filter by Status (Unassigned, Assigned, Maintenance, Retired) or Category",
       "Click any asset row to open the full Asset Detail page",
       "Use + Add to register a new asset with full details including category, serial number, location, warranty and purchase info",
       "When Status is set to Assigned, a user dropdown appears to select who the asset is assigned to",

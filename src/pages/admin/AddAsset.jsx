@@ -298,7 +298,7 @@ export default function AddAsset() {
               onChange={handleChange}
               className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
             >
-              <option value="available">Available</option>
+              <option value="available">Unassigned</option>
               <option value="assigned">Assigned</option>
               <option value="maintenance">Maintenance</option>
               <option value="retired">Retired</option>

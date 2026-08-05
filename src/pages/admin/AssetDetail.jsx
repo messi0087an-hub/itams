@@ -8,6 +8,7 @@ import { calcDepreciation, fmtSGD } from "../../lib/depreciation"
 import { useTranslation } from "react-i18next"
 import QRLabelModal from "../../components/QRLabelModal"
 import { logHistory } from "../../lib/logHistory"
+import { statusLabel } from "../../lib/statusLabel"
 
 // ── Asset Details field config (label + db column + input type) ─────────────
 const DETAIL_FIELDS = [
@@ -419,7 +420,7 @@ export default function AssetDetail() {
           <p className="text-gray-400 mt-1">{asset.category} — {asset.brand_model || "N/A"}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-sm font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-          {asset.status}
+          {statusLabel(asset.status)}
         </span>
       </div>
 

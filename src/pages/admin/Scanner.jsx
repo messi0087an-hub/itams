@@ -4,6 +4,7 @@ import { supabase } from "../../lib/supabase"
 import { Html5Qrcode } from "html5-qrcode"
 import { motion, AnimatePresence } from "framer-motion"
 import { EmptyState } from "../../components/EmptyState"
+import { statusLabel } from "../../lib/statusLabel"
 
 function fileToBase64(file) {
   return new Promise((resolve, reject) => {
@@ -334,7 +335,7 @@ export default function Scanner() {
           <p className="text-gray-400 text-sm">{a.category} — {a.brand_model || "N/A"}</p>
         </div>
         <span className={`px-3 py-1 rounded-full text-xs font-medium border ${statusColor[a.status] || "bg-gray-500/20 text-gray-400"}`}>
-          {a.status}
+          {statusLabel(a.status)}
         </span>
       </div>
       <div className="space-y-2 mb-6">

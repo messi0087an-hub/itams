@@ -9,6 +9,7 @@ import { useAuth } from "../../context/AuthContext"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import QRLabelModal from "../../components/QRLabelModal"
 import { useCurrency } from "../../lib/useCurrency"
+import { statusLabel } from "../../lib/statusLabel"
 
 const CATEGORIES = ["Laptop","Desktop","Monitor","Printer","Server","Networking","Mobile Device","Tablet","Peripheral","Software License","Furniture","Other"]
 const PAGE_SIZE = 20
@@ -23,7 +24,7 @@ function exportToExcel(data, filename = "assets") {
     "Asset Tag": a.asset_tag || "",
     "Assigned To": a.assigned_user || "",
     "Location": a.location || "",
-    "Status": a.status,
+    "Status": statusLabel(a.status),
     "Warranty Expiry": a.warranty_expiry || "",
     "Purchase Price": a.purchase_price || "",
   }))
@@ -42,7 +43,7 @@ function exportToPDF(selectedAssets, currencySymbol) {
       <td>${a.asset_tag || "—"}</td>
       <td>${a.assigned_user || "—"}</td>
       <td>${a.location || "—"}</td>
-      <td>${a.status}</td>
+      <td>${statusLabel(a.status)}</td>
       <td>${a.purchase_price ? currencySymbol + Number(a.purchase_price).toLocaleString() : "—"}</td>
     </tr>`).join("")
 
@@ -381,7 +382,7 @@ export default function Assets() {
                       <button key={s} onClick={() => setBulkInput(s)}
                         className={`py-2.5 rounded-xl text-sm font-medium capitalize transition-all border ${
                           bulkInput === s ? "bg-blue-600 border-blue-500 text-white" : "bg-gray-800 border-gray-700 text-gray-300 hover:border-gray-500"
-                        }`}>{s}</button>
+                        }`}>{statusLabel(s)}</button>
                     ))}
                   </div>
                   <div className="flex gap-3">
@@ -431,7 +432,7 @@ export default function Assets() {
         <select value={filterStatus} onChange={e => setFilterStatus(e.target.value)}
           className="bg-gray-900 text-white rounded-lg px-4 py-3 border border-gray-800 focus:border-blue-500 focus:outline-none text-sm">
           <option value="">All Status</option>
-          <option value="available">Available</option>
+          <option value="available">Unassigned</option>
           <option value="assigned">Assigned</option>
           <option value="maintenance">Maintenance</option>
           <option value="retired">Retired</option>
@@ -540,7 +541,7 @@ export default function Assets() {
                     </div>
                     <div className="mt-2 flex items-center gap-2 flex-wrap">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                        {asset.status}
+                        {statusLabel(asset.status)}
                       </span>
                       {canEdit && !isGuest && (
                         <button onClick={(e) => { e.stopPropagation(); navigate(`/admin/edit-asset/${asset.id}`) }}
@@ -619,7 +620,7 @@ export default function Assets() {
                     <td className="px-3 py-4 text-gray-400 text-sm truncate" style={{ maxWidth: 120 }}>{asset.assigned_user || "—"}</td>
                     <td className="px-3 py-4" style={{ maxWidth: 90 }}>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${statusColor[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                        {asset.status}
+                        {statusLabel(asset.status)}
                       </span>
                     </td>
                     <td className="px-3 py-4" style={{ maxWidth: 110 }}>

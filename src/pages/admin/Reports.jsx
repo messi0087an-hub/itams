@@ -12,6 +12,7 @@ import {
 import { calcDepreciation } from "../../lib/depreciation"
 import { useAuth } from "../../context/AuthContext"
 import { useCurrency } from "../../lib/useCurrency"
+import { statusLabel } from "../../lib/statusLabel"
 
 // ── Constants ─────────────────────────────────────────────────────────────────
 const REPORT_TYPES = [
@@ -195,7 +196,7 @@ export default function Reports() {
       if (dateTo)   rows = rows.filter(a => (a.purchase_date || "") <= dateTo)
       const byStatus = Object.entries(
         rows.reduce((acc, a) => { acc[a.status] = (acc[a.status] || 0) + 1; return acc }, {})
-      ).map(([name, value]) => ({ name, value }))
+      ).map(([name, value]) => ({ name: statusLabel(name), value }))
       const byCategory = Object.entries(
         rows.reduce((acc, a) => { const c = a.category || "Unknown"; acc[c] = (acc[c] || 0) + 1; return acc }, {})
       ).map(([name, value]) => ({ name, value })).sort((a, b) => b.value - a.value).slice(0, 8)
@@ -361,13 +362,13 @@ export default function Reports() {
       const { rows, stats } = reportData
       autoTable(doc, {
         startY: y, head: [["Metric","Count"]],
-        body: [["Total",stats.total],["Available",stats.available],["Assigned",stats.assigned],["Retired",stats.retired]],
+        body: [["Total",stats.total],["Unassigned",stats.available],["Assigned",stats.assigned],["Retired",stats.retired]],
         theme: "grid", headStyles: { fillColor: [37,99,235] }, tableWidth: 80, margin: { left: 14 },
       })
       y = doc.lastAutoTable.finalY + 8
       autoTable(doc, {
         startY: y, head: [["Asset Name","Category","Serial No.","Dept","Status"]],
-        body: rows.map(a => [a.name, a.category||"—", a.serial_number||"—", a.department||"—", a.status]),
+        body: rows.map(a => [a.name, a.category||"—", a.serial_number||"—", a.department||"—", statusLabel(a.status)]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
     }
@@ -387,7 +388,7 @@ export default function Reports() {
     if (reportType === "department") {
       const { depts } = reportData
       autoTable(doc, {
-        startY: y, head: [["Department","Total","Available","Assigned","Maintenance","Retired"]],
+        startY: y, head: [["Department","Total","Unassigned","Assigned","Maintenance","Retired"]],
         body: depts.map(([name, v]) => [name, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
@@ -463,7 +464,7 @@ export default function Reports() {
     if (reportType === "dept_count") {
       const { rows } = reportData
       autoTable(doc, {
-        startY: y, head: [["Department","Total","Available","Assigned","Maintenance","Retired"]],
+        startY: y, head: [["Department","Total","Unassigned","Assigned","Maintenance","Retired"]],
         body: rows.map(([dept, v]) => [dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
       })
@@ -493,7 +494,7 @@ export default function Reports() {
       rows = (reportData.rows || []).map(a => ({
         "Asset Name": a.name, "Category": a.category||"", "Brand/Model": a.brand_model||"",
         "Serial Number": a.serial_number||"", "Asset Tag": a.asset_tag||"",
-        "Status": a.status, "Location": a.location||"", "Assigned To": a.assigned_user||"",
+        "Status": statusLabel(a.status), "Location": a.location||"", "Assigned To": a.assigned_user||"",
         "Department": a.department||"", "Purchase Date": a.purchase_date||"",
         [`Purchase Price (${currencySymbol})`]: a.purchase_price||"", "Warranty Expiry": a.warranty_expiry||"", "Remarks": a.remarks||"",
       }))
@@ -505,7 +506,7 @@ export default function Reports() {
       }))
     } else if (reportType === "department") {
       rows = (reportData.depts || []).map(([dept, v]) => ({
-        "Department": dept, "Total": v.total, "Available": v.available||0,
+        "Department": dept, "Total": v.total, "Unassigned": v.available||0,
         "Assigned": v.assigned||0, "Maintenance": v.maintenance||0, "Retired": v.retired||0,
       }))
     } else if (reportType === "depreciation") {
@@ -545,7 +546,7 @@ export default function Reports() {
       }))
     } else if (reportType === "dept_count") {
       rows = (reportData.rows || []).map(([dept, v]) => ({
-        "Department": dept, "Total": v.total, "Available": v.available||0,
+        "Department": dept, "Total": v.total, "Unassigned": v.available||0,
         "Assigned": v.assigned||0, "Maintenance": v.maintenance||0, "Retired": v.retired||0,
       }))
     } else if (reportType === "license_expiry") {
@@ -832,7 +833,7 @@ export default function Reports() {
                   {/* Stat cards: 2×2 on mobile, 1×4 on desktop */}
                   <div className="grid grid-cols-2 md:grid-cols-4 gap-1 md:gap-3 mb-3 md:mb-5">
                     <StatCard label="Total" value={reportData.stats.total} color="blue" delay={0} compact={mob} />
-                    <StatCard label="Available" value={reportData.stats.available} color="green" delay={0.05} compact={mob} />
+                    <StatCard label="Unassigned" value={reportData.stats.available} color="green" delay={0.05} compact={mob} />
                     <StatCard label="Assigned" value={reportData.stats.assigned} color="purple" delay={0.1} compact={mob} />
                     <StatCard label="Retired" value={reportData.stats.retired} color="red" delay={0.15} compact={mob} />
                   </div>
@@ -930,12 +931,12 @@ export default function Reports() {
                         <YAxis tick={{ fill: "#6b7280", fontSize: 10 }} axisLine={false} tickLine={false} />
                         <Tooltip content={<DarkTooltip />} cursor={{ fill: "rgba(255,255,255,0.03)" }} />
                         <Legend wrapperStyle={{ color: "#9ca3af", fontSize: 11 }} />
-                        <Bar dataKey="available" name="Available" stackId="a" fill="#22c55e" radius={[0,0,0,0]} />
+                        <Bar dataKey="available" name="Unassigned" stackId="a" fill="#22c55e" radius={[0,0,0,0]} />
                         <Bar dataKey="assigned" name="Assigned" stackId="a" fill="#3b82f6" radius={[4,4,0,0]} />
                       </BarChart>
                     </ResponsiveContainer>
                   </div>
-                  <ReportTable headers={["Department","Total","Available","Assigned"]}
+                  <ReportTable headers={["Department","Total","Unassigned","Assigned"]}
                     rows={reportData.depts.map(([dept, v]) => [
                       dept, v.total, v.available||0, v.assigned||0,
                     ])} />
@@ -1101,7 +1102,7 @@ export default function Reports() {
                       </ResponsiveContainer>
                     </div>
                   )}
-                  <ReportTable headers={["Department","Total","Available","Assigned","Maintenance","Retired"]}
+                  <ReportTable headers={["Department","Total","Unassigned","Assigned","Maintenance","Retired"]}
                     rows={reportData.rows.map(([dept, v]) => [
                       dept, v.total, v.available||0, v.assigned||0, v.maintenance||0, v.retired||0,
                     ])} />
@@ -1225,7 +1226,7 @@ function StatusBadge({ status }) {
   }
   return (
     <span className={`px-2 py-0.5 rounded-full text-xs font-medium ${map[status] || "bg-gray-500/20 text-gray-400"}`}>
-      {status || "—"}
+      {status ? statusLabel(status) : "—"}
     </span>
   )
 }

@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useCallback } from "react"
 import { useNavigate } from "react-router-dom"
 import { supabase } from "../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
+import { statusLabel } from "../lib/statusLabel"
 
 function Highlight({ text, query }) {
   if (!query || !text) return <span>{text || ""}</span>
@@ -214,7 +215,7 @@ export default function GlobalSearch() {
                               </p>
                             </div>
                             <span className={`ml-3 shrink-0 text-xs px-2 py-0.5 rounded-full font-medium ${STATUS_COLORS[asset.status] || "bg-gray-500/20 text-gray-400"}`}>
-                              {asset.status}
+                              {statusLabel(asset.status)}
                             </span>
                           </button>
                         ))}
