@@ -323,13 +323,18 @@ export default function AssetDetail() {
 
   const fetchTimeline = async (assetId) => {
     const [borrows, issues, maintenance, hist] = await Promise.all([
-      supabase.from("borrows").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
+      supabase.from("borrow_history").select("*").eq("asset_id", assetId).order("borrowed_at", { ascending: false }),
       supabase.from("issues").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
       supabase.from("asset_history").select("*").eq("asset_id", assetId).order("created_at", { ascending: false }),
     ])
+    const borrowEvents = (borrows.data || []).flatMap(b => {
+      const events = [{ ...b, _type: "borrow", _event: "borrowed", _date: b.borrowed_at }]
+      if (b.returned_at) events.push({ ...b, _type: "borrow", _event: "returned", _date: b.returned_at })
+      return events
+    })
     const items = [
-      ...(borrows.data || []).map(b => ({ ...b, _type: "borrow", _date: b.created_at })),
+      ...borrowEvents,
       ...(issues.data || []).map(i => ({ ...i, _type: "issue", _date: i.created_at })),
       ...(maintenance.data || []).map(m => ({ ...m, _type: "maintenance", _date: m.created_at })),
       ...(hist.data || []).map(h => ({ ...h, _type: "history", _date: h.created_at })),
@@ -634,19 +639,21 @@ export default function AssetDetail() {
             <div key={idx} className="flex gap-4">
               <div className="flex flex-col items-center">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm bg-gray-800 border border-gray-700 shrink-0">
-                  {item._type === "borrow" ? "🔄" : item._type === "issue" ? "⚠️" : item._type === "maintenance" ? "🔧" : "📋"}
+                  {item._type === "borrow" ? (item._event === "returned" ? "📥" : "📤") : item._type === "issue" ? "⚠️" : item._type === "maintenance" ? "🔧" : "📋"}
                 </div>
                 {idx < timeline.length - 1 && <div className="w-px flex-1 bg-gray-800 my-1" />}
               </div>
               <div className="pb-4 flex-1">
                 <p className={`text-sm font-medium ${
-                  item._type === "borrow" ? "text-blue-400" :
+                  item._type === "borrow" ? (item._event === "returned" ? "text-green-400" : "text-blue-400") :
                   item._type === "issue" ? "text-orange-400" :
                   item._type === "maintenance" ? "text-yellow-400" :
                   "text-gray-300"
                 }`}>
                   {item._type === "borrow"
-                    ? `Borrowed by ${item.borrowed_by || item.user_email || item.requester_name || "Unknown"}`
+                    ? (item._event === "returned"
+                        ? `Returned by ${item.borrower_name || item.signed_off_by || item.borrower_email || "Unknown"}`
+                        : `Borrowed by ${item.borrower_name || item.signed_off_by || item.borrower_email || "Unknown"}`)
                     : item._type === "issue"
                     ? `Issue: ${item.title || item.description || "Reported"}`
                     : item._type === "maintenance"
