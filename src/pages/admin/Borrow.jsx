@@ -272,7 +272,8 @@ export default function Borrow() {
       extension_pending: false
     }).eq("id", borrow.id)
     await supabase.from("assets").update({
-      status: "assigned"
+      status: "available",
+      assigned_user: null
     }).eq("id", borrow.asset_id)
     notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
     createNotification(userProfile?.id, "🔄 Asset Returned", `Your borrow of "${borrow.assets?.name || "asset"}" has been returned successfully`, "info", userProfile?.country, userProfile?.id)
