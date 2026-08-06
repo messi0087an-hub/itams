@@ -191,7 +191,7 @@ export default function MarketingStocktake() {
   const filteredLocations = filterLocation === "All" ? locations : locations.filter(l => l.id === filterLocation)
 
   return (
-    <div style={{ padding: "24px", maxWidth: "100%", overflowX: "hidden" }}>
+    <div style={{ padding: "24px", maxWidth: "100%" }}>
       {/* Success toast */}
       <AnimatePresence>
         {successMsg && (
@@ -261,8 +261,8 @@ export default function MarketingStocktake() {
                 <h3 style={{ color: C.accent, fontSize: "15px", fontWeight: "700", marginBottom: "14px" }}>
                   📍 {location.name}
                 </h3>
-                <div style={{ overflowX: "auto", WebkitOverflowScrolling: "touch", width: "100%" }}>
-                  <table style={{ width: "100%", borderCollapse: "collapse", fontSize: "13px", minWidth: "600px" }}>
+                <div style={{ overflowX: "scroll", WebkitOverflowScrolling: "touch", width: "100%", display: "block" }}>
+                  <table style={{ width: "max-content", borderCollapse: "collapse", fontSize: "13px", minWidth: "800px" }}>
                     <thead>
                       <tr>
                         {["Item", "Unit", "System Qty", "Actual Qty", "Discrepancy", "Notes", ""].map(h => (
