@@ -46,6 +46,15 @@ function borrowLabel(b) {
   return "Asset"
 }
 
+function formatDate(d) {
+  if (!d) return ""
+  const date = new Date(d)
+  if (isNaN(date)) return ""
+  const dd = String(date.getDate()).padStart(2, "0")
+  const mm = String(date.getMonth() + 1).padStart(2, "0")
+  return `${dd}/${mm}/${date.getFullYear()}`
+}
+
 function exportBorrowsToExcel(borrows) {
   const rows = borrows.map(b => ({
     "Asset": borrowLabel(b),
@@ -54,10 +63,10 @@ function exportBorrowsToExcel(borrows) {
     "Serial No.": b.assets?.serial_number || "",
     "Borrower": b.borrower_name || "",
     "Signed Off By": b.signed_off_by || "",
-    "Date Borrowed": b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString() : "",
-    "Needed By": b.needed_by_date ? new Date(b.needed_by_date).toLocaleDateString() : "",
-    "Due Date": b.due_date ? new Date(b.due_date).toLocaleDateString() : "",
-    "Returned": b.returned_at ? new Date(b.returned_at).toLocaleDateString() : "Active",
+    "Date Borrowed": b.borrowed_at ? formatDate(b.borrowed_at) : "",
+    "Needed By": b.needed_by_date ? formatDate(b.needed_by_date) : "",
+    "Due Date": b.due_date ? formatDate(b.due_date) : "",
+    "Returned": b.returned_at ? formatDate(b.returned_at) : "Active",
     "Notes": b.notes || "",
   }))
   const ws = XLSX.utils.json_to_sheet(rows)
@@ -136,6 +145,7 @@ export default function Borrow() {
   const [toast, setToast] = useState("")
   const [rejectTarget, setRejectTarget] = useState(null)
   const [rejectReason, setRejectReason] = useState("")
+  const [rejectType, setRejectType] = useState("borrow")
 
   const showToast = (msg) => {
     setToast(msg)
@@ -310,47 +320,72 @@ export default function Borrow() {
   }
 
   const handleExtend = async (borrow) => {
-    if (!extendDate) return
-    const updates = {
-      due_date: extendDate,
-      extended_at: new Date().toISOString(),
-      extension_pending: true,
-    }
-    if (!borrow.original_due_date && borrow.due_date) {
-      updates.original_due_date = borrow.due_date
-    }
+    if (!extendDate || borrow.extension_pending) return
     const { error } = await supabase
       .from("borrow_history")
-      .update(updates)
+      .update({ requested_due_date: extendDate, extension_pending: true })
       .eq("id", borrow.id)
 
     if (!error) {
       const label = borrowLabel(borrow)
-      notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${label}" to ${extendDate}`, "info")
-      createNotification(userProfile?.id, "📅 Borrow Extended", `Your borrow of "${label}" has been extended until ${extendDate}`, "info", userProfile?.country, userProfile?.id)
+      notifyAdmins(userProfile?.country, "📅 Extension Requested", `${borrow.borrower_name || "A user"} requested to extend "${label}" to ${formatDate(extendDate)}`, "info")
+      createNotification(userProfile?.id, "📅 Extension Requested", `Your extension request for "${label}" is pending admin approval`, "info", userProfile?.country, userProfile?.id)
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, `extended until ${extendDate}`)
+          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, "extension requested")
         }
       })
-      if (borrow.borrower_email) {
-        sendBorrowUpdateEmail(borrow.borrower_email, label, `extended until ${extendDate}`)
-      }
       setExtendingId(null)
       setExtendDate("")
-      showToast("Return date extended successfully!")
+      showToast("Extension request submitted — pending admin approval")
       fetchBorrows()
     } else {
       showToast(error.message)
     }
   }
 
-  const dismissExtension = async (borrowId) => {
-    await supabase
+  const handleApproveExtension = async (borrow) => {
+    if (borrow.signed_off_email === userProfile?.email) return
+    const label = borrowLabel(borrow)
+    const updates = {
+      due_date: borrow.requested_due_date,
+      extended_at: new Date().toISOString(),
+      extension_pending: false,
+      requested_due_date: null,
+    }
+    if (!borrow.original_due_date && borrow.due_date) {
+      updates.original_due_date = borrow.due_date
+    }
+    const { error } = await supabase.from("borrow_history").update(updates).eq("id", borrow.id)
+    if (!error) {
+      notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "✅ Extension Approved", `Your extension has been approved — new return date ${formatDate(borrow.requested_due_date)}`, "info")
+      const toEmail = borrow.signed_off_email || borrow.borrower_email
+      if (toEmail) sendBorrowUpdateEmail(toEmail, label, `extended until ${formatDate(borrow.requested_due_date)}`)
+      showToast("Extension approved")
+      fetchBorrows()
+    } else {
+      showToast(error.message)
+    }
+  }
+
+  const handleRejectExtension = async (borrow, reason) => {
+    if (borrow.signed_off_email === userProfile?.email) return
+    const label = borrowLabel(borrow)
+    const { error } = await supabase
       .from("borrow_history")
-      .update({ extension_pending: false })
-      .eq("id", borrowId)
-    fetchBorrows()
+      .update({ extension_pending: false, requested_due_date: null, extension_comment: reason })
+      .eq("id", borrow.id)
+    if (!error) {
+      notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "❌ Extension Rejected", `Your extension request for "${label}" was rejected: "${reason}"`, "info")
+      const toEmail = borrow.signed_off_email || borrow.borrower_email
+      if (toEmail) sendBorrowUpdateEmail(toEmail, label, "denied an extension", reason)
+      setRejectTarget(null)
+      setRejectReason("")
+      showToast("Extension rejected")
+      fetchBorrows()
+    } else {
+      showToast(error.message)
+    }
   }
 
   const activeBorrows = borrows.filter(b => !b.returned_at)
@@ -499,14 +534,26 @@ export default function Borrow() {
                 {pendingExtensions.map(b => (
                   <li key={b.id} className="flex items-center gap-2">
                     <span className="text-gray-400 text-xs">
-                      • {borrowLabel(b)} → extended to {new Date(b.due_date).toLocaleDateString()}
+                      • {borrowLabel(b)} → requested extension to {formatDate(b.requested_due_date)}
                     </span>
-                    <button
-                      onClick={() => dismissExtension(b.id)}
-                      className="text-purple-400 hover:text-purple-300 text-xs underline"
-                    >
-                      Acknowledge
-                    </button>
+                    {b.signed_off_email !== userProfile?.email ? (
+                      <>
+                        <button
+                          onClick={() => handleApproveExtension(b)}
+                          className="text-green-400 hover:text-green-300 text-xs underline"
+                        >
+                          Approve
+                        </button>
+                        <button
+                          onClick={() => { setRejectTarget(b); setRejectReason(""); setRejectType("extension") }}
+                          className="text-red-400 hover:text-red-300 text-xs underline"
+                        >
+                          Reject
+                        </button>
+                      </>
+                    ) : (
+                      <span className="text-gray-600 text-xs italic">awaiting another admin</span>
+                    )}
                   </li>
                 ))}
               </ul>
@@ -540,7 +587,7 @@ export default function Borrow() {
               <ul className="mt-1 space-y-0.5">
                 {dueBorrows.map(b => (
                   <li key={b.id} className="text-gray-400 text-xs">
-                    • {borrowLabel(b)} — due {new Date(b.due_date).toLocaleDateString()}
+                    • {borrowLabel(b)} — due {formatDate(b.due_date)}
                   </li>
                 ))}
               </ul>
@@ -825,7 +872,7 @@ export default function Borrow() {
             >
               <div className="text-center mb-4">
                 <div className="text-3xl mb-2">❌</div>
-                <h3 className="text-white font-semibold">Reject Borrow Request</h3>
+                <h3 className="text-white font-semibold">{rejectType === "extension" ? "Reject Extension Request" : "Reject Borrow Request"}</h3>
                 <p className="text-gray-400 text-sm mt-1">{borrowLabel(rejectTarget)}</p>
               </div>
               <label className="text-gray-400 text-sm mb-2 block">
@@ -846,7 +893,7 @@ export default function Borrow() {
                   Cancel
                 </button>
                 <button
-                  onClick={() => handleReject(rejectTarget, rejectReason.trim())}
+                  onClick={() => (rejectType === "extension" ? handleRejectExtension(rejectTarget, rejectReason.trim()) : handleReject(rejectTarget, rejectReason.trim()))}
                   disabled={!rejectReason.trim()}
                   className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium transition-all"
                 >
@@ -905,7 +952,7 @@ export default function Borrow() {
                         {borrow.assets?.serial_number ? (
                           <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
                         ) : borrow.needed_by_date ? (
-                          <p className="text-gray-500 text-xs mt-1">Needed by: {new Date(borrow.needed_by_date).toLocaleDateString()}</p>
+                          <p className="text-gray-500 text-xs mt-1">Needed by: {formatDate(borrow.needed_by_date)}</p>
                         ) : null}
                         <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
                         {borrow.borrowing_for === "customer" && borrow.customer_name && (
@@ -916,25 +963,30 @@ export default function Borrow() {
                         )}
                         <div className="mt-2 space-y-0.5">
                           <p className="text-gray-500 text-xs">
-                            Borrowed: {new Date(borrow.borrowed_at).toLocaleDateString()}
+                            Borrowed: {formatDate(borrow.borrowed_at)}
                           </p>
                           {borrow.original_due_date && (
                             <p className="text-gray-500 text-xs">
-                              Original return date: {new Date(borrow.original_due_date).toLocaleDateString()}
+                              Original return date: {formatDate(borrow.original_due_date)}
                             </p>
                           )}
                           {borrow.due_date && (
                             <div className="flex items-center gap-2">
                               <p className="text-gray-500 text-xs">
                                 {borrow.original_due_date ? "Extended to:" : "Due:"}{" "}
-                                {new Date(borrow.due_date).toLocaleDateString()}
+                                {formatDate(borrow.due_date)}
                               </p>
                               <DueBadge dueDate={borrow.due_date} />
                             </div>
                           )}
                           {borrow.extended_at && (
                             <p className="text-gray-600 text-xs">
-                              Extended on: {new Date(borrow.extended_at).toLocaleDateString()}
+                              Extended on: {formatDate(borrow.extended_at)}
+                            </p>
+                          )}
+                          {borrow.extension_pending && (
+                            <p className="text-purple-400 text-xs">
+                              Requested extension to: {formatDate(borrow.requested_due_date)}
                             </p>
                           )}
                         </div>
@@ -972,7 +1024,7 @@ export default function Borrow() {
                         </AnimatePresence>
                       </div>
 
-                      {(isAdmin || isStandardUser) && borrow.status === "approved" && borrow.signed_off_email === userProfile?.email && (
+                      {(isAdmin || isStandardUser) && borrow.status === "approved" && !borrow.extension_pending && borrow.signed_off_email === userProfile?.email && (
                         <div className="flex flex-col gap-2 shrink-0">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -1008,10 +1060,31 @@ export default function Borrow() {
                           <motion.button
                             whileHover={{ scale: 1.05 }}
                             whileTap={{ scale: 0.95 }}
-                            onClick={() => { setRejectTarget(borrow); setRejectReason("") }}
+                            onClick={() => { setRejectTarget(borrow); setRejectReason(""); setRejectType("borrow") }}
                             className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 transition-all"
                           >
                             Reject
+                          </motion.button>
+                        </div>
+                      )}
+
+                      {isAdmin && borrow.extension_pending && borrow.signed_off_email !== userProfile?.email && (
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleApproveExtension(borrow)}
+                            className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                          >
+                            Approve Extension
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => { setRejectTarget(borrow); setRejectReason(""); setRejectType("extension") }}
+                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 transition-all"
+                          >
+                            Reject Extension
                           </motion.button>
                         </div>
                       )}
@@ -1040,26 +1113,26 @@ export default function Borrow() {
                     <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
                     <div className="mt-2 space-y-0.5">
                       <p className="text-gray-500 text-xs">
-                        Borrowed: {new Date(borrow.borrowed_at).toLocaleDateString()}
+                        Borrowed: {formatDate(borrow.borrowed_at)}
                       </p>
                       {borrow.original_due_date && (
                         <p className="text-gray-500 text-xs">
-                          Original return date: {new Date(borrow.original_due_date).toLocaleDateString()}
+                          Original return date: {formatDate(borrow.original_due_date)}
                         </p>
                       )}
                       {borrow.due_date && (
                         <p className="text-gray-500 text-xs">
                           {borrow.original_due_date ? "Extended to:" : "Was due:"}{" "}
-                          {new Date(borrow.due_date).toLocaleDateString()}
+                          {formatDate(borrow.due_date)}
                         </p>
                       )}
                       {borrow.extended_at && (
                         <p className="text-gray-600 text-xs">
-                          Extended on: {new Date(borrow.extended_at).toLocaleDateString()}
+                          Extended on: {formatDate(borrow.extended_at)}
                         </p>
                       )}
                       <p className="text-gray-500 text-xs">
-                        Returned: {new Date(borrow.returned_at).toLocaleDateString()}
+                        Returned: {formatDate(borrow.returned_at)}
                       </p>
                     </div>
                   </div>
