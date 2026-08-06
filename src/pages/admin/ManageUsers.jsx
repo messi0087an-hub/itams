@@ -230,6 +230,7 @@ const emailMap = {}
       .from("assets")
       .select("id, name, asset_tag, category, status")
       .ilike("assigned_user", u.name || u.email)
+      .eq("status", "assigned")
     setDetailAssets(data || [])
     setDetailLoading(false)
 
