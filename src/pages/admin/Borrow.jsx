@@ -40,13 +40,22 @@ function AnimatedError({ message, onDismiss }) {
   )
 }
 
+function borrowLabel(b) {
+  if (b.assets?.name) return b.assets.name
+  if (b.category) return `${b.quantity || 1}x ${b.category}`
+  return "Asset"
+}
+
 function exportBorrowsToExcel(borrows) {
   const rows = borrows.map(b => ({
-    "Asset": b.assets?.name || "",
+    "Asset": borrowLabel(b),
+    "Category": b.category || "",
+    "Quantity": b.quantity || "",
     "Serial No.": b.assets?.serial_number || "",
     "Borrower": b.borrower_name || "",
     "Signed Off By": b.signed_off_by || "",
     "Date Borrowed": b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString() : "",
+    "Needed By": b.needed_by_date ? new Date(b.needed_by_date).toLocaleDateString() : "",
     "Due Date": b.due_date ? new Date(b.due_date).toLocaleDateString() : "",
     "Returned": b.returned_at ? new Date(b.returned_at).toLocaleDateString() : "Active",
     "Notes": b.notes || "",
@@ -104,10 +113,9 @@ function isOverdueBorrow(borrow) {
 }
 
 export default function Borrow() {
-  const { userProfile, canBorrow, userCountry, isAdmin, isStandardUser } = useAuth()
+  const { userProfile, canBorrow, isAdmin, isStandardUser } = useAuth()
   const location = useLocation()
   const [borrows, setBorrows] = useState([])
-  const [assets, setAssets] = useState([])
   const [loading, setLoading] = useState(true)
   const [showForm, setShowForm] = useState(false)
   const [borrowSuccess, setBorrowSuccess] = useState(false)
@@ -132,8 +140,9 @@ export default function Borrow() {
     setTimeout(() => setToast(""), 3000)
   }
   const [form, setForm] = useState({
-    category: "", asset_id: "", borrowing_for: "myself", customer_name: "",
-    borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: ""
+    category: "", quantity: 1, borrowing_for: "myself", customer_name: "",
+    borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0],
+    needed_by_date: "", due_date: ""
   })
 
   useEffect(() => {
@@ -142,24 +151,12 @@ export default function Borrow() {
   }, [])
 
   useEffect(() => {
-    if (userProfile !== null && userProfile !== undefined) {
-      fetchAssets()
-    }
-  }, [userProfile, userCountry])
-
-  useEffect(() => {
     const params = new URLSearchParams(location.search)
-    const assetId = params.get("asset_id")
-    if (!assetId || assets.length === 0) return
-    const match = assets.find(x => x.id === assetId)
-    if (!match) return
-    setForm(f => (f.asset_id === assetId ? f : { ...f, category: match.category || "", asset_id: assetId }))
+    const category = params.get("category")
+    if (!category) return
+    setForm(f => (f.category === category ? f : { ...f, category }))
     setShowForm(true)
-    setAssets(prev => {
-      if (prev[0]?.id === assetId) return prev
-      return [match, ...prev.filter(x => x.id !== assetId)]
-    })
-  }, [assets.length, location.search])
+  }, [location.search])
 
   const fetchBorrows = async () => {
     const { data } = await supabase
@@ -184,38 +181,16 @@ export default function Borrow() {
     setDismissedExtAlert(false)
   }
 
-  const fetchAssets = async () => {
-    const hasAssetIdParam = new URLSearchParams(location.search).has("asset_id")
-
-    if (isStandardUser && userProfile) {
-      let q = supabase.from("assets").select("id, name, serial_number, status, category, assigned_user, location, condition").order("name")
-      if (userCountry) q = q.eq("country", userCountry)
-      const { data, error } = await q
-      const mine = (data || []).filter(a =>
-        a.status !== "retired" &&
-        (a.assigned_user === userProfile?.email ||
-        a.assigned_user === userProfile?.name ||
-        (a.assigned_user && userProfile?.name &&
-          a.assigned_user.toLowerCase() === userProfile.name.toLowerCase()))
-      )
-      setAssets(mine)
-    } else {
-      let q = supabase.from("assets").select("id, name, serial_number, status, category, location, condition").order("name")
-      if (!hasAssetIdParam) q = q.eq("status", "available")
-      if (userCountry) q = q.eq("country", userCountry)
-      const { data } = await q
-      setAssets(data || [])
-    }
-  }
-
   const handleBorrow = async (e) => {
     e.preventDefault()
     setFormError("")
-    if (!form.asset_id) { setFormError("Please select an asset."); return }
-    if (!form.due_date) { setFormError("Please set a return date."); return }
-
-    const selectedAsset = assets.find(a => a.id === form.asset_id)
     const isForCustomer  = form.borrowing_for === "customer"
+    if (!form.category) { setFormError("Please select a category."); return }
+    if (!form.quantity || form.quantity < 1) { setFormError("Quantity must be at least 1."); return }
+    if (!form.needed_by_date) { setFormError("Please set the date assets are needed by."); return }
+    if (!form.due_date) { setFormError("Please set a return date."); return }
+    if (isForCustomer && !form.borrower_email) { setFormError("Customer email is required."); return }
+
     const signedOffBy    = userProfile?.name || userProfile?.email || "Unknown"
     const signedOffEmail = userProfile?.email || null
 
@@ -226,15 +201,12 @@ export default function Borrow() {
     if (isForCustomer) notesParts.push(`for customer: ${form.customer_name}`)
     if (form.notes) notesParts.push(form.notes)
 
-    // Snapshot the asset's pre-borrow status/owner so handleReturn can restore it correctly
-    const { data: assetBefore } = await supabase
-      .from("assets")
-      .select("status, assigned_user")
-      .eq("id", form.asset_id)
-      .single()
+    const label = `${form.quantity}x ${form.category}`
 
     const { error } = await supabase.from("borrow_history").insert([{
-      asset_id:         form.asset_id,
+      category:         form.category,
+      quantity:         form.quantity,
+      needed_by_date:   form.needed_by_date || null,
       borrowed_at:      form.borrow_date ? new Date(form.borrow_date).toISOString() : new Date().toISOString(),
       due_date:         form.due_date || null,
       borrower_name:    borrowerName,
@@ -244,30 +216,22 @@ export default function Borrow() {
       signed_off_by:    signedOffBy,
       signed_off_email: signedOffEmail,
       notes:            notesParts.join(" — "),
-      prev_status:        assetBefore?.status || null,
-      prev_assigned_user: assetBefore?.assigned_user || null,
     }])
 
     if (!error) {
-      await supabase.from("assets").update({
-        status: "assigned",
-        assigned_user: borrowerName,
-      }).eq("id", form.asset_id)
-
-      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${selectedAsset?.name || "Asset"}" borrowed successfully`, "info", userProfile?.country)
-      notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${selectedAsset?.name || "an asset"}"`, "info")
+      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${label}" borrowed successfully`, "info", userProfile?.country)
+      notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${label}"`, "info")
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendNewBorrowAdminEmail(adminEmails, borrowerName || userProfile?.name || "A user", selectedAsset?.name || "an asset", form.due_date)
+          sendNewBorrowAdminEmail(adminEmails, borrowerName || userProfile?.name || "A user", label, form.due_date)
         }
       })
-      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, selectedAsset?.name || "Asset", "confirmed")
-      setBorrowedAssetName(selectedAsset?.name || "Asset")
+      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, label, "confirmed")
+      setBorrowedAssetName(label)
       setShowForm(false)
-      setForm({ category: "", asset_id: "", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], due_date: "" })
+      setForm({ category: "", quantity: 1, borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], needed_by_date: "", due_date: "" })
       setBorrowSuccess(true)
       fetchBorrows()
-      fetchAssets()
       setTimeout(() => setBorrowSuccess(false), 2500)
     } else {
       setFormError(error.message)
@@ -275,24 +239,27 @@ export default function Borrow() {
   }
 
   const handleReturn = async (borrow) => {
-    setReturnedAssetName(borrow.assets?.name || "Asset")
+    const label = borrowLabel(borrow)
+    setReturnedAssetName(label)
     await supabase.from("borrow_history").update({
       returned_at: new Date().toISOString(),
       extension_pending: false
     }).eq("id", borrow.id)
-    const hadPermanentOwner = borrow.prev_status === "assigned" && borrow.prev_assigned_user
-    await supabase.from("assets").update(
-      hadPermanentOwner
-        ? { status: "assigned", assigned_user: borrow.prev_assigned_user }
-        : { status: "available", assigned_user: null }
-    ).eq("id", borrow.asset_id)
-    notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${borrow.assets?.name || "an asset"}"`, "info")
-    createNotification(userProfile?.id, "🔄 Asset Returned", `Your borrow of "${borrow.assets?.name || "asset"}" has been returned successfully`, "info", userProfile?.country, userProfile?.id)
+    if (borrow.asset_id) {
+      const hadPermanentOwner = borrow.prev_status === "assigned" && borrow.prev_assigned_user
+      await supabase.from("assets").update(
+        hadPermanentOwner
+          ? { status: "assigned", assigned_user: borrow.prev_assigned_user }
+          : { status: "available", assigned_user: null }
+      ).eq("id", borrow.asset_id)
+    }
+    notifyAdmins(userProfile?.country, "🔄 Asset Returned", `${borrow.borrower_name || "A user"} returned "${label}"`, "info")
+    createNotification(userProfile?.id, "🔄 Asset Returned", `Your borrow of "${label}" has been returned successfully`, "info", userProfile?.country, userProfile?.id)
     const returnedByEmail = borrow.borrower_email || borrow.signed_off_email
-    if (returnedByEmail) sendBorrowUpdateEmail(returnedByEmail, borrow.assets?.name || "Asset", "returned")
+    if (returnedByEmail) sendBorrowUpdateEmail(returnedByEmail, label, "returned")
     getAdminEmails().then(adminEmails => {
       if (adminEmails?.length) {
-        sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", "returned")
+        sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, "returned")
       }
     })
 
@@ -300,7 +267,6 @@ export default function Borrow() {
     setTimeout(() => {
       setReturnSuccess(false)
       fetchBorrows()
-      fetchAssets()
     }, 2500)
   }
 
@@ -320,15 +286,16 @@ export default function Borrow() {
       .eq("id", borrow.id)
 
     if (!error) {
-      notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${borrow.assets?.name || "an asset"}" to ${extendDate}`, "info")
-      createNotification(userProfile?.id, "📅 Borrow Extended", `Your borrow of "${borrow.assets?.name || "asset"}" has been extended until ${extendDate}`, "info", userProfile?.country, userProfile?.id)
+      const label = borrowLabel(borrow)
+      notifyAdmins(userProfile?.country, "📅 Borrow Extended", `${borrow.borrower_name || "A user"} extended borrow of "${label}" to ${extendDate}`, "info")
+      createNotification(userProfile?.id, "📅 Borrow Extended", `Your borrow of "${label}" has been extended until ${extendDate}`, "info", userProfile?.country, userProfile?.id)
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", borrow.assets?.name || "an asset", `extended until ${extendDate}`)
+          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, `extended until ${extendDate}`)
         }
       })
       if (borrow.borrower_email) {
-        sendBorrowUpdateEmail(borrow.borrower_email, borrow.assets?.name || "Asset", `extended until ${extendDate}`)
+        sendBorrowUpdateEmail(borrow.borrower_email, label, `extended until ${extendDate}`)
       }
       setExtendingId(null)
       setExtendDate("")
@@ -355,7 +322,7 @@ export default function Borrow() {
     if (!matchesMonth(b.borrowed_at, monthFilter, yearFilter)) return false
     if (searchQuery) {
       const q = searchQuery.toLowerCase()
-      const matches = b.assets?.name?.toLowerCase().includes(q) || b.borrower_name?.toLowerCase().includes(q)
+      const matches = b.assets?.name?.toLowerCase().includes(q) || b.category?.toLowerCase().includes(q) || b.borrower_name?.toLowerCase().includes(q)
       if (!matches) return false
     }
     return true
@@ -493,7 +460,7 @@ export default function Borrow() {
                 {pendingExtensions.map(b => (
                   <li key={b.id} className="flex items-center gap-2">
                     <span className="text-gray-400 text-xs">
-                      • {b.assets?.name || "Asset"} → extended to {new Date(b.due_date).toLocaleDateString()}
+                      • {borrowLabel(b)} → extended to {new Date(b.due_date).toLocaleDateString()}
                     </span>
                     <button
                       onClick={() => dismissExtension(b.id)}
@@ -534,7 +501,7 @@ export default function Borrow() {
               <ul className="mt-1 space-y-0.5">
                 {dueBorrows.map(b => (
                   <li key={b.id} className="text-gray-400 text-xs">
-                    • {b.assets?.name || "Asset"} — due {new Date(b.due_date).toLocaleDateString()}
+                    • {borrowLabel(b)} — due {new Date(b.due_date).toLocaleDateString()}
                   </li>
                 ))}
               </ul>
@@ -624,7 +591,7 @@ export default function Borrow() {
                 <label className="text-gray-400 text-sm mb-2 block">Category *</label>
                 <select
                   value={form.category}
-                  onChange={(e) => setForm({ ...form, category: e.target.value, asset_id: "" })}
+                  onChange={(e) => setForm({ ...form, category: e.target.value })}
                   required
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 >
@@ -635,40 +602,34 @@ export default function Borrow() {
                 </select>
               </div>
 
-              {/* Asset — shown after category selected */}
-              {form.category && (() => {
-                const knownCats = ["Laptop","Monitor","Portable Speaker","Microphone","Clicker"]
-                const filtered = form.category === "Others"
-                  ? assets.filter(a => !knownCats.includes(a.category))
-                  : assets.filter(a => (a.category || "").toLowerCase() === form.category.toLowerCase())
-                const listToShow = filtered
-                const noMatch = filtered.length === 0
-                return (
-                  <div>
-                    <label className="text-gray-400 text-sm mb-2 block">Select Asset *</label>
-                    {noMatch && assets.length > 0 && (
-                      <p className="text-yellow-500 text-xs mb-1">No assets match this category — showing all available assets</p>
-                    )}
-                    {assets.length === 0 ? (
-                      <p className="text-gray-500 text-sm py-3 text-center">No available assets right now</p>
-                    ) : (
-                      <select
-                        value={form.asset_id}
-                        onChange={(e) => setForm({ ...form, asset_id: e.target.value })}
-                        required
-                        className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                      >
-                        <option value="">Select available asset…</option>
-                        {listToShow.map(a => (
-                          <option key={a.id} value={a.id}>
-                            {a.name} — {a.serial_number || "No S/N"} | {a.location || "No location"} | {a.condition || "Good"}
-                          </option>
-                        ))}
-                      </select>
-                    )}
-                  </div>
-                )
-              })()}
+              {/* Quantity */}
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">Quantity *</label>
+                <input
+                  type="number"
+                  min={1}
+                  step={1}
+                  value={form.quantity}
+                  required
+                  onChange={(e) => setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                />
+              </div>
+
+              {/* Assets Needed By */}
+              <div>
+                <label className="text-gray-400 text-sm mb-2 block">
+                  Assets Needed By <span className="text-red-400">*</span>
+                </label>
+                <input
+                  type="date"
+                  value={form.needed_by_date}
+                  min={todayStr}
+                  required
+                  onChange={(e) => setForm({ ...form, needed_by_date: e.target.value })}
+                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm [color-scheme:dark]"
+                />
+              </div>
 
               {/* Borrowing for */}
               <div>
@@ -731,13 +692,14 @@ export default function Borrow() {
                     exit={{ opacity: 0, height: 0 }} transition={{ duration: 0.2 }}
                   >
                     <label className="text-gray-400 text-sm mb-2 block">
-                      Customer Email <span className="text-gray-600">(optional)</span>
+                      Customer Email <span className="text-red-400">*</span>
                     </label>
                     <input
                       type="email"
                       value={form.borrower_email}
                       onChange={(e) => setForm({ ...form, borrower_email: e.target.value })}
                       placeholder="e.g. john@customer.com"
+                      required={form.borrowing_for === "customer"}
                       className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                     />
                   </motion.div>
@@ -823,7 +785,7 @@ export default function Borrow() {
                     <div className="flex items-start justify-between gap-2">
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center gap-2 flex-wrap">
-                          <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
+                          <p className="text-white font-medium">{borrowLabel(borrow)}</p>
                           {overdue && (
                             <span className="text-xs px-2 py-0.5 rounded-full bg-red-500/20 border border-red-500/40 text-red-400 font-medium">
                               Overdue
@@ -835,7 +797,11 @@ export default function Borrow() {
                             </span>
                           )}
                         </div>
-                        <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
+                        {borrow.assets?.serial_number ? (
+                          <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
+                        ) : borrow.needed_by_date ? (
+                          <p className="text-gray-500 text-xs mt-1">Needed by: {new Date(borrow.needed_by_date).toLocaleDateString()}</p>
+                        ) : null}
                         <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
                         {borrow.borrowing_for === "customer" && borrow.customer_name && (
                           <p className="text-xs text-blue-400 mt-1">
@@ -941,8 +907,10 @@ export default function Borrow() {
               <div key={borrow.id} className={"bg-gray-900/80 rounded-xl border border-gray-800 p-4"}>
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
-                    <p className="text-white font-medium">{borrow.assets?.name || "—"}</p>
-                    <p className="text-gray-500 text-xs mt-1">{borrow.assets?.serial_number || ""}</p>
+                    <p className="text-white font-medium">{borrowLabel(borrow)}</p>
+                    {borrow.assets?.serial_number && (
+                      <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
+                    )}
                     <p className="text-gray-400 text-sm mt-2">{borrow.notes || "—"}</p>
                     <div className="mt-2 space-y-0.5">
                       <p className="text-gray-500 text-xs">

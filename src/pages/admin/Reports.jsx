@@ -98,6 +98,11 @@ const StatCard = ({ label, value, sub, color = "blue", delay = 0, compact = fals
 
 // ── Date range helper ─────────────────────────────────────────────────────────
 const today = () => new Date().toISOString().split("T")[0]
+function borrowAssetLabel(b) {
+  if (b.assets?.name) return b.assets.name
+  if (b.category) return `${b.quantity || 1}x ${b.category}`
+  return b.asset_id || "—"
+}
 const daysFromNow = (n) => {
   const d = new Date()
   d.setDate(d.getDate() + n)
@@ -444,7 +449,7 @@ export default function Reports() {
       autoTable(doc, {
         startY: y, head: [["Asset","Borrower","Borrow Date","Due Date","Return Date"]],
         body: rows.map(b => [
-          b.assets?.name||"—", b.borrower_name||"—",
+          borrowAssetLabel(b), b.borrower_name||"—",
           (b.borrowed_at||"").slice(0,10), b.due_date||"—", b.returned_at ? b.returned_at.slice(0,10) : "Active",
         ]),
         theme: "striped", headStyles: { fillColor: [37,99,235] }, styles: { fontSize: 7 }, margin: { left: 14 },
@@ -456,7 +461,7 @@ export default function Reports() {
       autoTable(doc, {
         startY: y, head: [["Asset","Borrower","Expected Return","Days Overdue"]],
         body: rows.map(b => [
-          b.assets?.name||b.asset_id||"—",
+          borrowAssetLabel(b),
           b.borrower_name||"—",
           b.due_date||"—",
           `${b._overdue_days}d`,
@@ -537,13 +542,13 @@ export default function Reports() {
       }))
     } else if (reportType === "borrow") {
       rows = (reportData.rows || []).map(b => ({
-        "Asset": b.assets?.name||"", "Borrower": b.borrower_name||"",
+        "Asset": borrowAssetLabel(b), "Borrower": b.borrower_name||"",
         "Borrow Date": (b.borrowed_at||"").slice(0,10), "Due Date": b.due_date||"",
         "Return Date": b.returned_at ? b.returned_at.slice(0,10) : "Active",
       }))
     } else if (reportType === "overdue_borrows") {
       rows = (reportData.rows || []).map(b => ({
-        "Asset": b.assets?.name||b.asset_id||"",
+        "Asset": borrowAssetLabel(b),
         "Borrower": b.borrower_name||"",
         "Due Date": b.due_date||"",
         "Days Overdue": b._overdue_days,
@@ -1073,7 +1078,7 @@ export default function Reports() {
                   ) : (
                     <ReportTable headers={["Asset","Borrower","Expected Return","Days Overdue"]}
                       rows={reportData.rows.map(b => [
-                        b.assets?.name || b.asset_id || "—",
+                        borrowAssetLabel(b),
                         b.borrower_name || "—",
                         b.due_date || "—",
                         <span key="d" className={b._overdue_days > 14 ? "text-red-400 font-bold" : b._overdue_days >= 7 ? "text-yellow-400 font-semibold" : "text-orange-400"}>
@@ -1161,7 +1166,7 @@ export default function Reports() {
                   )}
                   <ReportTable headers={["Asset","Borrower","Due Date","Returned"]}
                     rows={(reportData.rows||[]).map(b => [
-                      b.assets?.name||"—", b.borrower_name||"—",
+                      borrowAssetLabel(b), b.borrower_name||"—",
                       b.due_date||"—",
                       b.returned_at ? b.returned_at.slice(0,10) : <span key="a" className="text-yellow-400 text-xs">Active</span>,
                     ])} />

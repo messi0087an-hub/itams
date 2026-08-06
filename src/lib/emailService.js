@@ -515,7 +515,7 @@ export async function checkBorrowReminders() {
 
   const { data: borrows } = await supabase
     .from("borrow_history")
-    .select("id, asset_id, due_date, borrower_name, borrower_email, assets(name)")
+    .select("id, asset_id, due_date, borrower_name, borrower_email, category, quantity, assets(name)")
     .is("returned_at", null)
     .not("due_date", "is", null)
 
@@ -527,7 +527,7 @@ export async function checkBorrowReminders() {
   const today = new Date(new Date().toDateString())
 
   for (const borrow of borrows) {
-    const assetName = borrow.assets?.name || "Asset"
+    const assetName = borrow.assets?.name || (borrow.category ? `${borrow.quantity || 1}x ${borrow.category}` : "Asset")
     const borrowerName = borrow.borrower_name || "Team Member"
     const borrowerEmail = borrow.borrower_email || null
     const due = new Date(borrow.due_date)
