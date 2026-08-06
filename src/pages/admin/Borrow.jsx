@@ -140,7 +140,7 @@ export default function Borrow() {
     setTimeout(() => setToast(""), 3000)
   }
   const [form, setForm] = useState({
-    category: "", quantity: 1, borrowing_for: "myself", customer_name: "",
+    category: "", quantity: "1", borrowing_for: "myself", customer_name: "",
     borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0],
     needed_by_date: "", due_date: ""
   })
@@ -185,8 +185,9 @@ export default function Borrow() {
     e.preventDefault()
     setFormError("")
     const isForCustomer  = form.borrowing_for === "customer"
+    const quantity = parseInt(form.quantity, 10)
     if (!form.category) { setFormError("Please select a category."); return }
-    if (!form.quantity || form.quantity < 1) { setFormError("Quantity must be at least 1."); return }
+    if (!quantity || quantity < 1) { setFormError("Quantity must be at least 1."); return }
     if (!form.needed_by_date) { setFormError("Please set the date assets are needed by."); return }
     if (!form.due_date) { setFormError("Please set a return date."); return }
     if (isForCustomer && !form.borrower_email) { setFormError("Customer email is required."); return }
@@ -201,11 +202,11 @@ export default function Borrow() {
     if (isForCustomer) notesParts.push(`for customer: ${form.customer_name}`)
     if (form.notes) notesParts.push(form.notes)
 
-    const label = `${form.quantity}x ${form.category}`
+    const label = `${quantity}x ${form.category}`
 
     const { error } = await supabase.from("borrow_history").insert([{
       category:         form.category,
-      quantity:         form.quantity,
+      quantity:         quantity,
       needed_by_date:   form.needed_by_date || null,
       borrowed_at:      form.borrow_date ? new Date(form.borrow_date).toISOString() : new Date().toISOString(),
       due_date:         form.due_date || null,
@@ -229,7 +230,7 @@ export default function Borrow() {
       if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, label, "confirmed")
       setBorrowedAssetName(label)
       setShowForm(false)
-      setForm({ category: "", quantity: 1, borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], needed_by_date: "", due_date: "" })
+      setForm({ category: "", quantity: "1", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], needed_by_date: "", due_date: "" })
       setBorrowSuccess(true)
       fetchBorrows()
       setTimeout(() => setBorrowSuccess(false), 2500)
@@ -606,12 +607,17 @@ export default function Borrow() {
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">Quantity *</label>
                 <input
-                  type="number"
-                  min={1}
-                  step={1}
+                  type="text"
+                  inputMode="numeric"
+                  pattern="[0-9]*"
                   value={form.quantity}
                   required
-                  onChange={(e) => setForm({ ...form, quantity: Math.max(1, parseInt(e.target.value, 10) || 1) })}
+                  onChange={(e) => setForm({ ...form, quantity: e.target.value.replace(/[^0-9]/g, "") })}
+                  onBlur={() => {
+                    if (!form.quantity || parseInt(form.quantity, 10) < 1) {
+                      setForm(f => ({ ...f, quantity: "1" }))
+                    }
+                  }}
                   className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
                 />
               </div>
@@ -751,7 +757,7 @@ export default function Borrow() {
             </div>
             <div className="mt-4 flex gap-3">
               <button type="submit" className="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg text-sm font-medium">
-                Confirm Borrow
+                Submit
               </button>
               <button type="button" onClick={() => { setShowForm(false); setFormError("") }} className="bg-gray-800 hover:bg-gray-700 text-white px-6 py-2 rounded-lg text-sm">
                 Cancel
