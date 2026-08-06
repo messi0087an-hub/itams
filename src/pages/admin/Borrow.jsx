@@ -131,8 +131,6 @@ export default function Borrow() {
   const [borrowedAssetName, setBorrowedAssetName] = useState("")
   const [dueBorrows, setDueBorrows] = useState([])
   const [dismissedDueAlert, setDismissedDueAlert] = useState(false)
-  const [pendingExtensions, setPendingExtensions] = useState([])
-  const [dismissedExtAlert, setDismissedExtAlert] = useState(false)
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
   const [filterBorrowStatus, setFilterBorrowStatus] = useState("all")
@@ -188,10 +186,6 @@ export default function Borrow() {
     })
     setDueBorrows(overdue)
     setDismissedDueAlert(false)
-
-    const pending = activeRows.filter(b => b.extension_pending)
-    setPendingExtensions(pending)
-    setDismissedExtAlert(false)
   }
 
   const handleBorrow = async (e) => {
@@ -271,7 +265,7 @@ export default function Borrow() {
   const handleReject = async (borrow, reason) => {
     if (borrow.signed_off_email === userProfile?.email) return
     const label = borrowLabel(borrow)
-    const { error } = await supabase.from("borrow_history").update({ status: "rejected", admin_comment: reason }).eq("id", borrow.id)
+    const { error } = await supabase.from("borrow_history").update({ status: "rejected", admin_comment: reason, rejected_at: new Date().toISOString() }).eq("id", borrow.id)
     if (!error) {
       notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "❌ Borrow Request Rejected", `Your borrow request for "${label}" was rejected: "${reason}"`, "info")
       const toEmail = borrow.signed_off_email || borrow.borrower_email
@@ -368,7 +362,7 @@ export default function Borrow() {
       createNotification(userProfile?.id, "📅 Extension Requested", `Your extension request for "${label}" is pending admin approval`, "info", userProfile?.country, userProfile?.id)
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, "extension requested")
+          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, `has requested an extension for "${label}" until ${formatDate(extendDate)}`)
         }
       })
       setExtendingId(null)
@@ -424,8 +418,8 @@ export default function Borrow() {
     }
   }
 
-  const activeBorrows = borrows.filter(b => !b.returned_at)
-  const returnedBorrows = borrows.filter(b => b.returned_at)
+  const activeBorrows = borrows.filter(b => !b.returned_at && !b.rejected_at)
+  const returnedBorrows = borrows.filter(b => b.returned_at || b.rejected_at)
   const todayStr = new Date().toISOString().split("T")[0]
 
   const matchesSearchAndMonth = (b) => {
@@ -506,60 +500,6 @@ export default function Borrow() {
                 />
               </div>
             </motion.div>
-          </motion.div>
-        )}
-      </AnimatePresence>
-
-      {/* Extension Request Alert Banner */}
-      <AnimatePresence>
-        {isAdmin && pendingExtensions.length > 0 && !dismissedExtAlert && (
-          <motion.div
-            initial={{ opacity: 0, y: -10 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -10 }}
-            className="mb-4 bg-purple-500/10 border border-purple-500/40 rounded-xl p-4 flex items-start gap-3"
-          >
-            <span className="text-2xl shrink-0">📋</span>
-            <div className="flex-1">
-              <p className="text-purple-400 font-semibold text-sm">
-                {pendingExtensions.length === 1
-                  ? "1 extension request pending review"
-                  : `${pendingExtensions.length} extension requests pending review`}
-              </p>
-              <ul className="mt-1 space-y-0.5">
-                {pendingExtensions.map(b => (
-                  <li key={b.id} className="flex items-center gap-2">
-                    <span className="text-gray-400 text-xs">
-                      • {borrowLabel(b)} → requested extension to {formatDate(b.requested_due_date)}
-                    </span>
-                    {b.signed_off_email !== userProfile?.email ? (
-                      <>
-                        <button
-                          onClick={() => handleApproveExtension(b)}
-                          className="text-green-400 hover:text-green-300 text-xs underline"
-                        >
-                          Approve
-                        </button>
-                        <button
-                          onClick={() => { setRejectTarget(b); setRejectReason(""); setRejectType("extension") }}
-                          className="text-red-400 hover:text-red-300 text-xs underline"
-                        >
-                          Reject
-                        </button>
-                      </>
-                    ) : (
-                      <span className="text-gray-600 text-xs italic">awaiting another admin</span>
-                    )}
-                  </li>
-                ))}
-              </ul>
-            </div>
-            <button
-              onClick={() => setDismissedExtAlert(true)}
-              className="text-gray-500 hover:text-gray-300 text-sm shrink-0"
-            >
-              ✕
-            </button>
           </motion.div>
         )}
       </AnimatePresence>
@@ -950,11 +890,6 @@ export default function Borrow() {
                             </span>
                           )}
                         </div>
-                        {borrow.status === "rejected" && (
-                          <div className="mt-2 rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
-                            ❌ Rejected{borrow.admin_comment ? `: "${borrow.admin_comment}"` : "."}
-                          </div>
-                        )}
                         {borrow.assets?.serial_number ? (
                           <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
                         ) : borrow.needed_by_date ? (
@@ -1134,6 +1069,11 @@ export default function Borrow() {
                 <div className="flex items-start justify-between gap-2">
                   <div className="flex-1">
                     <p className="text-white font-medium">{borrowLabel(borrow)}</p>
+                    {borrow.rejected_at && (
+                      <div className="mt-2 rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                        ❌ Rejected{borrow.admin_comment ? `: "${borrow.admin_comment}"` : "."}
+                      </div>
+                    )}
                     {borrow.assets?.serial_number && (
                       <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
                     )}
@@ -1158,9 +1098,15 @@ export default function Borrow() {
                           Extended on: {formatDate(borrow.extended_at)}
                         </p>
                       )}
-                      <p className="text-gray-500 text-xs">
-                        Returned: {formatDate(borrow.returned_at)}
-                      </p>
+                      {borrow.rejected_at ? (
+                        <p className="text-gray-500 text-xs">
+                          Rejected: {formatDate(borrow.rejected_at)}
+                        </p>
+                      ) : (
+                        <p className="text-gray-500 text-xs">
+                          Returned: {formatDate(borrow.returned_at)}
+                        </p>
+                      )}
                     </div>
                   </div>
                 </div>
