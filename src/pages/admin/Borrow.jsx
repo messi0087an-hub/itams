@@ -383,7 +383,7 @@ export default function Borrow() {
       createNotification(userProfile?.id, "📅 Extension Requested", `Your extension request for "${label}" is pending admin approval`, "info", userProfile?.country, userProfile?.id)
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
-          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, `has requested an extension for "${label}" until ${formatDate(extendDate)}`)
+          sendBorrowStatusAdminEmail(adminEmails, borrow.borrower_name || "A user", label, `has requested an extension until ${formatDate(extendDate)}`)
         }
       })
       setExtendingId(null)
@@ -648,20 +648,36 @@ export default function Borrow() {
               {/* Quantity */}
               <div>
                 <label className="text-gray-400 text-sm mb-2 block">Quantity *</label>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  pattern="[0-9]*"
-                  value={form.quantity}
-                  required
-                  onChange={(e) => setForm({ ...form, quantity: e.target.value.replace(/[^0-9]/g, "") })}
-                  onBlur={() => {
-                    if (!form.quantity || parseInt(form.quantity, 10) < 1) {
-                      setForm(f => ({ ...f, quantity: "1" }))
-                    }
-                  }}
-                  className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
-                />
+                <div className="flex items-center gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, quantity: String(Math.max(1, (parseInt(f.quantity, 10) || 1) - 1)) }))}
+                    className="w-11 h-11 shrink-0 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 text-lg font-medium transition-all"
+                  >
+                    −
+                  </button>
+                  <input
+                    type="text"
+                    inputMode="numeric"
+                    pattern="[0-9]*"
+                    value={form.quantity}
+                    required
+                    onChange={(e) => setForm({ ...form, quantity: e.target.value.replace(/[^0-9]/g, "") })}
+                    onBlur={() => {
+                      if (!form.quantity || parseInt(form.quantity, 10) < 1) {
+                        setForm(f => ({ ...f, quantity: "1" }))
+                      }
+                    }}
+                    className="flex-1 min-w-0 text-center bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                  />
+                  <button
+                    type="button"
+                    onClick={() => setForm(f => ({ ...f, quantity: String((parseInt(f.quantity, 10) || 0) + 1) }))}
+                    className="w-11 h-11 shrink-0 bg-gray-800 hover:bg-gray-700 text-white rounded-lg border border-gray-700 text-lg font-medium transition-all"
+                  >
+                    +
+                  </button>
+                </div>
               </div>
 
               {/* Assets Needed By */}

@@ -90,6 +90,8 @@ export default function ManageUsers() {
   const [detailBorrowsLoading, setDetailBorrowsLoading] = useState(false)
   const [detailBorrowHistory, setDetailBorrowHistory] = useState([])
   const [detailBorrowHistoryLoading, setDetailBorrowHistoryLoading] = useState(false)
+  const [detailPreparedAssets, setDetailPreparedAssets] = useState([])
+  const [detailPreparedAssetsLoading, setDetailPreparedAssetsLoading] = useState(false)
   const [userSearch, setUserSearch] = useState("")
   const fileInputRef = useRef()
 
@@ -256,6 +258,16 @@ const emailMap = {}
       .or("returned_at.not.is.null,rejected_at.not.is.null")
     setDetailBorrowHistory(history || [])
     setDetailBorrowHistoryLoading(false)
+
+    setDetailPreparedAssets([])
+    setDetailPreparedAssetsLoading(true)
+    const { data: prepared } = await supabase
+      .from("assets")
+      .select("id, name, serial_number, category")
+      .eq("status", "borrowed")
+      .ilike("assigned_user", u.name || u.email)
+    setDetailPreparedAssets(prepared || [])
+    setDetailPreparedAssetsLoading(false)
   }
 
   const handleToggle2FA = async (u) => {
@@ -1156,6 +1168,19 @@ const emailMap = {}
                         </p>
                       </div>
                     ))}
+                  </div>
+                )}
+                {!detailPreparedAssetsLoading && detailPreparedAssets.length > 0 && (
+                  <div className="mt-3 pt-3 border-t border-gray-800">
+                    <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">Assets Prepared by Admin</p>
+                    <div className="space-y-2">
+                      {detailPreparedAssets.map(a => (
+                        <div key={a.id} className="bg-gray-800/60 rounded-lg px-3 py-2">
+                          <p className="text-white text-sm font-medium">{a.name}</p>
+                          <p className="text-gray-500 text-xs">{a.category}{a.serial_number ? ` · ${a.serial_number}` : ""}</p>
+                        </div>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>

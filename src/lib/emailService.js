@@ -877,18 +877,22 @@ export async function sendNewBorrowAdminEmail(adminEmails, borrowerName, assetNa
 export async function sendBorrowStatusAdminEmail(adminEmails, borrowerName, assetName, action) {
   if (!adminEmails?.length) return
   const loginUrl = `${window.location.origin}/login`
+  const displayAction = action === "return requested" ? "has requested to return" : action
+  const sentence = displayAction.startsWith("has")
+    ? `${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> ${displayAction}.`
+    : `${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> has been ${displayAction}.`
   const html = baseTemplate("#3b82f6", `
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">📦</div>
       <div style="color:#fff;font-size:19px;font-weight:700;margin-bottom:8px;">Asset Borrow Update</div>
-      <p style="color:#9ca3af;font-size:14px;margin:0;">${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> has been ${action}.</p>
+      <p style="color:#9ca3af;font-size:14px;margin:0;">${sentence}</p>
     </div>
     <div style="background:#060d1c;border:1px solid #1a2744;border-radius:10px;padding:16px;margin-bottom:20px;">
       <div style="color:#4b5563;font-size:10px;font-weight:700;text-transform:uppercase;letter-spacing:0.08em;margin-bottom:10px;">Borrow Details</div>
       <table style="width:100%;border-collapse:collapse;">
         ${detailRow("Asset", assetName)}
         ${detailRow("Borrower", borrowerName)}
-        ${detailRow("Update", action)}
+        ${detailRow("Update", displayAction)}
       </table>
     </div>
     <div style="text-align:center;margin-bottom:20px;">
