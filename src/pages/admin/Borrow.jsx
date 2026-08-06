@@ -133,6 +133,7 @@ export default function Borrow() {
   const [dismissedDueAlert, setDismissedDueAlert] = useState(false)
   const [extendingId, setExtendingId] = useState(null)
   const [extendDate, setExtendDate] = useState("")
+  const [noteDrafts, setNoteDrafts] = useState({})
   const [filterBorrowStatus, setFilterBorrowStatus] = useState("all")
   const [searchQuery, setSearchQuery] = useState("")
   const [monthFilter, setMonthFilter] = useState("")
@@ -273,6 +274,26 @@ export default function Borrow() {
       setRejectTarget(null)
       setRejectReason("")
       showToast("Borrow request rejected")
+      fetchBorrows()
+    } else {
+      showToast(error.message)
+    }
+  }
+
+  const handleSaveNote = async (borrow, note) => {
+    const trimmed = note.trim()
+    const isUpdate = !!borrow.admin_note
+    const { error } = await supabase.from("borrow_history").update({ admin_note: trimmed || null }).eq("id", borrow.id)
+    if (!error) {
+      if (trimmed) {
+        const title = isUpdate ? "📝 Note Updated" : "📝 Admin Note Added"
+        const body = isUpdate
+          ? "Admin updated the note on your borrow request"
+          : `Admin left a note on your borrow request: "${trimmed}"`
+        notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, title, body, "info")
+      }
+      showToast(isUpdate ? "Note updated" : "Note saved")
+      setNoteDrafts(d => { const next = { ...d }; delete next[borrow.id]; return next })
       fetchBorrows()
     } else {
       showToast(error.message)
@@ -1051,6 +1072,31 @@ export default function Borrow() {
                         </div>
                       )}
                     </div>
+
+                    {borrow.status === "approved" && (isAdmin || borrow.admin_note) && (
+                      <div className="mt-3 pt-3 border-t border-gray-800">
+                        <p className="text-gray-500 text-xs font-semibold uppercase tracking-wide mb-2">Admin Note</p>
+                        {isAdmin ? (
+                          <div className="flex items-center gap-2 flex-wrap">
+                            <input
+                              type="text"
+                              value={noteDrafts[borrow.id] ?? borrow.admin_note ?? ""}
+                              onChange={(e) => setNoteDrafts(d => ({ ...d, [borrow.id]: e.target.value }))}
+                              placeholder="Add a note for the borrower..."
+                              className="flex-1 min-w-[180px] bg-gray-800 text-white rounded-lg px-3 py-1.5 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
+                            />
+                            <button
+                              onClick={() => handleSaveNote(borrow, noteDrafts[borrow.id] ?? borrow.admin_note ?? "")}
+                              className="bg-blue-600 hover:bg-blue-700 text-white px-3 py-1.5 rounded-lg text-sm font-medium transition-all"
+                            >
+                              Save Note
+                            </button>
+                          </div>
+                        ) : (
+                          <p className="text-gray-300 text-sm">{borrow.admin_note}</p>
+                        )}
+                      </div>
+                    )}
                   </motion.div>
                 )
               })}
