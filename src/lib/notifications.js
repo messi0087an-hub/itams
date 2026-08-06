@@ -45,14 +45,19 @@ export async function markNotificationRead(notificationId) {
 export async function markAllNotificationsRead(userId) {
   if (!userId) return
   try {
-    await supabase.from("notifications").update({ is_read: true }).eq("target_user_id", userId).eq("is_read", false)
+    await supabase.from("notifications")
+      .update({ is_read: true })
+      .or(`target_user_id.eq.${userId},and(target_user_id.is.null,user_id.eq.${userId})`)
+      .eq("is_read", false)
   } catch {}
 }
 
 export async function clearAllNotifications(userId) {
   if (!userId) return
   try {
-    await supabase.from("notifications").delete().eq("target_user_id", userId)
+    await supabase.from("notifications")
+      .delete()
+      .or(`target_user_id.eq.${userId},and(target_user_id.is.null,user_id.eq.${userId})`)
   } catch {}
 }
 

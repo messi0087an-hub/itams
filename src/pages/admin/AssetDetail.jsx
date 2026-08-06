@@ -647,7 +647,7 @@ export default function AssetDetail() {
             <div key={idx} className="flex gap-4">
               <div className="flex flex-col items-center">
                 <div className="w-8 h-8 rounded-full flex items-center justify-center text-sm bg-gray-800 border border-gray-700 shrink-0">
-                  {item._type === "borrow" ? (item._event === "returned" ? "📥" : "📤") : item._type === "issue" ? "⚠️" : item._type === "maintenance" ? "🔧" : "📋"}
+                  {item._type === "borrow" ? (item._event === "returned" ? "📥" : "📤") : item._type === "issue" ? "🔧" : item._type === "maintenance" ? "🔨" : "📋"}
                 </div>
                 {idx < timeline.length - 1 && <div className="w-px flex-1 bg-gray-800 my-1" />}
               </div>
@@ -663,9 +663,9 @@ export default function AssetDetail() {
                         ? `Returned by ${item.borrower_name || item.signed_off_by || item.borrower_email || "Unknown"}`
                         : `Borrowed by ${item.borrower_name || item.signed_off_by || item.borrower_email || "Unknown"}`)
                     : item._type === "issue"
-                    ? `Issue: ${item.title || item.description || "Reported"}`
+                    ? `Issue Reported: ${item.title || item.description || "—"}`
                     : item._type === "maintenance"
-                    ? `Maintenance: ${item.description || item.maintenance_type || item.type || "Scheduled"}`
+                    ? `Maintenance Scheduled: ${item.description || item.maintenance_type || item.type || "—"}`
                     : item.action || "Status changed"}
                 </p>
                 {(item.status) && (

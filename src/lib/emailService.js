@@ -877,10 +877,16 @@ export async function sendNewBorrowAdminEmail(adminEmails, borrowerName, assetNa
 export async function sendBorrowStatusAdminEmail(adminEmails, borrowerName, assetName, action) {
   if (!adminEmails?.length) return
   const loginUrl = `${window.location.origin}/login`
-  const displayAction = action === "return requested" ? "has requested to return" : action
-  const sentence = displayAction.startsWith("has")
-    ? `${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> ${displayAction}.`
-    : `${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> has been ${displayAction}.`
+  let displayAction = action
+  let sentence
+  if (action === "return requested") {
+    displayAction = "has requested to return"
+    sentence = `${borrowerName} ${displayAction} <strong style="color:#f9fafb;">${assetName}</strong>.`
+  } else if (action.startsWith("has")) {
+    sentence = `${borrowerName} ${action}.`
+  } else {
+    sentence = `${borrowerName}'s borrow of <strong style="color:#f9fafb;">${assetName}</strong> has been ${action}.`
+  }
   const html = baseTemplate("#3b82f6", `
     <div style="text-align:center;margin-bottom:24px;">
       <div style="font-size:44px;margin-bottom:10px;">📦</div>

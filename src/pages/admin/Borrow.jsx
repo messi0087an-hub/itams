@@ -336,6 +336,12 @@ export default function Borrow() {
             : { status: "available", assigned_user: null }
         ).eq("id", borrow.asset_id)
       }
+      if (borrow.borrower_name) {
+        await supabase.from("assets")
+          .update({ status: "available", assigned_user: null })
+          .eq("status", "borrowed")
+          .eq("assigned_user", borrow.borrower_name)
+      }
       notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "✅ Return Approved", "Your return has been approved", "info")
       const toEmail = borrow.signed_off_email || borrow.borrower_email
       if (toEmail) sendBorrowUpdateEmail(toEmail, label, "returned")
