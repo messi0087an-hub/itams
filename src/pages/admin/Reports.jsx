@@ -175,7 +175,7 @@ export default function Reports() {
       assetQuery,
       supabase.from("borrow_history").select("*, assets(name,serial_number,asset_tag)").order("borrowed_at", { ascending: false }),
       supabase.from("maintenance_schedules").select("*, assets(name,serial_number)").order("scheduled_date", { ascending: false }),
-      supabase.from("borrow_history").select("*, assets(name,serial_number,asset_tag)").is("returned_at", null).not("due_date", "is", null).lt("due_date", todayStr).order("due_date", { ascending: true }),
+      supabase.from("borrow_history").select("*, assets(name,serial_number,asset_tag)").is("returned_at", null).not("due_date", "is", null).eq("status", "approved").lt("due_date", todayStr).order("due_date", { ascending: true }),
     ])
     setAssets(a || [])
     setBorrows(b || [])

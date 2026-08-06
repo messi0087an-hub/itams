@@ -518,6 +518,7 @@ export async function checkBorrowReminders() {
     .select("id, asset_id, due_date, borrower_name, borrower_email, category, quantity, assets(name)")
     .is("returned_at", null)
     .not("due_date", "is", null)
+    .eq("status", "approved")
 
   if (!borrows?.length) return
 
@@ -763,7 +764,7 @@ export async function sendMaintenanceCompletedEmail(toEmail, assetName) {
 // ---------------------------------------------------------------------------
 // Borrow Update — sent to the borrower when their borrow is approved or returned
 // ---------------------------------------------------------------------------
-export async function sendBorrowUpdateEmail(toEmail, assetName, action) {
+export async function sendBorrowUpdateEmail(toEmail, assetName, action, reason = null) {
   if (!toEmail) return
   const loginUrl = `${window.location.origin}/login`
   const html = baseTemplate("#3b82f6", `
@@ -777,6 +778,7 @@ export async function sendBorrowUpdateEmail(toEmail, assetName, action) {
       <table style="width:100%;border-collapse:collapse;">
         ${detailRow("Asset", assetName)}
         ${detailRow("Status", action.charAt(0).toUpperCase() + action.slice(1))}
+        ${reason ? detailRow("Reason", reason) : ""}
       </table>
     </div>
     <div style="text-align:center;margin-bottom:20px;">

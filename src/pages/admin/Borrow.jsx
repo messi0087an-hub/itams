@@ -5,7 +5,7 @@ import { supabase } from "../../lib/supabase"
 import { motion, AnimatePresence } from "framer-motion"
 import { useAuth } from "../../context/AuthContext"
 import { checkBorrowReminders, sendBorrowUpdateEmail, sendNewBorrowAdminEmail, sendBorrowStatusAdminEmail, getAdminEmails } from "../../lib/emailService"
-import { createNotification, notifyAdmins } from "../../lib/notifications"
+import { createNotification, notifyAdmins, notifyUserByIdentifier } from "../../lib/notifications"
 import { EmptyState, LoadingSkeleton } from "../../components/EmptyState"
 import { getLastNMonths, getYears, matchesMonth } from "../../lib/dateFilters"
 
@@ -134,6 +134,8 @@ export default function Borrow() {
   const [yearFilter, setYearFilter] = useState("")
   const [formError, setFormError] = useState("")
   const [toast, setToast] = useState("")
+  const [rejectTarget, setRejectTarget] = useState(null)
+  const [rejectReason, setRejectReason] = useState("")
 
   const showToast = (msg) => {
     setToast(msg)
@@ -146,9 +148,11 @@ export default function Borrow() {
   })
 
   useEffect(() => {
-    fetchBorrows()
-    checkBorrowReminders()
-  }, [])
+    if (userProfile !== null && userProfile !== undefined) {
+      fetchBorrows()
+      checkBorrowReminders()
+    }
+  }, [userProfile])
 
   useEffect(() => {
     const params = new URLSearchParams(location.search)
@@ -159,16 +163,17 @@ export default function Borrow() {
   }, [location.search])
 
   const fetchBorrows = async () => {
-    const { data } = await supabase
-      .from("borrow_history")
-      .select("*, assets(name, serial_number)")
-      .order("borrowed_at", { ascending: false })
+    let q = supabase.from("borrow_history").select("*, assets(name, serial_number)").order("borrowed_at", { ascending: false })
+    if (!isAdmin) {
+      q = q.or(`signed_off_by.eq.${userProfile?.name},signed_off_email.eq.${userProfile?.email}`)
+    }
+    const { data } = await q
 
     const rows = data || []
     setBorrows(rows)
     setLoading(false)
 
-    const activeRows = rows.filter(b => !b.returned_at)
+    const activeRows = rows.filter(b => !b.returned_at && b.status === "approved")
     const overdue = activeRows.filter(b => {
       if (!b.due_date) return false
       return getDaysRemaining(b.due_date) <= 0
@@ -217,17 +222,18 @@ export default function Borrow() {
       signed_off_by:    signedOffBy,
       signed_off_email: signedOffEmail,
       notes:            notesParts.join(" — "),
+      status:           "pending",
     }])
 
     if (!error) {
-      createNotification(userProfile?.id, "📦 Asset Borrowed", `"${label}" borrowed successfully`, "info", userProfile?.country)
-      notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} borrowed "${label}"`, "info")
+      createNotification(userProfile?.id, "📦 Borrow Request Submitted", `"${label}" is pending admin approval`, "info", userProfile?.country)
+      notifyAdmins(userProfile?.country, "📦 New Borrow Request", `${borrowerName || userProfile?.name || "A user"} requested "${label}"`, "info")
       getAdminEmails().then(adminEmails => {
         if (adminEmails?.length) {
           sendNewBorrowAdminEmail(adminEmails, borrowerName || userProfile?.name || "A user", label, form.due_date)
         }
       })
-      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, label, "confirmed")
+      if (borrowerEmail) sendBorrowUpdateEmail(borrowerEmail, label, "submitted and is pending approval")
       setBorrowedAssetName(label)
       setShowForm(false)
       setForm({ category: "", quantity: "1", borrowing_for: "myself", customer_name: "", borrower_email: "", notes: "", borrow_date: new Date().toISOString().split("T")[0], needed_by_date: "", due_date: "" })
@@ -236,6 +242,38 @@ export default function Borrow() {
       setTimeout(() => setBorrowSuccess(false), 2500)
     } else {
       setFormError(error.message)
+    }
+  }
+
+  const handleApprove = async (borrow) => {
+    if (borrow.signed_off_email === userProfile?.email) return
+    const label = borrowLabel(borrow)
+    const { error } = await supabase.from("borrow_history").update({ status: "approved" }).eq("id", borrow.id)
+    if (!error) {
+      notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "✅ Borrow Request Approved", `Your borrow request for "${label}" has been approved`, "info")
+      const toEmail = borrow.signed_off_email || borrow.borrower_email
+      if (toEmail) sendBorrowUpdateEmail(toEmail, label, "approved")
+      showToast("Borrow request approved")
+      fetchBorrows()
+    } else {
+      showToast(error.message)
+    }
+  }
+
+  const handleReject = async (borrow, reason) => {
+    if (borrow.signed_off_email === userProfile?.email) return
+    const label = borrowLabel(borrow)
+    const { error } = await supabase.from("borrow_history").update({ status: "rejected", admin_comment: reason }).eq("id", borrow.id)
+    if (!error) {
+      notifyUserByIdentifier(borrow.signed_off_email || borrow.signed_off_by, "❌ Borrow Request Rejected", `Your borrow request for "${label}" was rejected: "${reason}"`, "info")
+      const toEmail = borrow.signed_off_email || borrow.borrower_email
+      if (toEmail) sendBorrowUpdateEmail(toEmail, label, "rejected", reason)
+      setRejectTarget(null)
+      setRejectReason("")
+      showToast("Borrow request rejected")
+      fetchBorrows()
+    } else {
+      showToast(error.message)
     }
   }
 
@@ -386,8 +424,8 @@ export default function Borrow() {
               >
                 <span className="text-5xl">📤</span>
               </motion.div>
-              <h2 className="text-3xl font-bold text-white mb-2">Asset Borrowed!</h2>
-              <p className="text-gray-400">{borrowedAssetName} has been borrowed successfully</p>
+              <h2 className="text-3xl font-bold text-white mb-2">Request Submitted!</h2>
+              <p className="text-gray-400">{borrowedAssetName} is pending admin approval</p>
               <div className="mt-4 w-48 mx-auto h-1 bg-gray-800 rounded-full overflow-hidden">
                 <motion.div
                   initial={{ width: 0 }}
@@ -769,6 +807,57 @@ export default function Borrow() {
 
       <SuccessToast message={toast} />
 
+      {/* Reject Reason Modal */}
+      <AnimatePresence>
+        {rejectTarget && (
+          <motion.div
+            initial={{ opacity: 0 }}
+            animate={{ opacity: 1 }}
+            exit={{ opacity: 0 }}
+            className="fixed inset-0 bg-black/70 backdrop-blur-sm z-50 flex items-center justify-center p-4"
+          >
+            <motion.div
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              transition={{ type: "spring", stiffness: 200 }}
+              className="bg-gray-900 rounded-2xl border border-gray-700 p-6 w-full max-w-sm shadow-2xl"
+            >
+              <div className="text-center mb-4">
+                <div className="text-3xl mb-2">❌</div>
+                <h3 className="text-white font-semibold">Reject Borrow Request</h3>
+                <p className="text-gray-400 text-sm mt-1">{borrowLabel(rejectTarget)}</p>
+              </div>
+              <label className="text-gray-400 text-sm mb-2 block">
+                Reason for Rejection <span className="text-red-400">*</span>
+              </label>
+              <textarea
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                rows={3}
+                placeholder="e.g. Item unavailable during requested dates"
+                className="w-full bg-gray-800 text-white rounded-lg px-3 py-2 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm resize-none"
+              />
+              <div className="flex gap-3 mt-4">
+                <button
+                  onClick={() => { setRejectTarget(null); setRejectReason("") }}
+                  className="flex-1 bg-gray-800 hover:bg-gray-700 text-white py-2.5 rounded-xl text-sm font-medium transition-all"
+                >
+                  Cancel
+                </button>
+                <button
+                  onClick={() => handleReject(rejectTarget, rejectReason.trim())}
+                  disabled={!rejectReason.trim()}
+                  className="flex-1 bg-red-600 hover:bg-red-700 disabled:opacity-40 disabled:cursor-not-allowed text-white py-2.5 rounded-xl text-sm font-medium transition-all"
+                >
+                  Confirm Reject
+                </button>
+              </div>
+            </motion.div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Active Borrows */}
       {(filterBorrowStatus === "all" || filterBorrowStatus === "active" || filterBorrowStatus === "overdue") && (
         <div className="mb-6">
@@ -802,7 +891,17 @@ export default function Borrow() {
                               Extension pending
                             </span>
                           )}
+                          {borrow.status === "pending" && (
+                            <span className="text-xs px-2 py-0.5 rounded-full bg-yellow-500/20 border border-yellow-500/40 text-yellow-400 font-medium">
+                              ⏳ Pending Approval
+                            </span>
+                          )}
                         </div>
+                        {borrow.status === "rejected" && (
+                          <div className="mt-2 rounded-lg px-3 py-2 bg-red-500/10 border border-red-500/30 text-red-400 text-xs">
+                            ❌ Rejected{borrow.admin_comment ? `: "${borrow.admin_comment}"` : "."}
+                          </div>
+                        )}
                         {borrow.assets?.serial_number ? (
                           <p className="text-gray-500 text-xs mt-1">{borrow.assets.serial_number}</p>
                         ) : borrow.needed_by_date ? (
@@ -873,7 +972,7 @@ export default function Borrow() {
                         </AnimatePresence>
                       </div>
 
-                      {(isAdmin || isStandardUser) && borrow.signed_off_email === userProfile?.email && (
+                      {(isAdmin || isStandardUser) && borrow.status === "approved" && borrow.signed_off_email === userProfile?.email && (
                         <div className="flex flex-col gap-2 shrink-0">
                           <motion.button
                             whileHover={{ scale: 1.05 }}
@@ -893,6 +992,27 @@ export default function Borrow() {
                               Extend
                             </motion.button>
                           )}
+                        </div>
+                      )}
+
+                      {isAdmin && borrow.status === "pending" && borrow.signed_off_email !== userProfile?.email && (
+                        <div className="flex flex-col gap-2 shrink-0">
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => handleApprove(borrow)}
+                            className="text-green-400 hover:text-green-300 text-sm px-3 py-1 rounded border border-green-400/30 transition-all"
+                          >
+                            Approve
+                          </motion.button>
+                          <motion.button
+                            whileHover={{ scale: 1.05 }}
+                            whileTap={{ scale: 0.95 }}
+                            onClick={() => { setRejectTarget(borrow); setRejectReason("") }}
+                            className="text-red-400 hover:text-red-300 text-sm px-3 py-1 rounded border border-red-400/30 transition-all"
+                          >
+                            Reject
+                          </motion.button>
                         </div>
                       )}
                     </div>
