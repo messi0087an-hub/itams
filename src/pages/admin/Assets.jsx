@@ -255,6 +255,7 @@ export default function Assets() {
   const statusColor = {
     available: "bg-green-500/20 text-green-400",
     assigned:  "bg-blue-500/20 text-blue-400",
+    borrowed:  "bg-purple-500/20 text-purple-400",
     maintenance: "bg-yellow-500/20 text-yellow-400",
     retired:   "bg-red-500/20 text-red-400",
   }
@@ -437,6 +438,7 @@ export default function Assets() {
           <option value="">All Status</option>
           <option value="available">Unassigned</option>
           <option value="assigned">Assigned</option>
+          <option value="borrowed">Borrowed</option>
           <option value="maintenance">Maintenance</option>
           <option value="retired">Retired</option>
         </select>

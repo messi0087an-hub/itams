@@ -210,15 +210,15 @@ export default function EditAsset() {
             </div>
           ))}
 
-          {/* Assigned To — searchable user dropdown */}
+          {/* Assigned To / Borrowed By — searchable user dropdown */}
           <div className="relative" ref={userDropdownRef}>
-            <label className="text-gray-400 text-sm mb-2 block">Assigned To</label>
+            <label className="text-gray-400 text-sm mb-2 block">{form.status === "borrowed" ? "Borrowed By" : "Assigned To"}</label>
             <input
               type="text"
               value={showUserDropdown ? userSearch : form.assigned_user}
               onChange={(e) => { setUserSearch(e.target.value); setShowUserDropdown(true) }}
               onFocus={() => { setUserSearch(""); setShowUserDropdown(true) }}
-              placeholder="Search user..."
+              placeholder={form.status === "borrowed" ? "Search borrower..." : "Search user..."}
               className="w-full bg-gray-800 text-white rounded-lg px-4 py-3 border border-gray-700 focus:border-blue-500 focus:outline-none text-sm"
             />
             {form.assigned_user && !showUserDropdown && (
@@ -271,6 +271,7 @@ export default function EditAsset() {
             >
               <option value="available">Unassigned</option>
               <option value="assigned">Assigned</option>
+              <option value="borrowed">Borrowed</option>
               <option value="maintenance">Maintenance</option>
               <option value="retired">Retired</option>
             </select>

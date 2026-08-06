@@ -1,6 +1,7 @@
 const STATUS_LABELS = {
   available: "Unassigned",
   assigned: "Assigned",
+  borrowed: "Borrowed",
   maintenance: "Maintenance",
   retired: "Retired",
 }

@@ -86,6 +86,8 @@ export default function ManageUsers() {
   const [detailUser, setDetailUser] = useState(null)
   const [detailAssets, setDetailAssets] = useState([])
   const [detailLoading, setDetailLoading] = useState(false)
+  const [detailBorrows, setDetailBorrows] = useState([])
+  const [detailBorrowsLoading, setDetailBorrowsLoading] = useState(false)
   const [userSearch, setUserSearch] = useState("")
   const fileInputRef = useRef()
 
@@ -230,6 +232,17 @@ const emailMap = {}
       .ilike("assigned_user", u.name || u.email)
     setDetailAssets(data || [])
     setDetailLoading(false)
+
+    setDetailBorrows([])
+    setDetailBorrowsLoading(true)
+    const { data: borrows } = await supabase
+      .from("borrow_history")
+      .select("id, category, quantity, borrowed_at, due_date")
+      .or(`borrower_name.eq.${u.name},borrower_email.eq.${u.email}`)
+      .is("returned_at", null)
+      .is("rejected_at", null)
+    setDetailBorrows(borrows || [])
+    setDetailBorrowsLoading(false)
   }
 
   const handleToggle2FA = async (u) => {
@@ -1102,6 +1115,32 @@ const emailMap = {}
                           a.status === "retired" ? "bg-red-500/20 text-red-400" :
                           "bg-gray-500/20 text-gray-400"
                         }`}>{statusLabel(a.status)}</span>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">
+                  Borrowed Assets ({detailBorrowsLoading ? "…" : detailBorrows.length})
+                </p>
+                {detailBorrowsLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[0,1].map(i => <div key={i} className="h-10 bg-gray-800 rounded-lg" />)}
+                  </div>
+                ) : detailBorrows.length === 0 ? (
+                  <p className="text-gray-600 text-sm text-center py-4">No active borrows for this user.</p>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {detailBorrows.map(b => (
+                      <div key={b.id} className="bg-gray-800/60 rounded-lg px-3 py-2">
+                        <p className="text-white text-sm font-medium">{b.quantity || 1}x {b.category || "—"}</p>
+                        <p className="text-gray-500 text-xs">
+                          Borrowed: {b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString("en-GB") : "—"}
+                          {" · "}
+                          Due: {b.due_date ? new Date(b.due_date).toLocaleDateString("en-GB") : "—"}
+                        </p>
                       </div>
                     ))}
                   </div>
