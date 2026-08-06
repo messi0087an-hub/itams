@@ -100,7 +100,7 @@ export default function EditAsset() {
     if (form.category) cleanForm.category = form.category
     if (form.brand_model) cleanForm.brand_model = form.brand_model
     if (form.location) cleanForm.location = form.location
-    if (form.assigned_user) cleanForm.assigned_user = form.assigned_user
+    cleanForm.assigned_user = form.assigned_user.trim() || null
     if (form.department) cleanForm.department = form.department
     if (form.purchase_date) cleanForm.purchase_date = form.purchase_date
     if (form.purchase_price) cleanForm.purchase_price = parseFloat(form.purchase_price)
