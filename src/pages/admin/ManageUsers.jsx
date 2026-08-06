@@ -88,6 +88,8 @@ export default function ManageUsers() {
   const [detailLoading, setDetailLoading] = useState(false)
   const [detailBorrows, setDetailBorrows] = useState([])
   const [detailBorrowsLoading, setDetailBorrowsLoading] = useState(false)
+  const [detailBorrowHistory, setDetailBorrowHistory] = useState([])
+  const [detailBorrowHistoryLoading, setDetailBorrowHistoryLoading] = useState(false)
   const [userSearch, setUserSearch] = useState("")
   const fileInputRef = useRef()
 
@@ -244,6 +246,16 @@ const emailMap = {}
       .is("rejected_at", null)
     setDetailBorrows(borrows || [])
     setDetailBorrowsLoading(false)
+
+    setDetailBorrowHistory([])
+    setDetailBorrowHistoryLoading(true)
+    const { data: history } = await supabase
+      .from("borrow_history")
+      .select("id, category, quantity, borrowed_at, returned_at, rejected_at")
+      .or(`borrower_name.eq.${u.name},borrower_email.eq.${u.email}`)
+      .or("returned_at.not.is.null,rejected_at.not.is.null")
+    setDetailBorrowHistory(history || [])
+    setDetailBorrowHistoryLoading(false)
   }
 
   const handleToggle2FA = async (u) => {
@@ -1124,7 +1136,7 @@ const emailMap = {}
 
               <div className="mt-5">
                 <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">
-                  Borrowed Assets ({detailBorrowsLoading ? "…" : detailBorrows.length})
+                  Currently Borrowing ({detailBorrowsLoading ? "…" : detailBorrows.length})
                 </p>
                 {detailBorrowsLoading ? (
                   <div className="animate-pulse space-y-2">
@@ -1141,6 +1153,34 @@ const emailMap = {}
                           Borrowed: {b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString("en-GB") : "—"}
                           {" · "}
                           Due: {b.due_date ? new Date(b.due_date).toLocaleDateString("en-GB") : "—"}
+                        </p>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+
+              <div className="mt-5">
+                <p className="text-gray-400 text-xs font-semibold uppercase tracking-wide mb-3">
+                  Borrow History ({detailBorrowHistoryLoading ? "…" : detailBorrowHistory.length})
+                </p>
+                {detailBorrowHistoryLoading ? (
+                  <div className="animate-pulse space-y-2">
+                    {[0,1].map(i => <div key={i} className="h-10 bg-gray-800 rounded-lg" />)}
+                  </div>
+                ) : detailBorrowHistory.length === 0 ? (
+                  <p className="text-gray-600 text-sm text-center py-4">No borrow history for this user.</p>
+                ) : (
+                  <div className="space-y-2 max-h-52 overflow-y-auto pr-1">
+                    {detailBorrowHistory.map(b => (
+                      <div key={b.id} className="bg-gray-800/60 rounded-lg px-3 py-2">
+                        <p className="text-white text-sm font-medium">{b.quantity || 1}x {b.category || "—"}</p>
+                        <p className="text-gray-500 text-xs">
+                          Borrowed: {b.borrowed_at ? new Date(b.borrowed_at).toLocaleDateString("en-GB") : "—"}
+                          {" · "}
+                          {b.rejected_at
+                            ? `Rejected: ${new Date(b.rejected_at).toLocaleDateString("en-GB")}`
+                            : `Returned: ${b.returned_at ? new Date(b.returned_at).toLocaleDateString("en-GB") : "—"}`}
                         </p>
                       </div>
                     ))}
